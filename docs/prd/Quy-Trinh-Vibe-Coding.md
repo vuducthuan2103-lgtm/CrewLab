@@ -240,3 +240,186 @@ Việc này làm thay đổi gì trong specs/, agent nào, hoặc file AGENTS.md
 - [ ] Không có thay đổi nằm ngoài phạm vi spec (nếu có, hỏi lại trước khi merge)
 - [ ] Không phá vỡ phần nào đang chạy tốt trước đó (hỏi Antigravity chạy lại các test liên quan)
 ```
+
+---
+
+## Phụ lục C — Cẩm nang Git toàn tập cho Non-Tech / Newbie
+
+> **Dành riêng cho team CrewLab:** Bạn không cần phải nhớ thuộc lòng tất cả các lệnh! Hãy dùng phần này như một cuốn từ điển tra cứu khi cần, hoặc copy câu lệnh ra lệnh thẳng cho AI (Antigravity) làm hộ.
+
+---
+
+### C1. Từ điển Git siêu bình dân (Hiểu Git trong 2 phút)
+
+Để dễ hình dung, hãy tưởng tượng Git giống như **Hệ thống Quản lý File + Cỗ máy thời gian**:
+
+| Thuật ngữ Git | Giải thích bình dân | Ví dụ minh họa |
+|---|---|---|
+| **Repository (Repo)** | Thư mục dự án được gắn "Cỗ máy thời gian". | Thư mục `CrewLab` trên máy bạn. |
+| **Local Repo** | Kho lưu trữ nằm trên máy tính cá nhân của bạn. | Code ở ổ `D:\CrewLab`. |
+| **Remote Repo (`origin`)** | Kho lưu trữ nằm trên mây (GitHub). | Web `github.com/vuducthuan2103-lgtm/CrewLab`. |
+| **Commit** | Một "Nút Save / Điểm checkpoint". Lưu lại toàn bộ trạng thái code tại một thời điểm kèm lời nhắn giải thích. | *"Lưu mốc: Đã xong giao diện đăng nhập"*. |
+| **Branch (Nhánh)** | Một "Bản sao song song". Giúp bạn tha hồ sửa/thử nghiệm trên nhánh riêng mà không sợ làm hỏng nhánh chính đang chạy ngon. | Nhánh `main` (nhánh chính) vs Nhánh `feature/0001-login` (nhánh làm thử). |
+| **Stage (`git add`)** | "Chọn các file bỏ vào giỏ chuẩn bị lưu checkpoint". | Chọn file `index.html` và `style.css` chuẩn bị commit. |
+| **Push** | "Đẩy / Tải lên" các checkpoint từ máy bạn lên kho GitHub trên mây. | Đưa code mới làm xong lên GitHub để đồng đội thấy. |
+| **Pull** | "Kéo / Tải về" code mới nhất từ GitHub về máy bạn. | Lấy code mà đồng đội mới đẩy lên về máy mình. |
+| **Fetch** | "Kiểm tra xem trên mây có gì mới không" nhưng chưa tải dán đè vào code hiện tại. | Nhìn xem GitHub có thay đổi gì không trước khi pull. |
+| **Merge** | "Gộp / Trộn" code từ nhánh tính năng (feature) vào nhánh chính (`main`). | Đưa tính năng đã làm xong vào bản chính của dự án. |
+| **Conflict (Xung đột)** | Khi cả 2 người cùng sửa chung 1 dòng trong 1 file, Git không biết chọn bản nào nên nhờ bạn bấm nút chọn. | Bạn sửa dòng 10 thành "Đỏ", đồng đội sửa dòng 10 thành "Xanh". |
+
+---
+
+### C2. Bảng tra cứu nhanh lệnh Git (Cheatsheet)
+
+#### 1. Nhóm kiểm tra & theo dõi (Xem trạng thái)
+* `git status` — Kiểm tra xem có file nào mới sửa, mới tạo hoặc chưa lưu không. *(Lệnh dùng nhiều nhất!)*
+* `git branch` — Xem bạn đang ở nhánh nào.
+* `git log --oneline -n 5` — Xem lại 5 mốc commit gần nhất (lịch sử làm việc).
+* `git diff` — Xem chi tiết dòng nào vừa bị sửa so với mốc lưu cũ.
+
+#### 2. Nhóm làm việc hàng ngày (Daily Flow)
+* `git pull origin main` — Kéo code mới nhất từ nhánh `main` trên GitHub về máy.
+* `git add .` — Chọn TẤT CẢ các file vừa sửa để chuẩn bị lưu.
+* `git commit -m "feat: mô tả ngắn gọn việc vừa làm"` — Tạo mốc lưu (checkpoint).
+* `git push origin <tên-nhánh>` — Đẩy mốc lưu từ máy lên GitHub.
+
+#### 3. Nhóm quản lý Nhánh (Branching)
+* `git checkout -b feature/000X-ten-task` — Tạo nhánh mới VÀ chuyển sang nhánh đó luôn.
+* `git checkout main` — Chuyển về lại nhánh chính `main`.
+* `git branch -d feature/000X-ten-task` — Xóa nhánh sau khi đã gộp xong vào `main`.
+
+#### 4. Nhóm cứu nguy & Khôi phục (Undo / Reset)
+* `git restore .` — **Cứu nguy 1:** Hủy bỏ toàn bộ thay đổi chưa commit, đưa code về lại mốc lưu gần nhất.
+* `git reset --hard origin/main` — **Cứu nguy 2:** Bỏ hết code lỗi ở máy local, ép máy bạn giống hệt 100% trên GitHub.
+* `git stash` — **Lưu tạm:** Giấu tạm code đang làm dở đi để chuyển nhánh khác.
+* `git stash pop` — Lấy lại code đang làm dở vừa giấu ra để làm tiếp.
+
+---
+
+### C3. 8 Tình huống thực tế & Hướng dẫn từng bước
+
+#### 📍 Tình huống 1: Bắt đầu ngày làm việc mới (Sync code mới nhất)
+* **Khi nào dùng:** Đầu mỗi buổi làm việc, trước khi gõ câu prompt nào cho AI.
+* **Các bước:**
+  1. Chuyển về nhánh `main`:
+     ```bash
+     git checkout main
+     ```
+  2. Kéo code mới nhất từ GitHub về:
+     ```bash
+     git pull origin main
+     ```
+
+---
+
+#### 📍 Tình huống 2: Bắt đầu làm một task mới (Tạo nhánh riêng)
+* **Quy tắc vàng:** Không bao giờ code thẳng trên `main`. Mỗi task = 1 nhánh.
+* **Các bước:**
+  1. Tạo nhánh mới từ `main`:
+     ```bash
+     git checkout -b feature/0001-postgres-schema
+     ```
+  2. Bắt đầu cho Antigravity code trên nhánh này.
+
+---
+
+#### 📍 Tình huống 3: AI code xong 1 tính năng — Lưu & Đẩy lên GitHub
+* **Khi nào dùng:** Khi AI thông báo đã hoàn thành 1 task nhỏ trong `tasks.md`.
+* **Các bước:**
+  1. Kiểm tra các file đã sửa:
+     ```bash
+     git status
+     ```
+  2. Chọn tất cả file chuẩn bị lưu:
+     ```bash
+     git add .
+     ```
+  3. Tạo mốc commit (theo quy ước Conventional Commits):
+     ```bash
+     git commit -m "feat: bổ sung bảng agent_memory vào postgres schema"
+     ```
+  4. Đẩy lên GitHub:
+     ```bash
+     git push origin feature/0001-postgres-schema
+     ```
+
+---
+
+#### 📍 Tình huống 4: AI sửa bậy / code bị hỏng — Muốn quay lại lúc chưa sửa
+* **Khi nào dùng:** AI thử sửa lỗi nhưng làm hỏng thêm, bạn muốn "Cancel" hết các sửa đổi dở dang để làm lại từ mốc sạch.
+* **Các bước:**
+  * **Cách A (Chưa commit gì):** Xóa sạch mọi sửa đổi vừa tạo ra:
+    ```bash
+    git restore .
+    ```
+  * **Cách B (Đã lỡ commit lỗi trên máy):** Đưa code quay về hệt như trên GitHub:
+    ```bash
+    git fetch origin
+    git reset --hard origin/main
+    ```
+
+---
+
+#### 📍 Tình huống 5: Đang làm dở task A thì có việc gấp phải sang làm task B
+* **Khi nào dùng:** Bạn đang code dở nhánh A, chưa muốn commit nhưng phải gấp rút chuyển sang nhánh B để sửa lỗi khẩn cấp.
+* **Các bước:**
+  1. Cất tạm code dở dang vào "ngăn kéo":
+     ```bash
+     git stash
+     ```
+  2. Chuyển sang nhánh khác làm việc thoải mái.
+  3. Khi quay lại nhánh A, mở "ngăn kéo" lấy code ra làm tiếp:
+     ```bash
+     git stash pop
+     ```
+
+---
+
+#### 📍 Tình huống 6: Gặp xung đột code (Merge Conflict) — Đừng hoảng sợ!
+* **Dấu hiệu nhận biết:** Khi pull hoặc merge, Git hiển thị thông báo `CONFLICT (content): Merge conflict in <tên-file>`.
+* **Trong file code sẽ xuất hiện các ký hiệu lạ:**
+  ```text
+  <<<<<<< HEAD (Code hiện tại của bạn)
+  trang_thai = "dang_xu_ly"
+  =======
+  trang_thai = "pending"
+  >>>>>>> origin/main (Code của đồng đội mới push lên)
+  ```
+* **Các bước xử lý (Cực dễ):**
+  1. Mở file bị conflict ra (VS Code / Antigravity sẽ tô màu highlight sẵn 2 đoạn).
+  2. Chọn 1 trong 3 nút hiển thị sẵn trên màn hình:
+     - `Accept Current Change` (Giữ code của bạn).
+     - `Accept Incoming Change` (Lấy code của đồng đội).
+     - `Accept Both Changes` (Giữ cả hai).
+  3. Lưu file lại, sau đó gõ 3 lệnh để hoàn tất:
+     ```bash
+     git add .
+     git commit -m "fix: giai quyet conflict"
+     git push
+     ```
+
+---
+
+#### 📍 Tình huống 7: Muốn đưa code hoàn thành vào nhánh chính `main` (Pull Request)
+* **Các bước:**
+  1. Đẩy nhánh feature lên GitHub (`git push origin feature/000X-...`).
+  2. Mở trình duyệt truy cập repo GitHub (`https://github.com/vuducthuan2103-lgtm/CrewLab`).
+  3. Bạn sẽ thấy nút vàng **"Compare & pull request"** xuất hiện trên web -> Bấm vào đó.
+  4. Ghi mô tả ngắn gọn và bấm **"Create pull request"**.
+  5. Đồng đội kiểm tra theo **Phụ lục B**, nếu OK thì bấm **"Merge pull request"** -> **"Confirm merge"**.
+  6. Xóa nhánh feature trên web sau khi đã merge xong.
+
+---
+
+#### 📍 Tình huống 8: Nhờ AI Antigravity làm Git hộ (Mẹo cho Non-tech)
+Vì bạn dùng Antigravity (Google DeepMind Agentic AI), bạn **không nhất thiết phải gõ từng lệnh Git thủ công**. Bạn có thể ra lệnh trực tiếp bằng tiếng Việt tự nhiên:
+
+* 🗣️ *"Antigravity ơi, kiểm tra xem code có thay đổi gì chưa commit không?"* -> AI sẽ tự chạy `git status`.
+* 🗣️ *"Tạo cho tao nhánh mới tên là feature/0002-content-pillar từ main."* -> AI tự chạy `git checkout main`, `git pull`, `git checkout -b...`.
+* 🗣️ *"Commit toàn bộ thay đổi này với tin nhắn 'feat: hoàn thiện spec 0002' rồi push lên GitHub nhé."* -> AI tự chạy `git add`, `git commit`, `git push`.
+* 🗣️ *"Hủy hết mấy thay đổi dở dang vừa làm đi, đưa code về mốc lưu cũ."* -> AI tự chạy `git restore .`.
+
+> [!TIP]
+> **Quy tắc an toàn khi nhờ AI dùng Git:**
+> Trước khi để AI chạy lệnh `commit` hoặc `push`, luôn bảo AI: *"Cho tao xem danh sách file sắp commit (`git status`) trước nhé!"* để tránh lỡ tay push nhầm file rác hoặc thông tin bảo mật (file `.env`, passwords, v.v.).
+
