@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, Text, ForeignKey, DateTime
+from sqlalchemy import Column, String, Boolean, Text, ForeignKey, DateTime, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from ..core.db import Base, utcnow
@@ -13,6 +13,9 @@ class Client(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     industry = Column(String, nullable=True)
     timezone = Column(String, default="Asia/Ho_Chi_Minh")
+    schedule_frequency = Column(String, default="weekly", nullable=False)
+    schedule_day = Column(Integer, default=1, nullable=False) # 1=Monday, 7=Sunday
+    schedule_time = Column(String, default="08:00", nullable=False)
     platforms = Column(JSONB, nullable=True)
     
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
