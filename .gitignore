@@ -1,1 +1,23 @@
-node_modules
+# Node / Next.js
+node_modules/
+.next/
+dist/
+
+# Python / Virtual Environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Environment variables
+.env
+.env.local
+
+# IDEs and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
