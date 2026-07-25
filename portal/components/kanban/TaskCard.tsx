@@ -1,0 +1,148 @@
+'use client';
+
+import React, { useState } from 'react';
+import { TaskCard as TaskCardType, ContentItem, FSM_STATE_LABELS } from '@/lib/types';
+import { usePortal } from '@/lib/store';
+import ContentApprovalModal from '@/components/approval/ContentApprovalModal';
+import {
+  Clock,
+  RefreshCw,
+  AlertCircle,
+  Bot,
+  User,
+  ChevronRight,
+} from 'lucide-react';
+
+interface TaskCardProps {
+  task: TaskCardType;
+}
+
+const AGENT_COLORS: Record<string, string> = {
+  A01: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+  B02: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+  B03: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  D01: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  D02: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
+  E01: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+  HUMAN: 'bg-[#D4FF00]/15 text-[#D4FF00] border-[#D4FF00]/30',
+};
+
+const AGENT_ICONS: Record<string, string> = {
+  A01: '🧠', B02: '🧭', B03: '📅', D01: '✍️', D02: '🎨', E01: '✅', HUMAN: '👤',
+};
+
+function getSLALabel(deadline: Date | null): { text: string; urgent: boolean } | null {
+  if (!deadline) return null;
+  const now = new Date();
+  const diff = deadline.getTime() - now.getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 0) return { text: 'Quá hạn', urgent: true };
+  if (hours < 24) return { text: `Còn ${hours}h`, urgent: true };
+  const days = Math.floor(hours / 24);
+  return { text: `Còn ${days}d`, urgent: false };
+}
+
+export default function TaskCardComponent({ task }: TaskCardProps) {
+  const { contentItems } = usePortal();
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const linkedItem = task.linkedContentItemId
+    ? contentItems.find((ci) => ci.id === task.linkedContentItemId) || null
+    : null;
+
+  const isHumanTask = task.assigneeType === 'human';
+  const isClickable = isHumanTask && task.column === 'review';
+  const sla = getSLALabel(task.slaDeadline);
+  const agentColor = AGENT_COLORS[task.assigneeCode] || 'bg-zinc-500/20 text-zinc-400';
+
+  return (
+    <>
+      <div
+        id={`task-card-${task.id}`}
+        onClick={() => isClickable && setModalOpen(true)}
+        title={!isHumanTask ? 'Task của AI tự động cập nhật, không kéo được' : undefined}
+        className={`
+          group p-3 rounded-xl border bg-background transition-all duration-150
+          ${isClickable
+            ? 'border-[#D4FF00]/30 hover:border-[#D4FF00]/70 hover:shadow-[0_0_14px_rgba(212,255,0,0.15)] cursor-pointer hover:-translate-y-0.5'
+            : 'border-border hover:border-border/80 cursor-default'
+          }
+          ${task.hasError ? 'border-red-500/40 bg-red-500/5' : ''}
+        `}
+      >
+        {/* Top row: assignee avatar + badges */}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border ${agentColor}`}>
+            <span>{AGENT_ICONS[task.assigneeCode]}</span>
+            <span>{task.assigneeCode}</span>
+          </div>
+          <div className="flex items-center gap-1 flex-wrap justify-end">
+            {task.retryCount > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full px-1.5 py-0.5">
+                <RefreshCw size={9} /> Lần {task.retryCount + 1}
+              </span>
+            )}
+            {task.hasError && (
+              <span className="flex items-center gap-0.5 text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 rounded-full px-1.5 py-0.5">
+                <AlertCircle size={9} /> Lỗi
+              </span>
+            )}
+            {sla && (
+              <span className={`text-[10px] rounded-full px-1.5 py-0.5 font-medium border ${
+                sla.urgent
+                  ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                  : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+              }`}>
+                <Clock size={9} className="inline mr-0.5" />
+                {sla.text}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Title */}
+        <p className={`text-xs font-medium leading-snug mb-2 ${isHumanTask ? 'text-foreground' : 'text-muted-foreground'}`}>
+          {task.title}
+        </p>
+
+        {/* Linked content item */}
+        {linkedItem && (
+          <div className="flex items-center gap-1.5 mt-1.5">
+            {linkedItem.imageUrl ? (
+              <img src={linkedItem.imageUrl} alt="" className="w-7 h-7 rounded-md object-cover flex-shrink-0 border border-border" />
+            ) : (
+              <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                <span className="text-[10px]">📄</span>
+              </div>
+            )}
+            <span className="text-[10px] text-muted-foreground truncate">{linkedItem.title}</span>
+            {isClickable && <ChevronRight size={10} className="text-[#D4FF00] ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />}
+          </div>
+        )}
+
+        {/* Click CTA for human tasks */}
+        {isClickable && (
+          <div className="mt-2.5 pt-2 border-t border-[#D4FF00]/20 flex items-center justify-between">
+            <div className="flex items-center gap-1 text-[10px] text-[#D4FF00] font-semibold">
+              <User size={10} /> Chờ bạn xử lý
+            </div>
+            <div className="text-[10px] text-[#D4FF00]/70">Bấm để xem &amp; duyệt →</div>
+          </div>
+        )}
+
+        {/* Bot indicator for AI tasks */}
+        {!isHumanTask && task.column === 'in_progress' && (
+          <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Bot size={10} className="animate-pulse" />
+            <span>AI đang xử lý…</span>
+          </div>
+        )}
+      </div>
+
+      {/* Content Approval Modal */}
+      {modalOpen && linkedItem && (
+        <ContentApprovalModal contentItem={linkedItem} onClose={() => setModalOpen(false)} />
+      )}
+    </>
+  );
+}

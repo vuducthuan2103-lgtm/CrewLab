@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Mode Theme (Zinc 50 / White) */
+    --background: 0 0% 98%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    /* CrewLab Electric Lime Accent */
+    --primary: 72 100% 45%;
+    --primary-foreground: 240 10% 3.9%;
+
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 72 100% 45%;
+    --accent-foreground: 240 5.9% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 72 100% 45%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Dark Obsidian Theme (#09090B) */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 6% 8%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 6% 8%;
+    --popover-foreground: 0 0% 98%;
+
+    /* CrewLab Electric Lime: #D4FF00 -> HSL 72 100% 50% */
+    --primary: 72 100% 50%;
+    --primary-foreground: 240 10% 3.9%;
+
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --accent: 72 100% 50%;
+    --accent-foreground: 240 10% 3.9%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 72 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
+  }
+}
+
+/* Custom glow classes */
+.btn-lime-glow {
+  background-color: #D4FF00;
+  color: #09090B;
+  box-shadow: 0 0 20px rgba(212, 255, 0, 0.35);
+  transition: all 0.2s ease-in-out;
+}
+.btn-lime-glow:hover {
+  background-color: #E5FF55;
+  box-shadow: 0 0 30px rgba(212, 255, 0, 0.55);
+  transform: translateY(-1px);
+}
+
+.border-lime-glow {
+  border-color: #D4FF00;
+  box-shadow: 0 0 15px rgba(212, 255, 0, 0.2);
+}

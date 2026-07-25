@@ -1,0 +1,6 @@
+{
+  "/content-hub/page": "app/content-hub/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/settings/page": "app/settings/page.js"
+}

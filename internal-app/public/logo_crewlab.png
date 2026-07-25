@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#09090B"/>
+      <stop offset="50%" stop-color="#141417"/>
+      <stop offset="100%" stop-color="#09090B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#D4FF00" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#D4FF00" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bowl" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#27272A"/>
+      <stop offset="100%" stop-color="#09090B"/>
+    </linearGradient>
+    <linearGradient id="lime" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D4FF00"/>
+      <stop offset="100%" stop-color="#A3E635"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" fill="url(#bg)"/>
+  <circle cx="400" cy="400" r="320" fill="url(#glow)"/>
+  
+  <g stroke="#27272A" stroke-width="1" opacity="0.4">
+    <line x1="100" y1="0" x2="100" y2="800"/>
+    <line x1="200" y1="0" x2="200" y2="800"/>
+    <line x1="300" y1="0" x2="300" y2="800"/>
+    <line x1="400" y1="0" x2="400" y2="800"/>
+    <line x1="500" y1="0" x2="500" y2="800"/>
+    <line x1="600" y1="0" x2="600" y2="800"/>
+    <line x1="700" y1="0" x2="700" y2="800"/>
+    <line x1="0" y1="100" x2="800" y2="100"/>
+    <line x1="0" y1="200" x2="800" y2="200"/>
+    <line x1="0" y1="300" x2="800" y2="300"/>
+    <line x1="0" y1="400" x2="800" y2="400"/>
+    <line x1="0" y1="500" x2="800" y2="500"/>
+    <line x1="0" y1="600" x2="800" y2="600"/>
+    <line x1="0" y1="700" x2="800" y2="700"/>
+  </g>
+
+  <g transform="rotate(-25 400 350)">
+    <rect x="220" y="240" width="360" height="14" rx="7" fill="#E4E4E7" opacity="0.9"/>
+    <rect x="230" y="270" width="350" height="14" rx="7" fill="#D4FF00" opacity="0.95"/>
+  </g>
+
+  <ellipse cx="400" cy="480" rx="260" ry="140" fill="url(#bowl)" stroke="#52525B" stroke-width="6"/>
+  <ellipse cx="400" cy="470" rx="240" ry="125" fill="#18181B" stroke="#D4FF00" stroke-width="4" stroke-opacity="0.7"/>
+  
+  <ellipse cx="400" cy="475" rx="220" ry="110" fill="#713F12" opacity="0.85"/>
+  <ellipse cx="400" cy="475" rx="205" ry="100" fill="#854D0E" opacity="0.9"/>
+
+  <path d="M 260 470 Q 330 420 400 480 T 540 470" fill="none" stroke="#FEF08A" stroke-width="12" stroke-linecap="round"/>
+  <path d="M 280 500 Q 350 450 420 510 T 520 490" fill="none" stroke="#FEF08A" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 300 450 Q 370 510 440 450 T 500 480" fill="none" stroke="#FEF08A" stroke-width="14" stroke-linecap="round"/>
+
+  <ellipse cx="340" cy="480" rx="50" ry="30" transform="rotate(-15 340 480)" fill="#7F1D1D" stroke="#991B1B" stroke-width="3"/>
+  <ellipse cx="450" cy="460" rx="55" ry="35" transform="rotate(20 450 460)" fill="#991B1B" stroke="#B91C1C" stroke-width="3"/>
+
+  <circle cx="380" cy="450" r="14" fill="#22C55E"/>
+  <circle cx="410" cy="490" r="12" fill="#16A34A"/>
+  <circle cx="330" cy="510" r="10" fill="#4ADE80"/>
+  <circle cx="480" cy="500" r="15" fill="#15803D"/>
+  <circle cx="440" cy="520" r="8" fill="#22C55E"/>
+  <circle cx="360" cy="470" r="11" fill="#86EFAC"/>
+
+  <ellipse cx="390" cy="510" rx="12" ry="7" transform="rotate(35 390 510)" fill="#DC2626" stroke="#FEF08A" stroke-width="2"/>
+  <ellipse cx="430" cy="470" rx="10" ry="6" transform="rotate(-40 430 470)" fill="#EF4444" stroke="#FEF08A" stroke-width="2"/>
+
+  <path d="M 320 380 Q 310 320 340 260" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="0.25"/>
+  <path d="M 400 370 Q 420 300 390 230" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.3"/>
+  <path d="M 470 380 Q 460 320 490 270" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="0.2"/>
+
+  <rect x="250" y="660" width="300" height="60" rx="30" fill="#09090B" stroke="#D4FF00" stroke-width="3"/>
+  <text x="400" y="698" font-family="sans-serif" font-size="22" font-weight="bold" fill="#D4FF00" text-anchor="middle" letter-spacing="2">D02 • IMAGE AI</text>
+</svg>
