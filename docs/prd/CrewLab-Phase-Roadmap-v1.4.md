@@ -1,6 +1,6 @@
 # CrewLab — Phase Roadmap Toàn Dự Án
 
-**v1.3** | 19/07/2026 (cập nhật) | Đọc cùng: [PRD-Master-v3.2.md](file:///d:/CrewLab/docs/prd/PRD-Master-v3.2.md) (full vision), [MVP-Scope-v3.4.md](file:///d:/CrewLab/docs/prd/MVP-Scope-v3.4.md) (điểm khởi đầu thật + trình tự build Phase 1)
+**v1.4** | 25/07/2026 (cập nhật) | Đọc cùng: [PRD-CrewLab.md](file:///d:/CrewLab/docs/prd/PRD-CrewLab.md) (full vision), [MVP-Scope-v3.5.md](file:///d:/CrewLab/docs/prd/CrewLab-MVP-Scope-v3.5.md) (điểm khởi đầu thật + trình tự build Phase 1)
 
 **Changelog v1 → v1.1:** (1) Bổ sung số liệu đề xuất cho các ô \[X] ở Tiêu chí Pass Phase 2 — đánh dấu 🔶 vì cần Trường xác nhận, chưa phải số chốt cuối. (2) Dời "Dead Letter Queue thật" từ Phase 6 → Phase 3 (lý do: automation nền không người canh xuất hiện từ Phase 3, không phải Phase 6). (3) Thêm mốc bắt đầu nộp Meta App Review song song từ Phase 2. (4) Thêm công thức định lượng cho nhánh rẽ Phase 2→Phase 6. Không có thay đổi cấu trúc phase nào khác.
 
@@ -8,15 +8,17 @@
 
 **Changelog v1.2 → v1.3:** (1) Bỏ tham chiếu "CrewLab-Sprint-Plan-v4" ở Phase 1 — `MVP-Scope.md` v3.4 đã bỏ chia sprint (xem MVP-Scope §6), team quản lý theo trình tự build phụ thuộc, không theo sprint. (2) Thêm ghi chú minh bạch đăng tay ở Phase 1 — xác nhận Bardinh Coffee là quán nhà Trường nên "No manual fallback rule" của PRD không áp dụng ở giai đoạn này, kèm mốc cần áp dụng lại nghiêm túc (Phase 6, khi có khách trả phí thật). (3) Thêm tiêu chí định lượng còn để trống số cho Tiêu chí Pass Phase 1 (chất lượng output) và Phase 6 (chi phí biên/client) — trước đây chỉ ghi định tính ("đủ dùng thật", "thấp"), giờ có khung số cụ thể để team tự điền, tránh rubber-stamp hoặc mơ hồ không ai định nghĩa được khi cần dùng làm gate thật.
 
-**Cách đọc file này:** Đây là bức tranh toàn cảnh — MVP (6 agent) chỉ là Phase 1. PRD gốc (full vision) có đủ 12 agent + auto-publish + analytics, nhưng tụi tao chủ động đi từng bước, validate xong mới build tiếp bước sau. File này là **nguồn canonical cho câu hỏi "phase nào build gì"** — PRD v3.2 §8 đã cập nhật để trỏ ngược về đây, không còn mâu thuẫn kiểu "Phase 1 phải đủ 12 agent" như PRD v3.1 cũ. Mỗi phase dưới đây trả lời 4 câu: **Xây gì / Cải thiện gì / Vận hành gì / Tiêu chí Pass**.
+**Changelog v1.3 → v1.4 (đồng bộ MVP-Scope v3.5 + PRD-CrewLab v1.2):** (1) Cập nhật tham chiếu file: `PRD-Master-v3.2.md` → `PRD-CrewLab.md` (PRD mới gộp lại), `MVP-Scope-v3.4.md` → `MVP-Scope-v3.5.md`. (2) Phase 1 "Xây" — cập nhật mô tả Client Portal từ sơ sài ("ẩn điểm E01") thành chi tiết đồng bộ với MVP-Scope v3.5 §2a–2k: Kanban Dashboard (3 swimlane), Content Hub (3 tab), Content Approval (Gate 2), Asset Request, Settings (4 tab), Notification Center, nút "Đánh dấu đã đăng", placeholder pages (Báo cáo, Campaign tab). (3) Ghi rõ bỏ Pixel Office / virtual office khỏi Phase 1 (không build). (4) Không thay đổi cấu trúc phase, Tiêu chí Pass, hay scope của Phase 2–7.
+
+**Cách đọc file này:** Đây là bức tranh toàn cảnh — MVP (6 agent) chỉ là Phase 1. PRD gốc (full vision) có đủ 12 agent + auto-publish + analytics, nhưng tụi tao chủ động đi từng bước, validate xong mới build tiếp bước sau. File này là **nguồn canonical cho câu hỏi "phase nào build gì"** — PRD-CrewLab §8 đã cập nhật để trỏ ngược về đây, không còn mâu thuẫn kiểu "Phase 1 phải đủ 12 agent" như PRD cũ. Mỗi phase dưới đây trả lời 4 câu: **Xây gì / Cải thiện gì / Vận hành gì / Tiêu chí Pass**.
 
 \---
 
 ## PHASE 1 — MVP Build \& Pilot Rút Gọn
 
-*(Trình tự build xem `MVP-Scope.md` §6 — không chia sprint, xem changelog v1.3)*
+*(Trình tự build xem `MVP-Scope-v3.5.md` §6 — không chia sprint, xem changelog v1.3)*
 
-**Xây:** State Architecture rút gọn (C1/C6/C7, agent\_memory thay Hindsight) · 6 agent (B02, B03, D01, D02, E01, và A01 Orchestrator — kiến trúc đầy đủ, 10 trigger active theo MVP-Scope v3.4 §1a) · FSM + retry loop · Client Portal (ẩn điểm E01) · Internal App cơ bản
+**Xây:** State Architecture rút gọn (C1/C6/C7, agent\_memory thay Hindsight) · 6 agent (B02, B03, D01, D02, E01, và A01 Orchestrator — kiến trúc đầy đủ, 10 trigger active theo MVP-Scope v3.5 §1a) · FSM + retry loop · Client Portal (Kanban Dashboard 3 swimlane, Content Hub 3 tab, Content Approval Gate 2 ẩn điểm E01, Asset Request, Settings 4 tab, Notification Center, nút "Đánh dấu đã đăng", placeholder pages — chi tiết xem MVP-Scope v3.5 §2a–2k; không có Pixel Office/virtual office, không Direct Assign, không Telegram bot) · Internal App cơ bản (task\_logs + nút Chạy lại)
 
 **Cải thiện:** N/A (đây là lần xây đầu, chưa có gì để cải thiện)
 

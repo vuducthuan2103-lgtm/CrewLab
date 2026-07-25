@@ -4,13 +4,13 @@
 
 ## What this project is
 
-CrewLab is a multi-agent marketing automation platform for Vietnamese F&B SMEs. Full vision and long-term architecture live in `docs/prd/PRD-Master-v3.2.md`. **That document is reference material, not the current build target.**
+CrewLab is a multi-agent marketing automation platform for Vietnamese F&B SMEs. Full vision and long-term architecture live in `docs/prd/PRD-CrewLab.md`. **That document is reference material, not the current build target.**
 
 ## Active build target (read this before writing any code)
 
-Phase 1 is scoped to `docs/prd/MVP-Scope-v3.md`:
+Phase 1 is scoped to `docs/prd/CrewLab-MVP-Scope-v3.5.md`:
 
-- **5 agents only**: B02 (Content Pillar), B03 (Content Plan), D01 (Caption Writer), D02 (Image Design), E01 (Evaluator).
+- **6 agents**: A01 (Orchestrator), B02 (Content Pillar), B03 (Content Plan), D01 (Caption Writer), D02 (Image Design), E01 (Evaluator).
 - **No** ChromaDB — brand voice comes from a short form stored directly in Postgres, no semantic search.
 - **No** Hindsight — episodic memory is a plain Postgres table `agent_memory(agent_code, client_id, task_type, input_summary, output_summary, human_feedback, created_at)`.
 - **No** Docling/Chonkie ingest pipeline — no long-document upload/RAG.
@@ -18,7 +18,7 @@ Phase 1 is scoped to `docs/prd/MVP-Scope-v3.md`:
 - **No** G01-G04 analytics agents.
 - Full 5-state-minus retry FSM: see MVP-Scope §3 (`planned → ... → evaluating → eval_failed ⟲ → pending_content_approval → approved_ready_to_post → posted`).
 
-**Hard rule:** if a task, spec, or chat message references anything that only exists in PRD-Master (Hindsight, ChromaDB, F01, G01-G04, B01 IMC Planner, Meta OAuth, Telegram bot, campaign/event branching), **stop and ask the human to confirm scope** before implementing it. Do not build the bigger version "because the PRD describes it" — the PRD describes two different scopes and only MVP-Scope is currently authorized.
+**Hard rule:** if a task, spec, or chat message references anything that only exists in PRD-CrewLab full vision (Hindsight, ChromaDB, F01, G01-G04, B01 IMC Planner, Meta OAuth, Telegram bot, campaign/event branching, Pixel Office/virtual office), **stop and ask the human to confirm scope** before implementing it. Do not build the bigger version "because the PRD describes it" — the PRD describes two different scopes and only MVP-Scope is currently authorized.
 
 ## Team
 
@@ -32,8 +32,8 @@ Two non-technical founders building this with Antigravity as the primary impleme
 
 1. `specs/<NNNN>-<name>/spec.md` for the task currently being worked on — most specific, wins.
 2. `docs/decisions/*.md` — recorded decisions that override or clarify the PRD.
-3. `docs/prd/MVP-Scope-v3.md` — current scope.
-4. `docs/prd/PRD-Master-v3.2.md` — long-term vision, background only.
+3. `docs/prd/CrewLab-MVP-Scope-v3.5.md` — current scope.
+4. `docs/prd/PRD-CrewLab.md` — long-term vision, background only.
 
 If these conflict, use this order and flag the conflict to the human instead of silently picking one.
 
