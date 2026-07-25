@@ -134,6 +134,34 @@ export default function ContentCalendar() {
             <button className="text-muted-foreground hover:text-foreground p-0.5"><ChevronRight size={13} /></button>
           </div>
 
+          {/* Export PDF/Excel */}
+          <button
+            id="export-week-plan-btn"
+            onClick={() => {
+              // CSV / Report generator
+              const headers = ['STT', 'Tiêu đề bài viết', 'Kênh', 'Ngày đăng', 'Trạng thái'];
+              const rows = contentItems.map((ci, idx) => [
+                idx + 1,
+                `"${ci.title.replace(/"/g, '""')}"`,
+                ci.platform.toUpperCase(),
+                ci.publishTime.toLocaleString('vi-VN'),
+                ci.state,
+              ]);
+              const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+              const encodedUri = encodeURI(csvContent);
+              const link = document.createElement('a');
+              link.setAttribute('href', encodedUri);
+              link.setAttribute('download', `CrewLab_KeHoachNoiDung_Tuan25_BardinhCoffee.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            title="Tải về file Excel/CSV báo cáo tuần"
+          >
+            📥 Xuất Kế Hoạch
+          </button>
+
           {/* Approve all week button */}
           <button
             id="approve-all-week-btn"
@@ -142,7 +170,7 @@ export default function ContentCalendar() {
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               weekApproved || approvedAnimation
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 cursor-default'
-                : 'bg-[#D4FF00] text-black hover:bg-[#E5FF55] shadow-[0_0_12px_rgba(212,255,0,0.3)] hover:shadow-[0_0_20px_rgba(212,255,0,0.5)]'
+                : 'bg-lime-brand shadow-sm hover:opacity-90'
             }`}
           >
             <CheckSquare size={13} />
@@ -150,6 +178,7 @@ export default function ContentCalendar() {
           </button>
         </div>
       </div>
+
 
       {/* Calendar Grid */}
       <div className="border border-border rounded-xl overflow-hidden">

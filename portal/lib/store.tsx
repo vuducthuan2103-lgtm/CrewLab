@@ -62,14 +62,15 @@ interface PortalActions {
   // Gate S3 — Approve All Week
   approveWeek: () => void;
 
-  // Asset
-  submitAssets: (requestId: string, assetUrls: string[]) => void;
+  // Client Brief Action
+  createClientBrief: (title: string, details: string, urgency: 'standard' | 'high' | 'urgent', platform?: 'all' | 'fb' | 'ig') => void;
 
   // Settings
   updateBrandVoice: (config: BrandVoiceConfig) => void;
   updateAgentModel: (agentCode: string, model: string, tier: string) => void;
   updateAgentBudget: (agentCode: string, budget: number) => void;
 }
+
 
 // ─── AI suggestion pillars (rebalanced to show B02 intelligence) ─────────────
 const AI_SUGGESTED_PILLARS: ContentPillar[] = [
@@ -225,10 +226,45 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  // ── Client Brief ──────────────────────────────────────────────────────────
+  const createClientBrief = useCallback((title: string, details: string, urgency: 'standard' | 'high' | 'urgent', platform: 'all' | 'fb' | 'ig' = 'all') => {
+    const briefId = `brief-${Date.now()}`;
+    const newBriefTask: TaskCard = {
+      id: `t-${briefId}`,
+      title: `⚡ Brief từ Client: ${title}`,
+      assigneeType: 'agent',
+      assigneeCode: 'A01',
+      desk: 'strategy',
+      column: 'in_progress',
+      linkedContentItemId: null,
+      retryCount: 0,
+      hasError: false,
+      slaDeadline: new Date(Date.now() + (urgency === 'urgent' ? 6 : 24) * 3600 * 1000),
+      createdAt: new Date(),
+      startedAt: new Date(),
+      completedAt: null,
+    };
+
+    const newNotif: AppNotification = {
+      id: `notif-${briefId}`,
+      type: 'strategy_ready_for_approval',
+      title: `📝 A01 đã tiếp nhận Brief: "${title}"`,
+      body: `A01 Orchestrator đang phân tích Brand Voice và chỉ đạo D01 & D02 lập tức sản xuất nội dung cho ${platform === 'fb' ? 'Facebook' : platform === 'ig' ? 'Instagram' : 'FB & IG'}.`,
+      actionUrl: '/',
+      linkedContentItemId: null,
+      createdAt: new Date(),
+      read: false,
+    };
+
+    setTasks((prev) => [newBriefTask, ...prev]);
+    setNotifications((prev) => [newNotif, ...prev]);
+  }, []);
+
   // ── Settings ──────────────────────────────────────────────────────────────
   const updateBrandVoice = useCallback((config: BrandVoiceConfig) => {
     setBrandVoice(config);
   }, []);
+
 
   const updateAgentModel = useCallback((agentCode: string, model: string, tier: string) => {
     setAgentModelConfigs((prev) =>
@@ -268,10 +304,12 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     resetPillarsToAI,
     approveWeek,
     submitAssets,
+    createClientBrief,
     updateBrandVoice,
     updateAgentModel,
     updateAgentBudget,
   };
+
 
   return <PortalContext.Provider value={value}>{children}</PortalContext.Provider>;
 }

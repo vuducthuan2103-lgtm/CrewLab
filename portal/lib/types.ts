@@ -137,14 +137,45 @@ export interface AssetRequest {
   submittedAssetIds: string[];
 }
 
-// ─── Brand Voice ─────────────────────────────────────────────────────────────
+// ─── Brand Voice (6 Structured Sections) ──────────────────────────────────────
 export interface BrandVoiceConfig {
-  tone: string;
-  personalityKeywords: string[];
-  avoidPhrases: string[];
+  // 1. Brand Foundation
+  brandName: string;
+  category: string;
+  tagline: string;
+  mission: string;
+  targetAudience: string;
+
+  // 2. Tone & Personality
+  personalityKeywords: string[]; // 3-5 tính từ
+  archetype: string;
+  formalityScore: number; // 1-10
+
+  // 3. Do's & Don'ts
   goodCaptionExample: string;
   badCaptionExample: string;
+  forbiddenWords: string[];
+  signatureWords: string[];
+
+  // 4. Language Mechanics
+  brandPronoun: string;
+  customerPronoun: string;
+  emojiUsage: 'none' | 'minimal' | 'moderate' | 'heavy';
+  sentenceStyle: string;
+  languageMixing: string;
+
+  // 5. Context Variations
+  facebookTone: string;
+  zaloTone: string;
+  websiteTone: string;
+  promotionalTone: string;
+  customerServiceTone: string;
+
+  // 6. Reference Examples
+  benchmarkCaptions: string[];
+  referenceLinks: string[];
 }
+
 
 // ─── Model & Budget Config ───────────────────────────────────────────────────
 export type ModelTier = 'fast' | 'standard' | 'power';

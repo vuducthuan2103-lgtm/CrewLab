@@ -6,13 +6,19 @@ import MediaLibraryGrid from '@/components/assets/MediaLibraryGrid';
 import { usePortal } from '@/lib/store';
 import { Settings, Mic2, ImageIcon, Bot, Plug2, Save, CheckCircle2, Plus, X, ChevronDown } from 'lucide-react';
 
-// ─── Tab 1: Brand Voice ───────────────────────────────────────────────────────
+// ─── Tab 1: Brand Voice (6 Structured Sections) ──────────────────────────────
 function BrandVoiceForm() {
   const { brandVoice, updateBrandVoice } = usePortal();
   const [form, setForm] = useState({ ...brandVoice });
   const [saved, setSaved] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'foundation' | 'tone' | 'dos_donts' | 'mechanics' | 'variations' | 'references'>('foundation');
+
+  // Input helpers for lists
   const [newKeyword, setNewKeyword] = useState('');
-  const [newAvoid, setNewAvoid] = useState('');
+  const [newForbidden, setNewForbidden] = useState('');
+  const [newSignature, setNewSignature] = useState('');
+  const [newBenchmark, setNewBenchmark] = useState('');
+  const [newRefLink, setNewRefLink] = useState('');
 
   const handleSave = () => {
     updateBrandVoice(form);
@@ -20,139 +26,517 @@ function BrandVoiceForm() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const addKeyword = () => {
-    if (newKeyword.trim()) {
-      setForm((f) => ({ ...f, personalityKeywords: [...f.personalityKeywords, newKeyword.trim()] }));
-      setNewKeyword('');
-    }
-  };
-
-  const removeKeyword = (i: number) =>
-    setForm((f) => ({ ...f, personalityKeywords: f.personalityKeywords.filter((_, idx) => idx !== i) }));
-
-  const addAvoid = () => {
-    if (newAvoid.trim()) {
-      setForm((f) => ({ ...f, avoidPhrases: [...f.avoidPhrases, newAvoid.trim()] }));
-      setNewAvoid('');
-    }
-  };
-
-  const removeAvoid = (i: number) =>
-    setForm((f) => ({ ...f, avoidPhrases: f.avoidPhrases.filter((_, idx) => idx !== i) }));
+  const subTabs = [
+    { id: 'foundation', label: '1. Brand Foundation', icon: '🏢' },
+    { id: 'tone', label: '2. Tone & Personality', icon: '🎭' },
+    { id: 'dos_donts', label: "3. Do's & Don'ts", icon: '🛑' },
+    { id: 'mechanics', label: '4. Language Mechanics', icon: '✍️' },
+    { id: 'variations', label: '5. Context Variations', icon: '🔀' },
+    { id: 'references', label: '6. Reference Examples', icon: '📚' },
+  ];
 
   return (
-    <div className="max-w-2xl space-y-5">
-      {/* Tone */}
-      <div>
-        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-          Tông giọng thương hiệu
-        </label>
-        <textarea
-          id="brand-voice-tone"
-          rows={3}
-          value={form.tone}
-          onChange={(e) => setForm((f) => ({ ...f, tone: e.target.value }))}
-          className="w-full px-4 py-3 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-[#D4FF00]/60 focus:ring-1 focus:ring-[#D4FF00]/20 resize-none"
-        />
-      </div>
-
-      {/* Keywords */}
-      <div>
-        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-          Từ khoá thương hiệu
-        </label>
-        <div className="flex flex-wrap gap-2 mb-2">
-          {form.personalityKeywords.map((kw, i) => (
-            <span key={i} className="flex items-center gap-1.5 bg-muted text-foreground text-xs px-3 py-1 rounded-full border border-border">
-              {kw}
-              <button onClick={() => removeKeyword(i)} className="text-muted-foreground hover:text-red-400 transition-colors">
-                <X size={10} />
-              </button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newKeyword}
-            onChange={(e) => setNewKeyword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addKeyword()}
-            placeholder="Thêm từ khoá…"
-            className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-xs focus:outline-none focus:border-[#D4FF00]/60"
-          />
-          <button onClick={addKeyword} id="add-keyword-btn" className="px-3 py-2 border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
-            <Plus size={13} />
+    <div className="max-w-3xl space-y-6">
+      {/* Sub-tabs header */}
+      <div className="flex flex-wrap gap-1.5 p-1.5 bg-muted/60 rounded-xl border border-border">
+        {subTabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveSubTab(tab.id as any)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+              activeSubTab === tab.id
+                ? 'bg-background text-foreground shadow-sm border border-border'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+            }`}
+          >
+            <span>{tab.icon}</span>
+            <span>{tab.label}</span>
           </button>
-        </div>
+        ))}
       </div>
 
-      {/* Avoid phrases */}
-      <div>
-        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-          Từ / cụm từ cần tránh
-        </label>
-        <div className="flex flex-wrap gap-2 mb-2">
-          {form.avoidPhrases.map((phrase, i) => (
-            <span key={i} className="flex items-center gap-1.5 bg-red-500/10 text-red-400 text-xs px-3 py-1 rounded-full border border-red-500/20">
-              {phrase}
-              <button onClick={() => removeAvoid(i)} className="text-red-400/60 hover:text-red-400 transition-colors">
-                <X size={10} />
+      {/* Section 1: Brand Foundation */}
+      {activeSubTab === 'foundation' && (
+        <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            🏢 1. Brand Foundation (Nền tảng thương hiệu)
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">Tên Thương Hiệu</label>
+              <input
+                type="text"
+                value={form.brandName || ''}
+                onChange={(e) => setForm((f) => ({ ...f, brandName: e.target.value }))}
+                placeholder="VD: Bardinh Coffee"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">Ngành hàng / Lĩnh vực</label>
+              <input
+                type="text"
+                value={form.category || ''}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                placeholder="VD: Cà phê specialty & Không gian làm việc"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Tagline thương hiệu</label>
+            <input
+              type="text"
+              value={form.tagline || ''}
+              onChange={(e) => setForm((f) => ({ ...f, tagline: e.target.value }))}
+              placeholder="VD: Góc lặng giữa lòng Sài Gòn sôi động"
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Sứ mệnh / Giá trị cốt lõi ngắn gọn</label>
+            <textarea
+              rows={2}
+              value={form.mission || ''}
+              onChange={(e) => setForm((f) => ({ ...f, mission: e.target.value }))}
+              placeholder="Mô tả sứ mệnh thương hiệu mang lại cho khách hàng…"
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground resize-none focus:outline-none focus:border-primary"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Target Audience (Ai đọc content này, độ tuổi, insight)</label>
+            <textarea
+              rows={3}
+              value={form.targetAudience || ''}
+              onChange={(e) => setForm((f) => ({ ...f, targetAudience: e.target.value }))}
+              placeholder="Mô tả chân dung khách hàng mục tiêu, sở thích, insight sâu sắc…"
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground resize-none focus:outline-none focus:border-primary"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Section 2: Tone & Personality */}
+      {activeSubTab === 'tone' && (
+        <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            🎭 2. Tone & Personality (Giọng điệu & Tính cách)
+          </h3>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">3-5 Tính từ mô tả giọng thương hiệu</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {(form.personalityKeywords || []).map((kw, i) => (
+                <span key={i} className="flex items-center gap-1.5 bg-muted text-foreground text-xs px-3 py-1 rounded-full border border-border font-medium">
+                  {kw}
+                  <button
+                    onClick={() => setForm((f) => ({ ...f, personalityKeywords: f.personalityKeywords.filter((_, idx) => idx !== i) }))}
+                    className="text-muted-foreground hover:text-red-400"
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newKeyword.trim()) {
+                    setForm((f) => ({ ...f, personalityKeywords: [...(f.personalityKeywords || []), newKeyword.trim()] }));
+                    setNewKeyword('');
+                  }
+                }}
+                placeholder="Thêm tính từ (VD: gần gũi, ấm áp, tinh tế)…"
+                className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+              />
+              <button
+                onClick={() => {
+                  if (newKeyword.trim()) {
+                    setForm((f) => ({ ...f, personalityKeywords: [...(f.personalityKeywords || []), newKeyword.trim()] }));
+                    setNewKeyword('');
+                  }
+                }}
+                className="px-3 py-2 border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              >
+                <Plus size={13} />
               </button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newAvoid}
-            onChange={(e) => setNewAvoid(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addAvoid()}
-            placeholder="Thêm từ cần tránh…"
-            className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-xs focus:outline-none focus:border-red-500/50"
-          />
-          <button onClick={addAvoid} id="add-avoid-btn" className="px-3 py-2 border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
-            <Plus size={13} />
-          </button>
-        </div>
-      </div>
+            </div>
+          </div>
 
-      {/* Good / Bad examples */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-1.5">✅ Caption mẫu tốt</label>
-          <textarea
-            id="good-caption-example"
-            rows={3}
-            value={form.goodCaptionExample}
-            onChange={(e) => setForm((f) => ({ ...f, goodCaptionExample: e.target.value }))}
-            className="w-full px-3 py-2.5 bg-background border border-emerald-500/30 rounded-xl text-xs text-foreground resize-none focus:outline-none focus:border-emerald-500/60"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-red-400 uppercase tracking-wider mb-1.5">❌ Caption mẫu tệ</label>
-          <textarea
-            id="bad-caption-example"
-            rows={3}
-            value={form.badCaptionExample}
-            onChange={(e) => setForm((f) => ({ ...f, badCaptionExample: e.target.value }))}
-            className="w-full px-3 py-2.5 bg-background border border-red-500/30 rounded-xl text-xs text-foreground resize-none focus:outline-none focus:border-red-500/60"
-          />
-        </div>
-      </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Brand Archetype (Brand như một con người là kiểu người nào?)</label>
+            <input
+              type="text"
+              value={form.archetype || ''}
+              onChange={(e) => setForm((f) => ({ ...f, archetype: e.target.value }))}
+              placeholder="VD: Người bạn thân am hiểu cà phê — chân thành, mộc mạc nhưng gu thẩm mỹ tốt"
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+            />
+          </div>
 
-      {/* Save */}
-      <div className="flex items-center gap-3">
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs font-semibold text-muted-foreground">Mức độ Trang trọng vs Thân mật (Formality Scale)</label>
+              <span className="text-xs font-bold text-lime-brand bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                {form.formalityScore || 4}/10 ({form.formalityScore <= 3 ? 'Rất thân mật' : form.formalityScore <= 6 ? 'Vừa phải gần gũi' : 'Chuyên nghiệp trang trọng'})
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              value={form.formalityScore || 4}
+              onChange={(e) => setForm((f) => ({ ...f, formalityScore: Number(e.target.value) }))}
+              className="w-full h-2 rounded-full cursor-pointer bg-muted"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Section 3: Do's & Don'ts */}
+      {activeSubTab === 'dos_donts' && (
+        <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            {"🛑 3. Do's & Don'ts (Quy tắc & Ví dụ)"}
+          </h3>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-1">✅ Ví dụ câu viết ĐÚNG tone</label>
+              <textarea
+                rows={4}
+                value={form.goodCaptionExample || ''}
+                onChange={(e) => setForm((f) => ({ ...f, goodCaptionExample: e.target.value }))}
+                placeholder="Ví dụ caption mẫu viết chuẩn tone brand…"
+                className="w-full px-3 py-2 bg-background border border-emerald-500/30 rounded-lg text-xs text-foreground resize-none focus:outline-none focus:border-emerald-500/60"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-red-600 dark:text-red-400 mb-1">❌ Ví dụ câu viết SAI tone (Tránh)</label>
+              <textarea
+                rows={4}
+                value={form.badCaptionExample || ''}
+                onChange={(e) => setForm((f) => ({ ...f, badCaptionExample: e.target.value }))}
+                placeholder="Ví dụ caption bị lệch tone mà AI/nhân viên cần tuyệt đối tránh…"
+                className="w-full px-3 py-2 bg-background border border-red-500/30 rounded-lg text-xs text-foreground resize-none focus:outline-none focus:border-red-500/60"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-red-600 dark:text-red-400 mb-1">🚫 Từ ngữ CẤM DÙNG (Forbidden words)</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {(form.forbiddenWords || []).map((w, i) => (
+                <span key={i} className="flex items-center gap-1.5 bg-red-500/10 text-red-600 dark:text-red-400 text-xs px-3 py-1 rounded-full border border-red-500/20 font-medium">
+                  {w}
+                  <button onClick={() => setForm((f) => ({ ...f, forbiddenWords: f.forbiddenWords.filter((_, idx) => idx !== i) }))} className="text-red-400 hover:text-red-600">
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newForbidden}
+                onChange={(e) => setNewForbidden(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newForbidden.trim()) {
+                    setForm((f) => ({ ...f, forbiddenWords: [...(f.forbiddenWords || []), newForbidden.trim()] }));
+                    setNewForbidden('');
+                  }
+                }}
+                placeholder="Thêm từ cấm (VD: giá rẻ, xả hàng, khuyến mãi khủng)…"
+                className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-xs focus:outline-none focus:border-red-500/50"
+              />
+              <button
+                onClick={() => {
+                  if (newForbidden.trim()) {
+                    setForm((f) => ({ ...f, forbiddenWords: [...(f.forbiddenWords || []), newForbidden.trim()] }));
+                    setNewForbidden('');
+                  }
+                }}
+                className="px-3 py-2 border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-lime-brand mb-1">✨ Từ ngữ đặc trưng NÊN DÙNG (Signature words)</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {(form.signatureWords || []).map((w, i) => (
+                <span key={i} className="flex items-center gap-1.5 bg-primary/10 text-lime-brand text-xs px-3 py-1 rounded-full border border-primary/30 font-medium">
+                  {w}
+                  <button onClick={() => setForm((f) => ({ ...f, signatureWords: f.signatureWords.filter((_, idx) => idx !== i) }))} className="text-lime-brand hover:opacity-75">
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newSignature}
+                onChange={(e) => setNewSignature(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newSignature.trim()) {
+                    setForm((f) => ({ ...f, signatureWords: [...(f.signatureWords || []), newSignature.trim()] }));
+                    setNewSignature('');
+                  }
+                }}
+                placeholder="Thêm từ đặc trưng (VD: nhâm nhi, thư thái, mộc mạc)…"
+                className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+              />
+              <button
+                onClick={() => {
+                  if (newSignature.trim()) {
+                    setForm((f) => ({ ...f, signatureWords: [...(f.signatureWords || []), newSignature.trim()] }));
+                    setNewSignature('');
+                  }
+                }}
+                className="px-3 py-2 border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Section 4: Language Mechanics */}
+      {activeSubTab === 'mechanics' && (
+        <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            ✍️ 4. Language Mechanics (Quy tắc xưng hô & hành văn)
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">Xưng hô Brand (Brand xưng là gì?)</label>
+              <input
+                type="text"
+                value={form.brandPronoun || ''}
+                onChange={(e) => setForm((f) => ({ ...f, brandPronoun: e.target.value }))}
+                placeholder="VD: Bardinh / Chúng mình"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">Xưng hô Khách (Gọi khách hàng là gì?)</label>
+              <input
+                type="text"
+                value={form.customerPronoun || ''}
+                onChange={(e) => setForm((f) => ({ ...f, customerPronoun: e.target.value }))}
+                placeholder="VD: Bạn / Cậu"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Mức độ sử dụng Emoji</label>
+            <select
+              value={form.emojiUsage || 'moderate'}
+              onChange={(e) => setForm((f) => ({ ...f, emojiUsage: e.target.value as any }))}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+            >
+              <option value="none">🚫 Không dùng emoji</option>
+              <option value="minimal">🔹 Tối thiểu (1-2 emoji điểm xuyết)</option>
+              <option value="moderate">✨ Vừa phải (3-5 emoji đúng vị trí)</option>
+              <option value="heavy">🔥 Nhiều (Sinh động, bắt mắt)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Độ dài câu, cách ngắt dòng, dấu câu đặc trưng</label>
+            <textarea
+              rows={2}
+              value={form.sentenceStyle || ''}
+              onChange={(e) => setForm((f) => ({ ...f, sentenceStyle: e.target.value }))}
+              placeholder="VD: Câu ngắn, ngắt dòng tự nhiên như trò chuyện tâm sự. Dùng dấu gạch ngang (—) để tạo khoảng lặng."
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground resize-none focus:outline-none focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Ngôn ngữ (Thuần Việt hay chêm tiếng Anh?)</label>
+            <input
+              type="text"
+              value={form.languageMixing || ''}
+              onChange={(e) => setForm((f) => ({ ...f, languageMixing: e.target.value }))}
+              placeholder="VD: Thuần Việt mộc mạc. Chỉ dùng từ tiếng Anh phổ biến (Latte, Cold Brew, Workshop)"
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Section 5: Context Variations */}
+      {activeSubTab === 'variations' && (
+        <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            🔀 5. Context Variations (Biến thể theo kênh & tình huống)
+          </h3>
+          <p className="text-xs text-muted-foreground">Tùy chỉnh tông giọng linh hoạt cho AI khi phát hành nội dung trên từng nền tảng hoặc tình huống cụ thể.</p>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">🟦 Facebook Tone</label>
+              <input
+                type="text"
+                value={form.facebookTone || ''}
+                onChange={(e) => setForm((f) => ({ ...f, facebookTone: e.target.value }))}
+                placeholder="VD: Trò chuyện sâu sắc, nhiều cảm xúc, caption 100-200 từ…"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">💬 Zalo Tone</label>
+              <input
+                type="text"
+                value={form.zaloTone || ''}
+                onChange={(e) => setForm((f) => ({ ...f, zaloTone: e.target.value }))}
+                placeholder="VD: Ngắn gọn, rõ ràng, tập trung ưu đãi thành viên và lịch mở cửa…"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">🌐 Website / Blog Tone</label>
+              <input
+                type="text"
+                value={form.websiteTone || ''}
+                onChange={(e) => setForm((f) => ({ ...f, websiteTone: e.target.value }))}
+                placeholder="VD: Chỉn chu, chuyên nghiệp, đào sâu vào nguồn gốc hạt cà phê và câu chuyện thương hiệu…"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">📣 Quảng cáo / Khuyến mãi Tone</label>
+              <input
+                type="text"
+                value={form.promotionalTone || ''}
+                onChange={(e) => setForm((f) => ({ ...f, promotionalTone: e.target.value }))}
+                placeholder="VD: Nhẹ nhàng rủ rê ghé quán, không dồn ép mua hàng…"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">🙏 Xử lý khiếu nại / CSKH Tone</label>
+              <input
+                type="text"
+                value={form.customerServiceTone || ''}
+                onChange={(e) => setForm((f) => ({ ...f, customerServiceTone: e.target.value }))}
+                placeholder="VD: Chân thành lắng nghe, nhận trách nhiệm ngay lập tức với sự cầu thị cao nhất…"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Section 6: Reference Examples */}
+      {activeSubTab === 'references' && (
+        <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            📚 6. Reference Examples (Content mẫu & Benchmark)
+          </h3>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Caption mẫu chuẩn benchmark (Dành cho AI học tập)</label>
+            <div className="space-y-2 mb-2">
+              {(form.benchmarkCaptions || []).map((cap, i) => (
+                <div key={i} className="p-3 bg-muted/40 border border-border rounded-lg text-xs text-foreground relative group">
+                  <p className="pr-6 whitespace-pre-line">{cap}</p>
+                  <button
+                    onClick={() => setForm((f) => ({ ...f, benchmarkCaptions: f.benchmarkCaptions.filter((_, idx) => idx !== i) }))}
+                    className="absolute top-2 right-2 text-muted-foreground hover:text-red-400"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <textarea
+                rows={3}
+                value={newBenchmark}
+                onChange={(e) => setNewBenchmark(e.target.value)}
+                placeholder="Dán caption mẫu chuẩn của thương hiệu tại đây…"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground resize-none focus:outline-none focus:border-primary"
+              />
+              <button
+                onClick={() => {
+                  if (newBenchmark.trim()) {
+                    setForm((f) => ({ ...f, benchmarkCaptions: [...(f.benchmarkCaptions || []), newBenchmark.trim()] }));
+                    setNewBenchmark('');
+                  }
+                }}
+                className="px-3 py-2 border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 flex items-center gap-1.5"
+              >
+                <Plus size={13} /> Thêm caption mẫu
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Link brand khác làm tốt (Benchmark bên ngoài)</label>
+            <div className="space-y-1.5 mb-2">
+              {(form.referenceLinks || []).map((link, i) => (
+                <div key={i} className="flex items-center justify-between p-2 bg-muted/30 border border-border rounded-lg text-xs text-lime-brand font-mono">
+                  <span>{link}</span>
+                  <button onClick={() => setForm((f) => ({ ...f, referenceLinks: f.referenceLinks.filter((_, idx) => idx !== i) }))} className="text-muted-foreground hover:text-red-400">
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newRefLink}
+                onChange={(e) => setNewRefLink(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newRefLink.trim()) {
+                    setForm((f) => ({ ...f, referenceLinks: [...(f.referenceLinks || []), newRefLink.trim()] }));
+                    setNewRefLink('');
+                  }
+                }}
+                placeholder="Dán URL trang Facebook/IG benchmark…"
+                className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+              />
+              <button
+                onClick={() => {
+                  if (newRefLink.trim()) {
+                    setForm((f) => ({ ...f, referenceLinks: [...(f.referenceLinks || []), newRefLink.trim()] }));
+                    setNewRefLink('');
+                  }
+                }}
+                className="px-3 py-2 border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Save Button */}
+      <div className="flex items-center justify-between pt-2 border-t border-border">
+        <p className="text-xs text-muted-foreground">Lưu cấu hình Brand Voice để các Agent (B02, D01, D02, E01) đồng bộ áp dụng.</p>
         <button
           id="save-brand-voice-btn"
           onClick={handleSave}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#D4FF00] text-black font-bold text-sm rounded-lg hover:bg-[#E5FF55] shadow-[0_0_12px_rgba(212,255,0,0.25)] hover:shadow-[0_0_20px_rgba(212,255,0,0.45)] transition-all"
+          className="flex items-center gap-2 px-6 py-2.5 bg-lime-brand text-black font-bold text-sm rounded-lg hover:opacity-90 shadow-md transition-all"
         >
-          {saved ? <><CheckCircle2 size={14} /> Đã lưu!</> : <><Save size={14} /> Lưu Brand Voice</>}
+          {saved ? <><CheckCircle2 size={15} /> Đã lưu thành công!</> : <><Save size={15} /> Lưu Cấu Hình Brand Voice</>}
         </button>
       </div>
     </div>
   );
 }
+
 
 // ─── Tab 3: Model & Budget ────────────────────────────────────────────────────
 const MODEL_OPTIONS = [

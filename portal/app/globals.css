@@ -6,35 +6,36 @@
 
 @layer base {
   :root {
-    /* Light Mode Theme (Zinc 50 / White) */
-    --background: 0 0% 98%;
-    --foreground: 240 10% 3.9%;
+    /* ─── Light Mode — High Contrast Sharp Off-White ─── */
+    --background: 220 20% 97%;
+    --foreground: 222 47% 9%;         /* Deep navy-black for crisp text */
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 222 47% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover-foreground: 222 47% 9%;
 
-    /* CrewLab Electric Lime Accent */
-    --primary: 72 100% 45%;
-    --primary-foreground: 240 10% 3.9%;
+    /* Light Mode Accent — Premium Deep Emerald #047857 (Replaces washed-out yellow/lime, 10:1 contrast) */
+    --primary: 160 84% 25%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 222 47% 9%;
 
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 222 20% 28%;  /* Dark crisp gray */
 
-    --accent: 72 100% 45%;
-    --accent-foreground: 240 5.9% 10%;
+    --accent: 160 84% 25%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 76% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 72 100% 45%;
+    /* Sharper & clearer borders for inputs, cards & modals */
+    --border: 220 13% 68%;            /* Sharper definition (was 80%) */
+    --input: 220 13% 68%;
+    --ring: 160 84% 25%;
 
     --radius: 0.75rem;
   }
@@ -50,7 +51,7 @@
     --popover: 240 6% 8%;
     --popover-foreground: 0 0% 98%;
 
-    /* CrewLab Electric Lime: #D4FF00 -> HSL 72 100% 50% */
+    /* CrewLab Electric Lime in Dark Mode: #D4FF00 -> HSL 72 100% 50% */
     --primary: 72 100% 50%;
     --primary-foreground: 240 10% 3.9%;
 
@@ -81,20 +82,99 @@
   }
 }
 
+/* ─── High-Contrast Brand Utilities ─────────────────────────── */
+.text-lime-brand {
+  color: #047857; /* Crisp Deep Emerald in light mode */
+}
+.dark .text-lime-brand {
+  color: #D4FF00; /* Neon Electric Lime in dark mode */
+}
+
+.bg-lime-brand {
+  background-color: #047857;
+  color: #FFFFFF;
+}
+.dark .bg-lime-brand {
+  background-color: #D4FF00;
+  color: #09090B;
+}
+
+.border-lime-brand {
+  border-color: #059669;
+}
+.dark .border-lime-brand {
+  border-color: #D4FF00;
+}
+
 /* Custom glow classes */
 .btn-lime-glow {
+  background-color: #047857;
+  color: #FFFFFF;
+  box-shadow: 0 0 12px rgba(4, 120, 87, 0.2);
+  transition: all 0.2s ease-in-out;
+}
+.dark .btn-lime-glow {
   background-color: #D4FF00;
   color: #09090B;
   box-shadow: 0 0 20px rgba(212, 255, 0, 0.35);
-  transition: all 0.2s ease-in-out;
 }
 .btn-lime-glow:hover {
+  background-color: #065F46;
+  transform: translateY(-1px);
+}
+.dark .btn-lime-glow:hover {
   background-color: #E5FF55;
   box-shadow: 0 0 30px rgba(212, 255, 0, 0.55);
-  transform: translateY(-1px);
 }
 
 .border-lime-glow {
+  border-color: #059669;
+  box-shadow: 0 0 10px rgba(5, 150, 105, 0.15);
+}
+.dark .border-lime-glow {
   border-color: #D4FF00;
   box-shadow: 0 0 15px rgba(212, 255, 0, 0.2);
 }
+
+/* ─── Custom Range Slider ───────────────────────────────────── */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  border: none;
+  background: transparent;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #047857;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(4, 120, 87, 0.3);
+  transition: transform 0.15s ease;
+}
+.dark input[type='range']::-webkit-slider-thumb {
+  background-color: #D4FF00;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0 10px rgba(212, 255, 0, 0.5);
+}
+input[type='range']::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #047857;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+.dark input[type='range']::-moz-range-thumb {
+  background-color: #D4FF00;
+}
+
+
+

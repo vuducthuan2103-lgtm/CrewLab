@@ -2,12 +2,13 @@
 
 import React, { useState } from 'react';
 import { usePortal } from '@/lib/store';
-import { Bell, Sun, Moon, Zap, X, CheckCircle2, Image, BarChart3, ChevronRight } from 'lucide-react';
+import { Bell, Sun, Moon, Zap, X, CheckCircle2, Image as ImageIcon, BarChart3, ChevronRight } from 'lucide-react';
 import { AppNotification, NotificationType } from '@/lib/types';
 
 function NotificationIcon({ type }: { type: NotificationType }) {
   if (type === 'content_ready_for_approval') return <CheckCircle2 size={14} className="text-[#D4FF00]" />;
-  if (type === 'asset_request_created') return <Image size={14} className="text-cyan-400" />;
+  if (type === 'asset_request_created') return <ImageIcon size={14} className="text-cyan-400" />;
+
   if (type === 'strategy_ready_for_approval') return <BarChart3 size={14} className="text-purple-400" />;
   return <Bell size={14} className="text-muted-foreground" />;
 }
@@ -67,7 +68,7 @@ export default function Header() {
           id="demo-trigger-ai-event"
           onClick={handleDemoTrigger}
           disabled={demoLoading}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#D4FF00]/30 text-[#D4FF00] hover:bg-[#D4FF00]/10 hover:border-[#D4FF00]/60 transition-all duration-150 disabled:opacity-60 shadow-[0_0_8px_rgba(212,255,0,0.1)] hover:shadow-[0_0_14px_rgba(212,255,0,0.25)]"
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-primary/30 text-lime-brand hover:bg-primary/10 hover:border-primary/60 transition-all duration-150 disabled:opacity-60 shadow-sm"
           title="Giả lập sự kiện AI chạy — dùng khi demo/pitching"
         >
           <Zap size={12} className={demoLoading ? 'animate-spin' : ''} />
@@ -93,7 +94,7 @@ export default function Header() {
           >
             <Bell size={15} />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#D4FF00] text-[#09090B] text-[9px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(212,255,0,0.5)]">
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-lime-brand font-bold flex items-center justify-center text-[9px] shadow-sm">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -107,14 +108,15 @@ export default function Header() {
               <div className="absolute right-0 top-10 w-80 z-50 rounded-xl border border-border bg-card shadow-xl overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                   <div className="flex items-center gap-2">
-                    <Bell size={13} className="text-[#D4FF00]" />
+                    <Bell size={13} className="text-lime-brand" />
                     <span className="text-sm font-semibold">Thông báo</span>
                     {unreadCount > 0 && (
-                      <span className="text-[10px] bg-[#D4FF00]/15 text-[#D4FF00] border border-[#D4FF00]/30 rounded-full px-1.5 py-0.5 font-semibold">
+                      <span className="text-[10px] bg-primary/15 text-lime-brand border border-primary/30 rounded-full px-1.5 py-0.5 font-semibold">
                         {unreadCount} mới
                       </span>
                     )}
                   </div>
+
                   <button
                     onClick={() => setNotifOpen(false)}
                     className="text-muted-foreground hover:text-foreground transition-colors"

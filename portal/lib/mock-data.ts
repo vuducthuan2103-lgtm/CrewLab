@@ -495,15 +495,50 @@ export const MEDIA_ASSETS: MediaAsset[] = [
   },
 ];
 
-// ─── Brand Voice ─────────────────────────────────────────────────────────────
 export const BRAND_VOICE: BrandVoiceConfig = {
-  tone: 'Thân thiện, gần gũi, trẻ trung nhưng vẫn chuyên nghiệp. Nghe như người bạn đang kể chuyện về ly cà phê yêu thích.',
-  personalityKeywords: ['ấm áp', 'tinh tế', 'chân thật', 'đậm đà', 'Sài Gòn'],
-  avoidPhrases: ['giá rẻ', 'khuyến mãi khủng', 'cực kỳ', 'siêu phẩm', 'đỉnh của chóp'],
-  goodCaptionExample:
-    '☕ Buổi sáng Sài Gòn luôn bắt đầu bằng một ly Cà phê sữa đá — đậm đà, mát lạnh, đủ để yêu thương cả ngày dài.',
-  badCaptionExample: 'Đừng bỏ lỡ! Khuyến mãi KHỦNG — Mua 2 tặng 1 siêu đỉnh! Chỉ trong hôm nay!!!',
+  // 1. Brand Foundation
+  brandName: 'Bardinh Coffee',
+  category: 'Cà phê specialty & Không gian sáng tạo Sài Gòn',
+  tagline: 'Góc lặng giữa lòng Sài Gòn sôi động',
+  mission: 'Mang đến trải nghiệm cà phê mộc mạc, đậm vị và không gian làm việc truyền cảm hứng cho người trẻ Sài Gòn.',
+  targetAudience: 'Freelancer, Designer, Dân văn phòng 22-35 tuổi tại Bình Thạnh/Q1. Yêu cà phê chất lượng, thích không gian yên tĩnh sáng tạo và có thói quen check-in quán cà phê đẹp.',
+
+  // 2. Tone & Personality
+  personalityKeywords: ['gần gũi', 'ấm áp', 'tinh tế', 'chân thật', 'truyền cảm hứng'],
+  archetype: 'Người bạn thân am hiểu cà phê — chân thành, mộc mạc nhưng gu thẩm mỹ tốt',
+  formalityScore: 4, // 1-10 (gần gũi, vừa phải)
+
+  // 3. Do's & Don'ts
+  goodCaptionExample: '☕ Buổi sáng Sài Gòn luôn bắt đầu bằng một ly Cà phê sữa đá — đậm đà, mát lạnh, đủ để yêu thương cả ngày dài. Ghé Bardinh nhâm nhi nhé bạn!',
+  badCaptionExample: 'Đừng bỏ lỡ! Khuyến mãi KHỦNG — Mua 2 tặng 1 siêu đỉnh! Chỉ trong hôm nay, quẹo lựa ngay kẻo tiếc!!!',
+  forbiddenWords: ['giá rẻ', 'khuyến mãi khủng', 'siêu phẩm', 'quẹo lựa', 'đỉnh của chóp', 'hốt ngay', 'xả hàng'],
+  signatureWords: ['thư thái', 'đậm đà', 'nhâm nhi', 'góc nhỏ', 'ấm áp', 'bạn thân mến', 'mẻ cà phê đầu ngày'],
+
+  // 4. Language Mechanics
+  brandPronoun: 'Bardinh / Chúng mình',
+  customerPronoun: 'Bạn / Cậu',
+  emojiUsage: 'moderate',
+  sentenceStyle: 'Câu ngắn, ngắt dòng tự nhiên như đang trò chuyện tâm sự. Dùng dấu gạch ngang (—) để tạo khoảng lặng đọc.',
+  languageMixing: 'Thuần Việt mộc mạc. Chỉ dùng từ tiếng Anh đã phổ biến trong ngành cà phê (Latte, Cold Brew, Workshop, Barista).',
+
+  // 5. Context Variations
+  facebookTone: 'Trò chuyện sâu sắc, nhiều cảm xúc, hình ảnh sống động, caption từ 100-200 từ.',
+  zaloTone: 'Ngắn gọn, rõ ràng, cập nhật thông tin ưu đãi thành viên và lịch mở cửa.',
+  websiteTone: 'Chuyên nghiệp, chỉn chu, tập trung vào nguồn gốc hạt cà phê và sứ mệnh thương hiệu.',
+  promotionalTone: 'Nhẹ nhàng rủ rê, không dồn ép mua hàng hay dùng từ quá gắt.',
+  customerServiceTone: 'Chân thành lắng nghe, nhận trách nhiệm ngay lập tức với sự cầu thị cao nhất.',
+
+  // 6. Reference Examples
+  benchmarkCaptions: [
+    '⏰ 5:30 sáng tại Bardinh Coffee — Khi cả thành phố còn đang ngủ, barista của chúng mình đã bắt đầu pha mẻ cà phê đầu tiên. Mỗi ly cà phê là cả một quy trình, không chỉ là một thức uống.',
+    '🌿 Nhẹ nhàng khép lại một tuần bận rộn với ly Cold Brew ngâm lạnh 24 giờ. Góc cửa sổ tầng 2 vẫn chờ bạn ghé chơi.',
+  ],
+  referenceLinks: [
+    'https://facebook.com/example-brand-1',
+    'https://instagram.com/example-brand-2',
+  ],
 };
+
 
 // ─── Agent Model Config ───────────────────────────────────────────────────────
 export const AGENT_MODEL_CONFIGS: AgentModelConfig[] = [
