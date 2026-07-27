@@ -100,3 +100,38 @@ def check_scheduled_cycles():
                     )
                     
     run_async(_run())
+
+
+@shared_task(name="check_asset_request_expiry")
+def check_asset_request_expiry():
+    """
+    Runs periodically to check if any Asset Request is expired.
+    """
+    async def _run():
+        from app.models.assets import AssetRequest
+        async with AsyncSessionLocal() as session:
+            now = datetime.now(pytz.utc)
+            
+            stmt = select(AssetRequest).where(
+                AssetRequest.status == 'pending',
+                AssetRequest.expires_at <= now
+            )
+            result = await session.execute(stmt)
+            requests = result.scalars().all()
+            
+            for req in requests:
+                logger.info(f"AssetRequest {req.id} expired. Triggering A01.")
+                
+                # Update status of request
+                req.status = 'expired'
+                
+                a01_handle_trigger.delay(
+                    client_id=str(req.client_id),
+                    event_type="asset_request_expired",
+                    content_item_id=str(req.content_item_id)
+                )
+                
+            if requests:
+                await session.commit()
+                
+    run_async(_run())

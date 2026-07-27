@@ -87,3 +87,19 @@ class ContentItem(Base):
     pillar = relationship("ContentPillar", back_populates="items")
     asset_requests = relationship("AssetRequest", back_populates="item")
     hitl_reviews = relationship("HitlReview", back_populates="item")
+    state_logs = relationship("ContentItemStateLog", back_populates="item")
+
+
+class ContentItemStateLog(Base):
+    __tablename__ = "content_item_state_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    content_item_id = Column(UUID(as_uuid=True), ForeignKey("content_items.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_code = Column(String, nullable=True) # VD: D01, D02, E01, System
+    previous_state = Column(String, nullable=True)
+    new_state = Column(String, nullable=False)
+    reason = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    item = relationship("ContentItem", back_populates="state_logs")

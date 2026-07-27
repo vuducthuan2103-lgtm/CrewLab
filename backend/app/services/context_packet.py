@@ -33,10 +33,18 @@ async def build_context_packet(session: AsyncSession, client_id: uuid.UUID) -> C
             "sample_captions": brand_setting.sample_captions,
         }
         
-    # 2. Fetch Episodic Memory (Last 5 memories)
+    # 2. Fetch Episodic Memory (Last 5 memories + All human_feedback in last 30 days)
+    # For simplicity in MVP, we just get the most recent ones and filter those with human feedback
+    from datetime import datetime, timedelta
+    from app.core.db import utcnow
+    
+    thirty_days_ago = utcnow() - timedelta(days=30)
+    
     stmt_memory = select(AgentMemory).where(
-        AgentMemory.client_id == client_id
-    ).order_by(AgentMemory.created_at.desc()).limit(5)
+        AgentMemory.client_id == client_id,
+        AgentMemory.human_feedback.isnot(None),
+        AgentMemory.created_at >= thirty_days_ago
+    ).order_by(AgentMemory.created_at.desc())
     
     result_memory = await session.execute(stmt_memory)
     memories = result_memory.scalars().all()

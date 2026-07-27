@@ -1,6 +1,13 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Any, Dict, List
 import uuid
+from enum import Enum
+
+class WakeReason(str, Enum):
+    scheduled = "scheduled"
+    task_assigned = "task_assigned"
+    manual = "manual"
+    retry = "retry"
 
 class A01PrecheckResult(BaseModel):
     is_valid: bool
