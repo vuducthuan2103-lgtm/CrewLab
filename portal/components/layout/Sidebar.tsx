@@ -2,14 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   BookOpen,
   BarChart3,
-  Bell,
   Settings,
   ImageIcon,
+  LogOut,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -22,10 +22,16 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('crewlab_auth');
+    router.push('/login');
   };
 
   return (
@@ -33,8 +39,8 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="px-4 py-5 border-b border-border">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-[#D4FF00] flex items-center justify-center shadow-[0_0_12px_rgba(212,255,0,0.4)]">
-            <span className="text-black font-bold text-xs">CL</span>
+          <div className="w-7 h-7 rounded-lg bg-lime-brand flex items-center justify-center shadow-accent-glow">
+            <span className="text-white dark:text-black font-bold text-xs">CL</span>
           </div>
           <span className="font-bold text-sm tracking-wide text-foreground">CrewLab</span>
         </div>
@@ -58,13 +64,13 @@ export default function Sidebar() {
             id={`sidebar-nav-${label.toLowerCase().replace(/\s+/g, '-')}`}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group ${
               isActive(href)
-                ? 'bg-[#D4FF00]/10 text-[#D4FF00] border border-[#D4FF00]/20 shadow-[0_0_10px_rgba(212,255,0,0.08)]'
+                ? 'bg-accent-tint text-lime-brand border border-accent-tint shadow-accent-glow'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
           >
             <Icon
               size={16}
-              className={isActive(href) ? 'text-[#D4FF00]' : 'text-muted-foreground group-hover:text-foreground'}
+              className={isActive(href) ? 'text-lime-brand' : 'text-muted-foreground group-hover:text-foreground'}
             />
             {label}
           </Link>
@@ -72,7 +78,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-4 border-t border-border">
+      <div className="px-4 py-4 border-t border-border space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-foreground">
             B
@@ -82,6 +88,14 @@ export default function Sidebar() {
             <p className="text-[10px] text-muted-foreground truncate">admin@bardinh.vn</p>
           </div>
         </div>
+        <button
+          id="logout-btn"
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-red-500 hover:bg-red-500/5 border border-transparent hover:border-red-500/20 transition-all"
+        >
+          <LogOut size={13} />
+          Đăng xuất
+        </button>
       </div>
     </aside>
   );

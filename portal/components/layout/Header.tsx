@@ -6,9 +6,8 @@ import { Bell, Sun, Moon, Zap, X, CheckCircle2, Image as ImageIcon, BarChart3, C
 import { AppNotification, NotificationType } from '@/lib/types';
 
 function NotificationIcon({ type }: { type: NotificationType }) {
-  if (type === 'content_ready_for_approval') return <CheckCircle2 size={14} className="text-[#D4FF00]" />;
+  if (type === 'content_ready_for_approval') return <CheckCircle2 size={14} className="text-lime-brand" />;
   if (type === 'asset_request_created') return <ImageIcon size={14} className="text-cyan-400" />;
-
   if (type === 'strategy_ready_for_approval') return <BarChart3 size={14} className="text-purple-400" />;
   return <Bell size={14} className="text-muted-foreground" />;
 }
@@ -38,7 +37,7 @@ function NotificationItem({ notif, onClose }: { notif: AppNotification; onClose:
           {notif.createdAt.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
         </p>
       </div>
-      {!notif.read && <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#D4FF00] flex-shrink-0 shadow-[0_0_6px_rgba(212,255,0,0.6)]" />}
+      {!notif.read && <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-lime-brand flex-shrink-0 shadow-accent-glow" />}
     </div>
   );
 }
@@ -58,7 +57,7 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 left-56 right-0 h-14 z-30 border-b border-border bg-background/95 backdrop-blur-sm flex items-center px-6 gap-4">
-      {/* Left: Page title area — kept intentionally empty for page components to fill */}
+      {/* Left: Page title area */}
       <div className="flex-1" />
 
       {/* Right: Actions */}
@@ -68,7 +67,7 @@ export default function Header() {
           id="demo-trigger-ai-event"
           onClick={handleDemoTrigger}
           disabled={demoLoading}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-primary/30 text-lime-brand hover:bg-primary/10 hover:border-primary/60 transition-all duration-150 disabled:opacity-60 shadow-sm"
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-accent-tint text-lime-brand hover:bg-accent-tint transition-all duration-150 disabled:opacity-60 shadow-sm"
           title="Giả lập sự kiện AI chạy — dùng khi demo/pitching"
         >
           <Zap size={12} className={demoLoading ? 'animate-spin' : ''} />
@@ -111,7 +110,7 @@ export default function Header() {
                     <Bell size={13} className="text-lime-brand" />
                     <span className="text-sm font-semibold">Thông báo</span>
                     {unreadCount > 0 && (
-                      <span className="text-[10px] bg-primary/15 text-lime-brand border border-primary/30 rounded-full px-1.5 py-0.5 font-semibold">
+                      <span className="text-[10px] bg-accent-tint text-lime-brand border border-accent-tint rounded-full px-1.5 py-0.5 font-semibold">
                         {unreadCount} mới
                       </span>
                     )}
@@ -134,7 +133,7 @@ export default function Header() {
                   )}
                 </div>
                 <div className="px-4 py-2.5 border-t border-border">
-                  <button className="text-[11px] text-[#D4FF00] hover:underline flex items-center gap-1">
+                  <button className="text-[11px] text-lime-brand hover:underline flex items-center gap-1">
                     Xem tất cả thông báo <ChevronRight size={11} />
                   </button>
                 </div>

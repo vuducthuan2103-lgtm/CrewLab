@@ -73,7 +73,7 @@ export default function AssetUploadDropzone({ requestId, onSubmit }: AssetUpload
           <ul className="space-y-1.5">
             {request.shotList.map((shot, i) => (
               <li key={i} className="flex items-start gap-2 text-xs text-foreground">
-                <span className="text-[#D4FF00] font-bold mt-0.5 flex-shrink-0">{i + 1}.</span>
+                <span className="text-lime-brand font-bold mt-0.5 flex-shrink-0">{i + 1}.</span>
                 {shot}
               </li>
             ))}
@@ -95,8 +95,8 @@ export default function AssetUploadDropzone({ requestId, onSubmit }: AssetUpload
         onClick={() => fileInputRef.current?.click()}
         className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all mb-4 ${
           dragging
-            ? 'border-[#D4FF00] bg-[#D4FF00]/5 shadow-[0_0_20px_rgba(212,255,0,0.1)]'
-            : 'border-border hover:border-[#D4FF00]/40 hover:bg-muted/20'
+            ? 'border-lime-brand bg-accent-tint shadow-accent-glow'
+            : 'border-border hover:border-primary/40 hover:bg-muted/20'
         }`}
       >
         <input
@@ -109,8 +109,8 @@ export default function AssetUploadDropzone({ requestId, onSubmit }: AssetUpload
           onChange={(e) => handleFiles(e.target.files)}
         />
         <div className="flex flex-col items-center gap-2">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${dragging ? 'bg-[#D4FF00]/20' : 'bg-muted'}`}>
-            <Upload size={18} className={dragging ? 'text-[#D4FF00]' : 'text-muted-foreground'} />
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${dragging ? 'bg-accent-tint-15' : 'bg-muted'}`}>
+            <Upload size={18} className={dragging ? 'text-lime-brand' : 'text-muted-foreground'} />
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">Kéo thả ảnh vào đây</p>
@@ -160,7 +160,7 @@ export default function AssetUploadDropzone({ requestId, onSubmit }: AssetUpload
         disabled={pendingFiles.length === 0}
         className={`w-full py-2.5 rounded-lg text-sm font-bold transition-all ${
           pendingFiles.length > 0
-            ? 'bg-[#D4FF00] text-black hover:bg-[#E5FF55] shadow-[0_0_14px_rgba(212,255,0,0.3)] hover:shadow-[0_0_22px_rgba(212,255,0,0.5)]'
+            ? 'btn-lime-glow'
             : 'bg-muted text-muted-foreground cursor-not-allowed'
         }`}
       >

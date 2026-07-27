@@ -24,7 +24,7 @@ const AGENT_COLORS: Record<string, string> = {
   D01: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
   D02: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
   E01: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-  HUMAN: 'bg-[#D4FF00]/15 text-[#D4FF00] border-[#D4FF00]/30',
+  HUMAN: 'bg-accent-tint-15 text-lime-brand border-accent-tint',
 };
 
 const AGENT_ICONS: Record<string, string> = {
@@ -64,7 +64,7 @@ export default function TaskCardComponent({ task }: TaskCardProps) {
         className={`
           group p-3 rounded-xl border bg-background transition-all duration-150
           ${isClickable
-            ? 'border-[#D4FF00]/30 hover:border-[#D4FF00]/70 hover:shadow-[0_0_14px_rgba(212,255,0,0.15)] cursor-pointer hover:-translate-y-0.5'
+            ? 'border-accent-tint hover:border-lime-brand hover:shadow-accent-glow cursor-pointer hover:-translate-y-0.5'
             : 'border-border hover:border-border/80 cursor-default'
           }
           ${task.hasError ? 'border-red-500/40 bg-red-500/5' : ''}
@@ -116,17 +116,17 @@ export default function TaskCardComponent({ task }: TaskCardProps) {
               </div>
             )}
             <span className="text-[10px] text-muted-foreground truncate">{linkedItem.title}</span>
-            {isClickable && <ChevronRight size={10} className="text-[#D4FF00] ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />}
+            {isClickable && <ChevronRight size={10} className="text-lime-brand ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />}
           </div>
         )}
 
         {/* Click CTA for human tasks */}
         {isClickable && (
-          <div className="mt-2.5 pt-2 border-t border-[#D4FF00]/20 flex items-center justify-between">
-            <div className="flex items-center gap-1 text-[10px] text-[#D4FF00] font-semibold">
+          <div className="mt-2.5 pt-2 border-t border-accent-tint-20 flex items-center justify-between">
+            <div className="flex items-center gap-1 text-[10px] text-lime-brand font-semibold">
               <User size={10} /> Chờ bạn xử lý
             </div>
-            <div className="text-[10px] text-[#D4FF00]/70">Bấm để xem &amp; duyệt →</div>
+            <div className="text-[10px] text-lime-brand opacity-70">Bấm để xem &amp; duyệt →</div>
           </div>
         )}
 

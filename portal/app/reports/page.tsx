@@ -8,8 +8,8 @@ export default function ReportsPage() {
   return (
     <PortalLayout>
       <div className="flex items-center gap-3 mb-8">
-        <div className="w-8 h-8 rounded-lg bg-[#D4FF00]/10 border border-[#D4FF00]/30 flex items-center justify-center">
-          <BarChart3 size={15} className="text-[#D4FF00]" />
+        <div className="w-8 h-8 rounded-lg bg-accent-tint border border-accent-tint flex items-center justify-center">
+          <BarChart3 size={15} className="text-lime-brand" />
         </div>
         <h1 className="text-lg font-bold text-foreground">Báo cáo</h1>
       </div>
@@ -21,7 +21,7 @@ export default function ReportsPage() {
         <p className="text-sm text-muted-foreground max-w-md leading-relaxed mb-6">
           Báo cáo hiệu quả nội dung tự động — reach, engagement, ROI theo từng Trụ nội dung — sẽ ra mắt khi CrewLab hoàn thiện tích hợp phân tích dữ liệu.
         </p>
-        <div className="flex items-center gap-2 text-xs bg-[#D4FF00]/10 border border-[#D4FF00]/20 text-[#D4FF00] rounded-full px-5 py-2.5 font-medium">
+        <div className="flex items-center gap-2 text-xs bg-accent-tint border border-accent-tint-20 text-lime-brand rounded-full px-5 py-2.5 font-medium">
           <Sparkles size={13} />
           Sắp ra mắt — Phase 4 (G01–G04 Analytics Agents)
         </div>

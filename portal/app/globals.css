@@ -6,9 +6,9 @@
 
 @layer base {
   :root {
-    /* ─── Light Mode — High Contrast Sharp Off-White ─── */
+    /* ─── Light Mode — High Contrast, Deeper Emerald ─── */
     --background: 220 20% 97%;
-    --foreground: 222 47% 9%;         /* Deep navy-black for crisp text */
+    --foreground: 222 47% 9%;
 
     --card: 0 0% 100%;
     --card-foreground: 222 47% 9%;
@@ -16,26 +16,25 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 9%;
 
-    /* Light Mode Accent — Premium Deep Emerald #047857 (Replaces washed-out yellow/lime, 10:1 contrast) */
-    --primary: 160 84% 25%;
+    /* Light Mode Accent — Deep Forest Emerald #035E47 (darker, 12:1 contrast on white) */
+    --primary: 162 92% 19%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 92%;
     --secondary-foreground: 222 47% 9%;
 
     --muted: 220 14% 93%;
-    --muted-foreground: 222 20% 28%;  /* Dark crisp gray */
+    --muted-foreground: 222 20% 28%;
 
-    --accent: 160 84% 25%;
+    --accent: 162 92% 19%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 76% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Sharper & clearer borders for inputs, cards & modals */
-    --border: 220 13% 68%;            /* Sharper definition (was 80%) */
+    --border: 220 13% 68%;
     --input: 220 13% 68%;
-    --ring: 160 84% 25%;
+    --ring: 162 92% 19%;
 
     --radius: 0.75rem;
   }
@@ -82,16 +81,20 @@
   }
 }
 
-/* ─── High-Contrast Brand Utilities ─────────────────────────── */
+/* ─── Theme-Aware Brand Utilities ─────────────────────────── */
+/* TEXT: Emerald in light, Lime in dark */
 .text-lime-brand {
-  color: #047857; /* Crisp Deep Emerald in light mode */
+  color: #035E47;
+  font-weight: 600;
 }
 .dark .text-lime-brand {
-  color: #D4FF00; /* Neon Electric Lime in dark mode */
+  color: #D4FF00;
+  font-weight: inherit;
 }
 
+/* BG: Emerald in light, Lime in dark */
 .bg-lime-brand {
-  background-color: #047857;
+  background-color: #035E47;
   color: #FFFFFF;
 }
 .dark .bg-lime-brand {
@@ -99,18 +102,57 @@
   color: #09090B;
 }
 
+/* BORDER */
 .border-lime-brand {
-  border-color: #059669;
+  border-color: #047857;
 }
 .dark .border-lime-brand {
   border-color: #D4FF00;
 }
 
-/* Custom glow classes */
+/* ─── Accent BG tints (opacity variants) ──────────────────── */
+.bg-accent-tint {
+  background-color: rgba(3, 94, 71, 0.10);
+}
+.dark .bg-accent-tint {
+  background-color: rgba(212, 255, 0, 0.10);
+}
+
+.bg-accent-tint-15 {
+  background-color: rgba(3, 94, 71, 0.15);
+}
+.dark .bg-accent-tint-15 {
+  background-color: rgba(212, 255, 0, 0.15);
+}
+
+/* Border accent tints */
+.border-accent-tint {
+  border-color: rgba(4, 120, 87, 0.30);
+}
+.dark .border-accent-tint {
+  border-color: rgba(212, 255, 0, 0.30);
+}
+
+.border-accent-tint-20 {
+  border-color: rgba(4, 120, 87, 0.20);
+}
+.dark .border-accent-tint-20 {
+  border-color: rgba(212, 255, 0, 0.20);
+}
+
+/* Shadow accent */
+.shadow-accent-glow {
+  box-shadow: 0 0 12px rgba(4, 120, 87, 0.15);
+}
+.dark .shadow-accent-glow {
+  box-shadow: 0 0 12px rgba(212, 255, 0, 0.25);
+}
+
+/* ─── Button lime glow ────────────────────────────────────── */
 .btn-lime-glow {
-  background-color: #047857;
+  background-color: #035E47;
   color: #FFFFFF;
-  box-shadow: 0 0 12px rgba(4, 120, 87, 0.2);
+  box-shadow: 0 0 12px rgba(3, 94, 71, 0.2);
   transition: all 0.2s ease-in-out;
 }
 .dark .btn-lime-glow {
@@ -119,7 +161,7 @@
   box-shadow: 0 0 20px rgba(212, 255, 0, 0.35);
 }
 .btn-lime-glow:hover {
-  background-color: #065F46;
+  background-color: #024E3B;
   transform: translateY(-1px);
 }
 .dark .btn-lime-glow:hover {
@@ -128,12 +170,22 @@
 }
 
 .border-lime-glow {
-  border-color: #059669;
-  box-shadow: 0 0 10px rgba(5, 150, 105, 0.15);
+  border-color: #047857;
+  box-shadow: 0 0 10px rgba(4, 120, 87, 0.15);
 }
 .dark .border-lime-glow {
   border-color: #D4FF00;
   box-shadow: 0 0 15px rgba(212, 255, 0, 0.2);
+}
+
+/* ─── Focus ring for inputs ───────────────────────────────── */
+.focus-accent:focus {
+  border-color: #047857;
+  box-shadow: 0 0 0 2px rgba(4, 120, 87, 0.15);
+}
+.dark .focus-accent:focus {
+  border-color: rgba(212, 255, 0, 0.6);
+  box-shadow: 0 0 0 2px rgba(212, 255, 0, 0.15);
 }
 
 /* ─── Custom Range Slider ───────────────────────────────────── */
@@ -150,10 +202,10 @@ input[type='range']::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background-color: #047857;
+  background-color: #035E47;
   border: 2px solid rgba(255, 255, 255, 0.9);
   cursor: pointer;
-  box-shadow: 0 0 8px rgba(4, 120, 87, 0.3);
+  box-shadow: 0 0 8px rgba(3, 94, 71, 0.3);
   transition: transform 0.15s ease;
 }
 .dark input[type='range']::-webkit-slider-thumb {
@@ -168,13 +220,10 @@ input[type='range']::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background-color: #047857;
+  background-color: #035E47;
   border: 2px solid rgba(255, 255, 255, 0.9);
   cursor: pointer;
 }
 .dark input[type='range']::-moz-range-thumb {
   background-color: #D4FF00;
 }
-
-
-

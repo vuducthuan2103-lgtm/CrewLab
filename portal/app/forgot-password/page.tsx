@@ -16,14 +16,14 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-[#D4FF00]/4 blur-3xl" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-primary/5 blur-3xl" />
       </div>
 
       <div className="relative z-10 w-full max-w-md px-4">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-[#D4FF00] flex items-center justify-center shadow-[0_0_30px_rgba(212,255,0,0.4)] mb-4">
-            <span className="text-black font-black text-lg">CL</span>
+          <div className="w-12 h-12 rounded-2xl bg-lime-brand flex items-center justify-center shadow-accent-glow mb-4">
+            <span className="text-white dark:text-black font-black text-lg">CL</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground">CrewLab</h1>
         </div>
@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="admin@bardinh.vn"
-                      className="w-full pl-9 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-[#D4FF00]/60 focus:ring-1 focus:ring-[#D4FF00]/30 transition-all"
+                      className="w-full pl-9 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all"
                     />
                   </div>
                 </div>
@@ -58,7 +58,7 @@ export default function ForgotPasswordPage() {
                 <button
                   id="forgot-password-submit"
                   type="submit"
-                  className="w-full py-2.5 bg-[#D4FF00] text-black font-bold text-sm rounded-lg hover:bg-[#E5FF55] transition-all shadow-[0_0_20px_rgba(212,255,0,0.3)] hover:shadow-[0_0_30px_rgba(212,255,0,0.5)]"
+                  className="w-full py-2.5 btn-lime-glow font-bold text-sm rounded-lg transition-all"
                 >
                   Gửi link đặt lại mật khẩu
                 </button>
@@ -66,8 +66,8 @@ export default function ForgotPasswordPage() {
             </>
           ) : (
             <div className="text-center py-4">
-              <div className="w-14 h-14 rounded-full bg-[#D4FF00]/10 border border-[#D4FF00]/30 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 size={28} className="text-[#D4FF00]" />
+              <div className="w-14 h-14 rounded-full bg-accent-tint border border-accent-tint flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 size={28} className="text-lime-brand" />
               </div>
               <h2 className="text-lg font-bold text-foreground mb-2">Kiểm tra email của bạn!</h2>
               <p className="text-sm text-muted-foreground">

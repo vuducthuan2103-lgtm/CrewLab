@@ -79,7 +79,7 @@ function PillarBar({ pillar, onUpdate }: { pillar: ContentPillar; onUpdate: (id:
               {a.label}
             </span>
           ))}
-          <button className="text-[10px] bg-muted/50 text-muted-foreground rounded-full px-2 py-0.5 border border-dashed border-border hover:border-[#D4FF00]/50 hover:text-[#D4FF00] transition-colors">
+          <button className="text-[10px] bg-muted/50 text-muted-foreground rounded-full px-2 py-0.5 border border-dashed border-border hover:border-primary/50 hover:text-lime-brand transition-colors">
             + Thêm
           </button>
         </div>

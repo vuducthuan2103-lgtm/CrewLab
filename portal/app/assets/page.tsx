@@ -16,8 +16,8 @@ export default function AssetsPage() {
   return (
     <PortalLayout>
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-8 h-8 rounded-lg bg-[#D4FF00]/10 border border-[#D4FF00]/30 flex items-center justify-center">
-          <ImageIcon size={15} className="text-[#D4FF00]" />
+        <div className="w-8 h-8 rounded-lg bg-accent-tint border border-accent-tint flex items-center justify-center">
+          <ImageIcon size={15} className="text-lime-brand" />
         </div>
         <div>
           <h1 className="text-lg font-bold text-foreground">Thư viện ảnh & Yêu cầu ảnh</h1>
@@ -42,7 +42,7 @@ export default function AssetsPage() {
             onClick={() => setActiveTab(key as 'library' | 'requests')}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px ${
               activeTab === key
-                ? 'border-[#D4FF00] text-[#D4FF00]'
+                ? 'border-lime-brand text-lime-brand'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >

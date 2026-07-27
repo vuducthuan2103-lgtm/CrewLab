@@ -15,11 +15,13 @@ export default function LoginPage() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    localStorage.setItem('crewlab_auth', 'true');
     setTimeout(() => router.push('/'), 800);
   };
 
   const handleMockLogin = () => {
     setMockLoading(true);
+    localStorage.setItem('crewlab_auth', 'true');
     setTimeout(() => router.push('/'), 600);
   };
 
@@ -27,7 +29,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
       {/* Background glow effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-[#D4FF00]/5 blur-3xl" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-cyan-500/5 blur-3xl" />
         <div className="absolute top-0 left-0 w-72 h-72 rounded-full bg-purple-500/5 blur-3xl" />
       </div>
@@ -36,7 +38,7 @@ export default function LoginPage() {
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(rgba(212,255,0,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(212,255,0,0.5) 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(hsl(var(--primary) / 0.5) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary) / 0.5) 1px, transparent 1px)`,
           backgroundSize: '60px 60px',
         }}
       />
@@ -44,8 +46,8 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md px-4">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-[#D4FF00] flex items-center justify-center shadow-[0_0_30px_rgba(212,255,0,0.4)] mb-4">
-            <span className="text-black font-black text-lg tracking-tighter">CL</span>
+          <div className="w-12 h-12 rounded-2xl bg-lime-brand flex items-center justify-center shadow-accent-glow mb-4">
+            <span className="text-white dark:text-black font-black text-lg tracking-tighter">CL</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">CrewLab</h1>
           <p className="text-sm text-muted-foreground mt-1">AI Marketing Agency cho F&amp;B SME</p>
@@ -70,7 +72,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@bardinh.vn"
-                  className="w-full pl-9 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-[#D4FF00]/60 focus:ring-1 focus:ring-[#D4FF00]/30 transition-all"
+                  className="w-full pl-9 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all"
                 />
               </div>
             </div>
@@ -88,7 +90,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-9 pr-10 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-[#D4FF00]/60 focus:ring-1 focus:ring-[#D4FF00]/30 transition-all"
+                  className="w-full pl-9 pr-10 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all"
                 />
                 <button
                   type="button"
@@ -99,7 +101,7 @@ export default function LoginPage() {
                 </button>
               </div>
               <div className="flex justify-end mt-1.5">
-                <a href="/forgot-password" className="text-xs text-[#D4FF00] hover:underline">
+                <a href="/forgot-password" className="text-xs text-lime-brand hover:underline">
                   Quên mật khẩu?
                 </a>
               </div>
@@ -110,7 +112,7 @@ export default function LoginPage() {
               id="login-submit"
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-[#D4FF00] text-black font-bold text-sm rounded-lg hover:bg-[#E5FF55] transition-all shadow-[0_0_20px_rgba(212,255,0,0.3)] hover:shadow-[0_0_30px_rgba(212,255,0,0.5)] disabled:opacity-60 flex items-center justify-center gap-2"
+              className="w-full py-2.5 btn-lime-glow font-bold text-sm rounded-lg disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {loading ? 'Đang đăng nhập…' : 'Đăng nhập'}
               {!loading && <ArrowRight size={14} />}
@@ -129,7 +131,7 @@ export default function LoginPage() {
             id="mock-login-bardinh"
             onClick={handleMockLogin}
             disabled={mockLoading}
-            className="w-full py-2.5 border border-[#D4FF00]/30 text-[#D4FF00] font-semibold text-sm rounded-lg hover:bg-[#D4FF00]/10 hover:border-[#D4FF00]/60 transition-all shadow-[0_0_10px_rgba(212,255,0,0.06)] hover:shadow-[0_0_16px_rgba(212,255,0,0.15)] flex items-center justify-center gap-2 disabled:opacity-60"
+            className="w-full py-2.5 border border-accent-tint text-lime-brand font-semibold text-sm rounded-lg hover:bg-accent-tint transition-all shadow-sm hover:shadow-accent-glow flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <Zap size={13} />
             {mockLoading ? 'Đang vào Portal…' : 'Trải nghiệm ngay — Bardinh Coffee'}

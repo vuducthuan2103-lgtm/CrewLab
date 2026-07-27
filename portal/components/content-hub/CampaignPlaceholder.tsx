@@ -13,7 +13,7 @@ export default function CampaignPlaceholder() {
       <p className="text-sm text-muted-foreground max-w-sm leading-relaxed mb-4">
         Quản lý chiến dịch / sự kiện (do B01 IMC Planner xử lý) sẽ có trong phiên bản tiếp theo của CrewLab.
       </p>
-      <div className="flex items-center gap-2 text-xs bg-[#D4FF00]/10 border border-[#D4FF00]/20 text-[#D4FF00] rounded-full px-4 py-2 font-medium">
+      <div className="flex items-center gap-2 text-xs bg-accent-tint border border-accent-tint-20 text-lime-brand rounded-full px-4 py-2 font-medium">
         <Sparkles size={12} />
         Sắp ra mắt — Phase 5
       </div>

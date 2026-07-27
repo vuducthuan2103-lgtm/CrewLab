@@ -25,7 +25,7 @@ interface ContentApprovalModalProps {
 function FSMBadge({ state }: { state: ContentItem['state'] }) {
   const configs: Record<string, { class: string; label: string }> = {
     pending_content_approval: {
-      class: 'bg-[#D4FF00]/15 text-[#D4FF00] border-[#D4FF00]/30 shadow-[0_0_8px_rgba(212,255,0,0.15)]',
+      class: 'bg-accent-tint-15 text-lime-brand border-accent-tint shadow-accent-glow',
       label: FSM_STATE_LABELS['pending_content_approval'],
     },
     approved_ready_to_post: {
@@ -49,7 +49,7 @@ function MockFBPreview({ item, caption }: { item: ContentItem; caption: string }
     <div className="rounded-xl overflow-hidden border border-border bg-[#1C1E21] text-white text-xs">
       {/* FB Post Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/10">
-        <div className="w-7 h-7 rounded-full bg-[#D4FF00] flex items-center justify-center text-black font-bold text-[10px]">B</div>
+        <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-[10px]">B</div>
         <div>
           <p className="font-semibold text-[11px]">Bardinh Coffee</p>
           <p className="text-[10px] text-white/50">Vừa xong · 🌐</p>
@@ -85,7 +85,7 @@ function MockIGPreview({ item, caption }: { item: ContentItem; caption: string }
     <div className="rounded-xl overflow-hidden border border-border bg-[#000] text-white text-xs">
       {/* IG Header */}
       <div className="flex items-center gap-2 px-3 py-2.5">
-        <div className="w-7 h-7 rounded-full ring-2 ring-[#D4FF00] flex items-center justify-center bg-[#D4FF00] text-black font-bold text-[10px]">B</div>
+        <div className="w-7 h-7 rounded-full ring-2 ring-emerald-500 flex items-center justify-center bg-emerald-600 text-white font-bold text-[10px]">B</div>
         <div>
           <p className="font-semibold text-[11px]">bardinh.coffee</p>
         </div>
@@ -158,7 +158,7 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
         <div className="flex items-start justify-between px-6 py-4 border-b border-border flex-shrink-0">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Eye size={14} className="text-[#D4FF00]" />
+              <Eye size={14} className="text-lime-brand" />
               <h2 className="text-base font-bold text-foreground">Xem trước & Duyệt bài</h2>
             </div>
             <div className="flex items-center gap-2">
@@ -179,7 +179,7 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
           </button>
         </div>
 
-        {/* AI Badge — ẩn eval_score */}
+        {/* AI Badge */}
         <div className="px-6 py-2.5 bg-muted/20 border-b border-border flex items-center gap-2 flex-shrink-0">
           <CheckCircle2 size={13} className="text-emerald-400" />
           <span className="text-xs text-muted-foreground">
@@ -216,7 +216,7 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
                   <Edit3 size={12} className="text-muted-foreground" />
                   <span className="text-xs font-semibold text-muted-foreground">Caption</span>
                   {isEditingCaption && (
-                    <span className="text-[10px] bg-[#D4FF00]/15 text-[#D4FF00] border border-[#D4FF00]/30 rounded-full px-2 py-0.5 font-semibold">
+                    <span className="text-[10px] bg-accent-tint-15 text-lime-brand border border-accent-tint rounded-full px-2 py-0.5 font-semibold">
                       Đang chỉnh sửa
                     </span>
                   )}
@@ -224,7 +224,7 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
                 {!isReadOnly && (
                   <button
                     onClick={() => setIsEditingCaption(!isEditingCaption)}
-                    className="text-xs text-[#D4FF00] hover:underline font-medium"
+                    className="text-xs text-lime-brand hover:underline font-medium"
                   >
                     {isEditingCaption ? 'Xong' : 'Chỉnh sửa'}
                   </button>
@@ -265,7 +265,7 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
                 id="reject-reason-select"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value as RejectionReason)}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-[#D4FF00]/60"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary"
               >
                 {Object.entries(REJECTION_REASON_LABELS).map(([key, label]) => (
                   <option key={key} value={key}>{label}</option>
@@ -303,7 +303,7 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
             <div
               className={`mx-6 mb-4 p-3 rounded-xl flex items-center gap-2 text-sm font-semibold ${
                 actionDone === 'approved'
-                  ? 'bg-[#D4FF00]/15 text-[#D4FF00] border border-[#D4FF00]/30'
+                  ? 'bg-accent-tint-15 text-lime-brand border border-accent-tint'
                   : actionDone === 'posted'
                   ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                   : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
@@ -340,7 +340,7 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
               <button
                 id="approve-btn"
                 onClick={handleApprove}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#D4FF00] text-black text-sm font-bold rounded-lg hover:bg-[#E5FF55] shadow-[0_0_16px_rgba(212,255,0,0.3)] hover:shadow-[0_0_24px_rgba(212,255,0,0.5)] transition-all"
+                className="flex items-center gap-2 px-5 py-2.5 btn-lime-glow text-sm font-bold rounded-lg transition-all"
               >
                 <ThumbsUp size={14} /> Duyệt bài
               </button>

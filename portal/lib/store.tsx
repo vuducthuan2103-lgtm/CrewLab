@@ -69,6 +69,9 @@ interface PortalActions {
   updateBrandVoice: (config: BrandVoiceConfig) => void;
   updateAgentModel: (agentCode: string, model: string, tier: string) => void;
   updateAgentBudget: (agentCode: string, budget: number) => void;
+
+  // Asset Upload
+  submitAssets: (requestId: string, assetUrls: string[]) => void;
 }
 
 

@@ -6,15 +6,17 @@ import PortalLayout from '@/components/layout/PortalLayout';
 import CampaignPlaceholder from '@/components/content-hub/CampaignPlaceholder';
 import PillarSlider from '@/components/content-hub/PillarSlider';
 import ContentCalendar from '@/components/content-hub/ContentCalendar';
-import { Megaphone, Columns3, CalendarDays, BookOpen } from 'lucide-react';
+import ContentPlanTable from '@/components/content-hub/ContentPlanTable';
+import { Megaphone, Columns3, CalendarDays, BookOpen, TableProperties } from 'lucide-react';
 import { Suspense } from 'react';
 
-type Tab = 'campaign' | 'pillar' | 'calendar';
+type Tab = 'campaign' | 'pillar' | 'calendar' | 'plan-table';
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: 'campaign', label: 'Campaign', icon: <Megaphone size={13} /> },
   { key: 'pillar', label: 'Trụ nội dung', icon: <Columns3 size={13} /> },
   { key: 'calendar', label: 'Lịch nội dung', icon: <CalendarDays size={13} /> },
+  { key: 'plan-table', label: 'Bảng kế hoạch', icon: <TableProperties size={13} /> },
 ];
 
 function ContentHubInner() {
@@ -30,8 +32,8 @@ function ContentHubInner() {
     <PortalLayout>
       {/* Page title */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-8 h-8 rounded-lg bg-[#D4FF00]/10 border border-[#D4FF00]/30 flex items-center justify-center">
-          <BookOpen size={15} className="text-[#D4FF00]" />
+        <div className="w-8 h-8 rounded-lg bg-accent-tint border border-accent-tint flex items-center justify-center">
+          <BookOpen size={15} className="text-lime-brand" />
         </div>
         <div>
           <h1 className="text-lg font-bold text-foreground">Kế hoạch nội dung</h1>
@@ -48,7 +50,7 @@ function ContentHubInner() {
             onClick={() => setTab(key)}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px ${
               tab === key
-                ? 'border-[#D4FF00] text-[#D4FF00]'
+                ? 'border-lime-brand text-lime-brand'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -62,6 +64,7 @@ function ContentHubInner() {
       {tab === 'campaign' && <CampaignPlaceholder />}
       {tab === 'pillar' && <PillarSlider />}
       {tab === 'calendar' && <ContentCalendar />}
+      {tab === 'plan-table' && <ContentPlanTable />}
     </PortalLayout>
   );
 }

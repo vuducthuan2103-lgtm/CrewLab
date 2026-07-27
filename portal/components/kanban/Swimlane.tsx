@@ -7,8 +7,8 @@ import { Circle, Loader2, Eye, CheckCircle2 } from 'lucide-react';
 
 interface SwimlaneProps {
   desk: TeamDesk;
-  label: string;
-  emoji: string;
+  deskLabel: string;
+  deskEmoji: string;
   tasks: TaskCardType[];
   stats: { todo: number; in_progress: number; review: number; done: number };
 }
@@ -26,8 +26,8 @@ const COLUMN_META: Record<KanbanColumn, { label: string; icon: React.ReactNode; 
   },
   review: {
     label: 'Cần xem xét',
-    icon: <Eye size={12} className="text-[#D4FF00]" />,
-    headerClass: 'text-[#D4FF00]',
+    icon: <Eye size={12} className="text-lime-brand" />,
+    headerClass: 'text-lime-brand',
   },
   done: {
     label: 'Hoàn thành',
@@ -38,7 +38,7 @@ const COLUMN_META: Record<KanbanColumn, { label: string; icon: React.ReactNode; 
 
 const COLUMNS: KanbanColumn[] = ['todo', 'in_progress', 'review', 'done'];
 
-export default function Swimlane({ desk, label, emoji, tasks, stats }: SwimlaneProps) {
+export default function Swimlane({ desk, deskLabel, deskEmoji, tasks, stats }: SwimlaneProps) {
   const tasksByColumn = COLUMNS.reduce(
     (acc, col) => {
       acc[col] = tasks.filter((t) => t.column === col);
@@ -53,14 +53,14 @@ export default function Swimlane({ desk, label, emoji, tasks, stats }: SwimlaneP
     <div className="border border-border rounded-xl overflow-hidden bg-muted/10">
       {/* Swimlane Header */}
       <div className="flex items-center gap-3 px-4 py-2.5 bg-muted/30 border-b border-border">
-        <span className="text-base">{emoji}</span>
-        <span className="text-sm font-bold text-foreground tracking-wide uppercase">{label}</span>
+        <span className="text-base">{deskEmoji}</span>
+        <span className="text-sm font-bold text-foreground tracking-wide uppercase">{deskLabel}</span>
         <div className="ml-auto flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
           <span title="To Do">{stats.todo}</span>
           <span className="text-muted-foreground/30">·</span>
           <span title="In Progress" className="text-blue-400">{stats.in_progress}</span>
           <span className="text-muted-foreground/30">·</span>
-          <span title="Review" className="text-[#D4FF00]">{stats.review}</span>
+          <span title="Review" className="text-lime-brand">{stats.review}</span>
           <span className="text-muted-foreground/30">·</span>
           <span title="Done" className="text-emerald-400">{stats.done}</span>
           <span className="text-muted-foreground/30 ml-1">= {totalCount} tasks</span>

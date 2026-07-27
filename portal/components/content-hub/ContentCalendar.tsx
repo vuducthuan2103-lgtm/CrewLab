@@ -12,7 +12,7 @@ const WEEK_DATES = [16, 17, 18, 19, 20, 21, 22];
 function StateDot({ state }: { state: ContentItem['state'] }) {
   if (state === 'posted') return <span className="text-[8px] text-blue-400">●</span>;
   if (state === 'approved_ready_to_post') return <span className="text-[8px] text-emerald-400">●</span>;
-  if (state === 'pending_content_approval') return <span className="text-[8px] text-[#D4FF00]">●</span>;
+  if (state === 'pending_content_approval') return <span className="text-[8px] text-lime-brand">●</span>;
   if (state === 'evaluating') return <span className="text-[8px] text-cyan-400 animate-pulse">◐</span>;
   if (state === 'waiting_asset') return <span className="text-[8px] text-orange-400">◌</span>;
   return <span className="text-[8px] text-zinc-500">○</span>;
@@ -32,12 +32,12 @@ function DayCell({
   const isToday = date === 17; // mock "today" = 17/06
 
   return (
-    <div className={`border-r border-border last:border-r-0 p-2 min-h-[120px] ${isToday ? 'bg-[#D4FF00]/3' : ''}`}>
+    <div className={`border-r border-border last:border-r-0 p-2 min-h-[120px] ${isToday ? 'bg-accent-tint' : ''}`}>
       {/* Day header */}
-      <div className={`text-center mb-2 ${isToday ? 'text-[#D4FF00]' : 'text-muted-foreground'}`}>
+      <div className={`text-center mb-2 ${isToday ? 'text-lime-brand' : 'text-muted-foreground'}`}>
         <p className="text-[10px] font-bold uppercase">{dayLabel}</p>
         <p className={`text-xs font-semibold mt-0.5 w-6 h-6 rounded-full mx-auto flex items-center justify-center ${
-          isToday ? 'bg-[#D4FF00] text-black shadow-[0_0_8px_rgba(212,255,0,0.4)]' : ''
+          isToday ? 'bg-lime-brand shadow-accent-glow' : ''
         }`}>
           {date}
         </p>
@@ -54,7 +54,7 @@ function DayCell({
           >
             <div className={`rounded-lg overflow-hidden border transition-all hover:scale-[1.02] ${
               item.state === 'pending_content_approval'
-                ? 'border-[#D4FF00]/40 hover:border-[#D4FF00]/80'
+                ? 'border-accent-tint hover:border-lime-brand'
                 : 'border-border hover:border-border/80'
             }`}>
               {/* Platform badge + time */}
@@ -115,7 +115,7 @@ export default function ContentCalendar() {
       {/* Calendar Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Calendar size={15} className="text-[#D4FF00]" />
+          <Calendar size={15} className="text-lime-brand" />
           <h2 className="text-base font-bold text-foreground">Kế hoạch nội dung</h2>
         </div>
         <div className="flex items-center gap-2">
@@ -123,7 +123,7 @@ export default function ContentCalendar() {
           <div className="hidden lg:flex items-center gap-3 text-[10px] text-muted-foreground mr-2">
             <span><span className="text-blue-400">●</span> Đã đăng</span>
             <span><span className="text-emerald-400">●</span> Chờ đăng</span>
-            <span><span className="text-[#D4FF00]">●</span> Chờ duyệt</span>
+            <span><span className="text-lime-brand">●</span> Chờ duyệt</span>
             <span><span className="text-cyan-400">◐</span> AI đang làm</span>
           </div>
 
@@ -188,7 +188,7 @@ export default function ContentCalendar() {
             <div
               key={day}
               className={`text-center py-2 border-r border-border last:border-r-0 text-[10px] font-bold uppercase tracking-wider ${
-                i === 1 ? 'text-[#D4FF00]' : 'text-muted-foreground'
+                i === 1 ? 'text-lime-brand' : 'text-muted-foreground'
               }`}
             >
               {day}

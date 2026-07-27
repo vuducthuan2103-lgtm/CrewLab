@@ -28,7 +28,7 @@ function AssetDetailPanel({ asset, onClose }: { asset: MediaAsset; onClose: () =
       <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <Info size={14} className="text-[#D4FF00]" />
+            <Info size={14} className="text-lime-brand" />
             <span className="text-sm font-bold">Chi tiết ảnh</span>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
@@ -118,7 +118,7 @@ export default function MediaLibraryGrid() {
               onClick={() => setActiveFilter(key)}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${
                 activeFilter === key
-                  ? 'bg-[#D4FF00] text-black font-bold shadow-[0_0_8px_rgba(212,255,0,0.25)]'
+                  ? 'bg-lime-brand font-bold shadow-accent-glow'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               }`}
             >
@@ -138,7 +138,7 @@ export default function MediaLibraryGrid() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Tìm theo tag…"
-            className="w-full pl-8 pr-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-[#D4FF00]/60"
+            className="w-full pl-8 pr-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
           />
         </div>
       </div>
@@ -152,7 +152,7 @@ export default function MediaLibraryGrid() {
               key={asset.id}
               id={`media-asset-${asset.id}`}
               onClick={() => setSelectedAsset(asset)}
-              className="group relative rounded-xl overflow-hidden border border-border hover:border-[#D4FF00]/50 transition-all hover:shadow-[0_0_12px_rgba(212,255,0,0.1)] text-left"
+              className="group relative rounded-xl overflow-hidden border border-border hover:border-lime-brand transition-all hover:shadow-accent-glow text-left"
             >
               <div className="aspect-square overflow-hidden">
                 <img
