@@ -57,13 +57,13 @@ If these conflict, use this order and flag the conflict to the human instead of 
 
 ## Commands
 
-<!-- Fill these in once the project is scaffolded, keep this section current -->
 - Dev server (backend):
-- Dev server (portal):
-- Dev server (internal-app):
+- Dev server (portal): `cd portal && npm run dev` (runs on http://localhost:3000)
+- Dev server (internal-app): `cd internal-app && npm run dev` (runs on http://localhost:3001)
 - Run migrations:
 - Run tests:
-- Lint:
+- Lint (portal): `cd portal && npm run lint`
+- Lint (internal-app): `cd internal-app && npm run lint`
 
 ## Reference
 
