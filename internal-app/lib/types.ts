@@ -44,6 +44,9 @@ export interface Client {
   activeTaskCount: number;
   hasError: boolean;
   hasPendingApproval: boolean;
+  platforms: Platform[];
+  budgetTotal: number;
+  budgetUsed: number;
 }
 
 // ─── Content Item (Admin view — includes eval_score) ─────────────────────────
