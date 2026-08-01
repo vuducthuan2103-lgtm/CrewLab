@@ -53,7 +53,12 @@ module.exports = {
         lime: {
           400: "#D4FF00",
           500: "#C2F000",
-        }
+          glow: "#E5FF55",
+        },
+        cyan: {
+          admin: "#22d3ee",
+          deep: "#0891b2",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -63,10 +68,26 @@ module.exports = {
       boxShadow: {
         'glow-lime': '0 0 25px rgba(212, 255, 0, 0.35)',
         'glow-lime-sm': '0 0 12px rgba(212, 255, 0, 0.25)',
+        'glow-cyan': '0 0 20px rgba(34, 211, 238, 0.3)',
+        'glow-cyan-sm': '0 0 10px rgba(34, 211, 238, 0.15)',
       },
       fontFamily: {
         sans: ['Montserrat', 'Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
+      },
+      keyframes: {
+        "pulse-glow": {
+          "0%, 100%": { opacity: "1", boxShadow: "0 0 20px rgba(212, 255, 0, 0.4)" },
+          "50%": { opacity: "0.6", boxShadow: "0 0 8px rgba(212, 255, 0, 0.15)" },
+        },
+        "pulse-cyan": {
+          "0%, 100%": { opacity: "1", boxShadow: "0 0 15px rgba(34, 211, 238, 0.3)" },
+          "50%": { opacity: "0.5", boxShadow: "0 0 5px rgba(34, 211, 238, 0.1)" },
+        },
+      },
+      animation: {
+        "pulse-glow": "pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "pulse-cyan": "pulse-cyan 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
     },
   },
