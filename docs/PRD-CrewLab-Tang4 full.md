@@ -37,8 +37,11 @@ Cấu trúc tài liệu này bám sát đúng thứ tự PRD gốc: 7.5.1 (Hạ 
   - [7.5.3.7 Cài đặt (Settings)](#7537-cài-đặt-settings--gộp-thêm-thư-viện-ảnh)
   - [7.5.3.8 Notification Center](#7538-notification-center)
 - [7.5.4 — Internal App (Agency Admin)](#754-internal-app-agency-admin)
-  - [7.5.4.0 Multi-Office Overview ⭐ MỚI](#7540-mới-multi-office-overview)
-  - [7.5.4.1 → 7.5.4.11](#7541--75411-các-màn-hình-quản-trị)
+  - [7.5.4.0 Information Architecture & Ghi chú phạm vi](#7540-information-architecture--ghi-chú-phạm-vi)
+  - [7.5.4.1 Client List — Màn hình đầu tiên](#7541-client-list--màn-hình-đầu-tiên)
+  - [7.5.4.2 Onboard Client Mới — Wizard 9 bước](#7542-onboard-client-mới--wizard-9-bước)
+  - [7.5.4.3 Quản lý Chi phí AI](#7543-quản-lý-chi-phí-ai)
+  - [7.5.4.4 Acceptance Criteria Internal App](#7544-acceptance-criteria-internal-app)
 - [7.5.5 — Notification System](#755-notification-system)
 - [7.5.6 — Meta Graph API Integration](#756-tích-hợp-meta-graph-api)
 - [7.5.7 — NFR & Acceptance Criteria](#757-nfr--acceptance-criteria)
@@ -699,126 +702,178 @@ QR code + deep link pairing Telegram (TTL 10 phút, dùng 1 lần), trạng thá
 - Mỗi notification có `action_url` dẫn thẳng đến đúng nơi cần xử lý — với thông báo "chờ duyệt" trỏ vào đúng card task loại Người trên Kanban (hoặc thẳng vào modal duyệt tương ứng ở Content Plan Calendar), **không phải trang Gate riêng**.
 
 ---
-## 7.5.4. Internal App (Agency Admin)
+### 7.5.4. Internal App (Agency Admin)
 
-*(Giữ nguyên phần lớn business logic từ bản nháp trước. Bổ sung mục 7.5.4.0 — Multi-Office Overview, tương ứng khái niệm Pixel Office ở Client Portal nhưng cho phép xem nhiều client cùng lúc.)*
+*(Bản PRD thu hẹp có chủ đích cho giai đoạn 1–3 client pilot. Thu hẹp vào 2 trọng tâm: Onboard client mới & Quản lý chi phí AI. Các tính năng mở rộng khác như Multi-Office Overview, Cycle Monitor/Debug View, Dead Letter Queue, Reopen/Override, Meta Account Management, Beat Schedule, Audit Log, Escalation Alert Center sẽ bổ sung ở giai đoạn sau khi quy mô mở rộng.)*
 
-### 7.5.4.0. (MỚI) Multi-Office Overview
-
-Landing screen của Internal App, đặt trước Client List trong điều hướng:
+#### 7.5.4.0. Information Architecture & Ghi chú phạm vi
 
 ```
-┌────────────────────────────────────────────────────────┐
-│  Tổng quan văn phòng — 5 client active                 │
-├───────────────────┬───────────────────┬────────────────┤
-│ 🏢 Bardinh Coffee  │ 🏢 Cafe XYZ        │ 🏢 Client 3    │
-│ [mini pixel office]│ [mini pixel office]│ [mini office]  │
-│ 🟢 Bình thường     │ 🔴 1 lỗi cần xử lý │ 🟡 Chờ duyệt   │
-│ [Vào Client →]     │ [Vào Client →]     │ [Vào Client →] │
-└───────────────────┴───────────────────┴────────────────┘
+┌─────────────────────┐
+│  🔷 CrewLab Admin   │
+├─────────────────────┤
+│                     │
+│  👥 Clients         │  ← Màn hình đầu tiên (danh sách client)
+│  💰 Chi phí AI       │  ← Tổng quan chi phí tất cả client
+│                     │
+└─────────────────────┘
 ```
 
-Mỗi ô là bản thu nhỏ của Pixel Office client đó (4 bàn, không animation phức tạp, chỉ icon trạng thái tổng hợp) — giúp Agency Admin quét nhanh client nào đang gặp vấn đề mà không cần mở từng client. Click "Vào Client →" → chuyển sang Debug View/Cycle Monitor của đúng client đó.
+Chỉ 2 mục chính trên sidebar. Không có Dashboard alert-first, không có Multi-Office Overview — phù hợp quy mô pilot.
 
-**Rule badge trạng thái tổng hợp:**
-
-| Badge | Điều kiện |
-|-------|-----------|
-| 🟢 Bình thường | Không có DLQ unresolved, không có F01 fail, cycle không stale |
-| 🟡 Chờ duyệt | Có item ở PENDING_*_APPROVAL nhưng chưa quá hạn |
-| 🔴 Lỗi cần xử lý | Có content item ở DLQ hoặc F01 fail — **hiển thị ngay trên màn hình tổng quan, không cần vào từng client mới thấy** |
-
-### 7.5.4.1. Client Lifecycle Management
-
-Onboarding form (9 bước — thay CLI), bước tư vấn provider ghi lại kết quả trao đổi trước khi activate, Pause/Resume (`is_active`), Offboarding có dialog xác nhận 2 bước (gõ đúng tên client mới cho xác nhận).
-
-**9 bước onboarding (tóm tắt):**
-
-| # | Bước | Idempotency |
-|---|------|-------------|
-| 1 | Thông tin cơ bản (tên, vertical, timezone) | Check tên unique |
-| 2 | Platform & lịch đăng bài | — |
-| 3 | Khởi tạo ChromaDB collections | Check tồn tại trước khi tạo |
-| 4 | Khởi tạo Hindsight Memory Banks (12 agent) | Check bank existence |
-| 5 | Ingest Brand Documents (Docling + Chonkie) | Check doc hash, skip nếu đã ingest |
-| 6 | Tạo Client Admin User (Supabase Auth) | Check email existence |
-| 7 | Kết nối Meta (OAuth) | — |
-| 8 | Đăng ký Celery Beat Schedule | Check schedule_id tồn tại |
-| 9 | Smoke Test (6 checks) | Fail fast nếu ChromaDB/Celery fail |
-
-### 7.5.4.2. Cycle & Content Monitoring Dashboard
-
-*(Bản kỹ thuật/cross-client của Task Board ở §7.5.3.2.)* Agency Admin dùng cùng model Task Board (swimlane theo team desk, cột To Do/In Progress/Review/Done) nhưng có thêm:
-- Filter theo **client**
-- Hiển thị **mã agent kỹ thuật thật** (D01, D02, E01...) thay vì tên thân thiện
-- Mở được chi tiết lỗi/log ngay trên card (không cần vòng qua Debug View cho lỗi đơn giản)
-
-List `workflow_cycles` theo client, drill-down vào item kèm FSM state, highlight cycle stale (từ `maintenance.check_stale_cycles`).
-
-### 7.5.4.3. Debug View (Internal Only)
-
-`eval_score`/`eval_feedback` đầy đủ, retry history timeline, LLM usage trace (link Langfuse).
-
+**Luồng sử dụng chính:**
 ```
-┌──────────────────────────────────────────────────────┐
-│  Debug: "Cold Brew mùa hè" · Bardinh #25            │
-│                                                        │
-│  E01 SCORE (không hiện cho client)                   │
-│  Caption: 8.2/10  ·  Visual: 4.1/5.0                 │
-│  [Breakdown từng tiêu chí]                            │
-│                                                        │
-│  RETRY HISTORY                                        │
-│  Lần 1: E01 fail (caption 6.2) → D01 retry           │
-│  Lần 2: E01 pass (caption 8.2) → Review              │
-│                                                        │
-│  LLM USAGE — tokens in/out, model dùng                │
-│  [Xem trace Langfuse →]                               │
-│                                                        │
-│  [Reopen item] [Manual state override]                │
-└──────────────────────────────────────────────────────┘
+Mở app → Client List → 
+  ├─ Client mới chưa tồn tại → [+ Onboard Mới] → Wizard 9 bước
+  └─ Client đã có → Click vào → Xem/sửa Chi phí AI của client đó
+
+Hoặc: Mở app → Chi phí AI (sidebar) → Xem tổng quan TẤT CẢ client cùng lúc
 ```
 
-> ⚠️ **Lưu ý phụ thuộc:** threshold E01 (pass/fail badge) hiện **lệch giữa Tầng 2 (7.0) và Tầng 3 (8.0)** — cần chốt 1 giá trị trước khi build badge này. Xem Open Question ở đầu tài liệu này.
+---
 
-### 7.5.4.4. Dead Letter Queue Management
+#### 7.5.4.1. Client List — Màn hình đầu tiên
 
-List record DLQ chưa resolve, **Replay** (requeue + log actor/timestamp), **Resolve without replay** (ghi chú lý do bắt buộc).
+##### Mục đích
+Landing screen đơn giản — chỉ đủ để biết đang có client nào, chi phí ra sao, và điều hướng vào đúng nơi cần.
 
+##### Layout
 ```
-🔴 F01.publish_to_meta
-   Client: Bardinh Coffee · Lỗi: Meta API auth error (Error 190)
-   Fail lúc: 08:05 hôm nay · Đã fail 3 lần
-   [Xem Log]  [Replay]  [Đóng không replay]
+┌──────────────────────────────────────────────────────────┐
+│  Clients                                  [+ Onboard Mới]│
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │ 🟢  Bardinh Coffee                                  │  │
+│  │      Cafe · FB + IG                                 │  │
+│  │      Chi phí tháng này: $18.40 / $50 (36%)          │  │
+│  │                                                    │  │
+│  │      [Xem Chi Phí]  [Sửa Cấu Hình]                │  │
+│  └────────────────────────────────────────────────────┘  │
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │ 🟡  Cafe XYZ                                        │  │
+│  │      Cafe · FB only                                 │  │
+│  │      Chi phí tháng này: $27/$30 (90% — sắp hết!)   │  │
+│  │                                                    │  │
+│  │      [Xem Chi Phí]  [Sửa Cấu Hình]                │  │
+│  └────────────────────────────────────────────────────┘  │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### 7.5.4.5. Reopen / Override Actions
+##### Client Card — Thông tin hiển thị
+| Field | Nguồn | Ghi chú |
+|-------|-------|---------|
+| Tên client + Vertical | `clients` table | |
+| Platform | `client_config` | FB/IG/cả hai |
+| Chi phí tháng này | Tổng hợp từ `llm_usage` | % so với budget cap tổng |
+| Badge màu | Tính từ % chi phí | 🟢 < 80% · 🟡 80-99% · 🔴 ≥ 100% (đã vượt) |
 
-- **Reopen content item:** hiển thị `reopened_count/3`, từ chối nếu chạm giới hạn ("Đã hết lượt reopen — dùng Direct Assign để tạo bài mới").
-- **Manual state override:** quyền chặt, chỉ hiện state hợp lệ để chuyển sang, bắt buộc nhập lý do text, ghi audit log đầy đủ với tên actor + timestamp.
+##### Actions
+| Nút | Dẫn tới |
+|-----|---------|
+| + Onboard Mới | Wizard 9 bước (§7.5.4.2) |
+| Xem Chi Phí | Trang Chi phí AI, lọc sẵn theo client này (§7.5.4.3) |
+| Sửa Cấu Hình | Form chỉnh sửa nhanh: tên, platform, trạng thái active/paused |
 
-### 7.5.4.6. Beat Schedule Management
+---
 
-*(Post-MVP/defer.)* View/edit schedule per client ở cấp Internal Admin; không block MVP vì §7.5.3.7.2 đã cho client tự sửa mức cần thiết.
+#### 7.5.4.2. Onboard Client Mới — Wizard 9 bước
 
-### 7.5.4.7. LLM Usage & Budget Dashboard
+##### Mục đích
+Agency Admin đưa client mới vào hệ thống hoàn toàn trên UI — không cần chạy script/CLI. Tự động lưu draft tại mỗi bước.
 
-Cross-client view tổng chi phí theo provider/agent, per-client budget status, alert log `quota_warning`/`quota_exceeded`. Đơn vị USD client-facing, quy đổi nội bộ từ token theo bảng giá per-model.
+##### Progress bar
+```
+[1]━━[2]━━[3]━━[4]━━[5]━━[6]━━[7]━━[8]━━[9]
+```
 
-### 7.5.4.8. Meta Account Connection Management
+##### Bước 1 — Thông tin cơ bản
+- **Inputs:** Tên client (*bắt buộc, unique*), Vertical (*dropdown, vd: Cafe & F&B*), Timezone (*mặc định Asia/Ho_Chi_Minh*), Mô tả ngắn (internal).
+- **Validation:** Trùng tên → gợi ý thêm suffix.
 
-List client + trạng thái kết nối (Page ID, IG Account ID, token expiry), Force refresh token, Connect mới (chi tiết flow §7.5.6.1).
+##### Bước 2 — Nền tảng & lịch đăng bài
+- **Inputs:** Platform (*Facebook / Instagram / TikTok*), Số bài/tuần, Lịch đăng FB/IG (ngày trong tuần & khung giờ), Analytics delay (*mặc định 7 ngày*).
 
-### 7.5.4.9. Audit Log Viewer
+##### Bước 3 — Khởi tạo ChromaDB
+- **Chức năng:** Khởi tạo 3 collections riêng cho client (`{client}_brand`, `{client}_content_history`, `{client}_tmp`).
+- **Idempotency:** Nếu đã tồn tại → "⟳ Đã tồn tại — bỏ qua" thay vì báo lỗi.
 
-Filter theo client/loại hành động/actor, filter riêng `SECURITY_BREACH` (kèm IP, endpoint, chữ ký nhận được — partially masked).
+##### Bước 4 — Khởi tạo Hindsight Memory Banks
+- **Chức năng:** Khởi tạo 13 memory banks cho 12 agent (A01, B01-B03, D01-D02, E01, F01, G01-G04, H01).
+- **Trạng thái:** Hiển thị progress `13/13 banks sẵn sàng`.
 
-### 7.5.4.10. Escalation Alert Dashboard
+##### Bước 5 — Upload tài liệu brand
+- **Inputs:** Drag & drop file brand guidelines, menu, tone of voice (PDF, DOCX, TXT, MD).
+- **Chức năng:** Ingest qua Docling + Chonkie vào ChromaDB collection `{client}_brand`. Hiển thị số chunk đã split per file.
 
-Mirror toàn bộ Telegram alert (Tầng 2 EXT.9) vào UI, nút Acknowledge nối vào flag `re_alerted` (ngăn nhắc lại). Ghi chú hành động khi acknowledge, lưu vào audit log.
+##### Bước 6 — Tạo Client Admin User
+- **Inputs:** Email client admin, Tên hiển thị. Role mặc định: `client_admin`.
+- **Chức năng:** Tạo tài khoản qua Supabase Auth & gửi email thiết lập mật khẩu.
 
-### 7.5.4.11. LLM Provider & API Key Management
+##### Bước 7 — Kết nối Meta
+- **Chức năng:** Popup OAuth Meta (Facebook Login for Business).
+- **Inputs:** Chọn Facebook Page ID và Instagram Account ID đã kết nối.
+- **Trạng thái:** Hiển thị thời hạn token, tự động refresh khi còn ≤ 7 ngày.
 
-*(Bắt buộc để §7.5.4.1/§7.5.3.7.1 có dữ liệu chạy.)* Per client: bật/tắt provider, nhập API key (mã hóa, hiển thị che `sk-***...xxxx`), nút Test Connection, khi tắt provider → agent đang dùng tự fallback về `default_provider` (hiện rõ danh sách agent bị ảnh hưởng trước khi confirm).
+##### Bước 8 — LLM Provider & API Key (⭐ Khởi tạo ban đầu)
+- **Inputs:**
+  - Bật/tắt Provider (Anthropic, OpenAI, Google...).
+  - Nhập API Key + Nút **Test Connection** (verify model availability).
+  - Ngân sách tổng/tháng (USD) cho client (*bắt buộc, tối thiểu $10*).
+  - Model mặc định theo nhóm agent (Strategy, Content, Image, Evaluator, Analytics).
+- **Validation:** Ít nhất 1 provider phải Test Connection thành công trước khi tiếp tục. Key được mã hóa ngay khi lưu (không bao giờ hiển thị lại full key).
+
+##### Bước 9 — Đăng ký lịch tự động & Smoke Test
+- **Chức năng:** Đăng ký Celery Beat schedule (`weekly_cycle`, `reflect_job`, `h01_batch`, `stale_check`, `analytics_trigger`) & Chạy 6 bài Smoke Test:
+  1. ✅ ChromaDB collections — Accessible
+  2. ✅ Hindsight Memory Banks — 13/13 respond
+  3. ✅ Celery task dispatch — Test task thành công
+  4. ✅ Meta API token — Valid
+  5. ✅ Client Portal login — OK
+  6. ✅ LLM Provider — API test call thành công
+- **Xử lý lỗi:** Fail ở ChromaDB/Celery/LLM → block không cho qua. Fail ở Portal login/Meta token → cảnh báo và hỗ trợ fix nhanh.
+
+---
+
+#### 7.5.4.3. Quản lý Chi phí AI
+
+##### Mục đích
+Xem và điều chỉnh chi phí LLM — cả tổng quan tất cả client lẫn đi sâu từng client. Nơi duy nhất (ngoài Bước 8 Wizard) để sửa provider, API key, model, và ngân sách sau khi onboard.
+
+##### 4.1. Tổng quan tất cả client
+- **Thanh tổng chi phí:** Hiển thị tổng $ đã dùng / $ tổng ngân sách của tất cả client, % đã dùng, breakdown theo Provider (Anthropic, OpenAI...).
+- **Danh sách Per-Client:** Mỗi client có tiến trình chi phí ($ đã dùng / cap), màu badge (🟢/🟡/🔴), nút "Xem chi tiết →".
+- **Cảnh báo vượt ngân sách:** Highlight client chạm 90%+ ngân sách kèm nút "Tăng ngân sách →".
+
+##### 4.2. Chi tiết per-client (Detail View)
+- **Thông tin ngân sách:** Ngân sách tổng/tháng hiện tại ($), đã dùng ($ và %), nút [Sửa ngân sách]. Thay đổi ngân sách có hiệu lực trong ≤ 5 phút.
+- **Breakdown theo Agent:** Biểu đồ & % chi phí phân bổ cho từng agent (D02 Image, D01 Caption, Analytics G01-G04...).
+- **Biểu đồ theo ngày trong tháng:** Chart thể hiện chi phí từng ngày (nhận biết ngày cao điểm T2 khi cycle khởi động).
+- **Quản lý Provider & API Key:**
+  - Bật/tắt từng provider.
+  - Sửa API Key: ô nhập key mới $\rightarrow$ Test Connection $\rightarrow$ Lưu & Cập nhật (hiển thị che `sk-***...4 ký tự cuối`).
+  - **Cảnh báo khi tắt provider đang dùng:** Hiện rõ danh sách agent bị ảnh hưởng và model fallback trước khi xác nhận.
+- **Phân bổ Model theo Agent:**
+  - Dropdown chọn model cho từng agent (A01, B01-B03, D01, D02, E01, G01-G04, H01).
+  - **Logic lọc dropdown:** Chỉ hiển thị model thuộc provider **đã Test Connection thành công** (provider chưa bật/key invalid sẽ bị ẩn hẳn khỏi dropdown để tránh chọn nhầm).
+
+---
+
+#### 7.5.4.4. Acceptance Criteria Internal App
+
+| ID | Tiêu chí |
+|----|---------|
+| IF-01 | Wizard bước 3 (ChromaDB) chạy lại lần 2 cho cùng client → hiện "⟳ Đã tồn tại", không tạo duplicate collection |
+| IF-02 | Wizard bước 8: không Test Connection thành công cho bất kỳ provider nào → nút "Lưu & Tiếp tục" bị disable |
+| IF-03 | Wizard bước 9 (Smoke Test): ChromaDB/Celery fail → block; Portal login fail → cho phép bỏ qua |
+| IF-04 | Sau khi lưu API Key → không bao giờ hiển thị lại full key, chỉ hiện `sk-***...4 ký tự cuối` |
+| IF-05 | Tắt provider đang được ≥ 1 agent dùng → hiện rõ danh sách agent bị ảnh hưởng + model fallback trước khi confirm |
+| IF-06 | Sửa ngân sách → có hiệu lực cho task tiếp theo trong ≤ 5 phút |
+| IF-07 | Client đạt 100% ngân sách → badge chuyển 🔴 ở cả Client List lẫn trang Chi phí AI tổng quan |
+| IF-08 | Model dropdown chỉ hiện model thuộc provider đã test thành công — provider chưa bật hoàn toàn không xuất hiện |
+| IF-09 | Đổi model 1 agent ở trang Chi phí (ngoài wizard) → có hiệu lực trong ≤ 5 phút, client khác không bị ảnh hưởng |
 
 ---
 

@@ -3019,839 +3019,290 @@ Meta Graph API chia metrics thành 2 nhóm: **có thể lấy confirmed** (đã 
 | `video_views` | Số lượt xem video (≥3 giây) | Facebook, Instagram | Chỉ có nếu media\_type \= VIDEO |
 | `total_interactions` | Tổng tương tác (Meta tự tính) | Facebook | Dùng để cross-check, không dùng làm engagement\_rate chính |
 
-**⚠️ Conditional — Phụ thuộc permission hoặc setup:**
-
-| Field trong API | Metric ý nghĩa | Platform | Điều kiện |
-| :---- | :---- | :---- | :---- |
-| `reactions` (breakdown) | Like / Love / Haha / Wow / Sad / Angry riêng | Facebook | Cần `reactions` field trong Graph API call; Instagram không support breakdown per post qua standard Insights |
-| `link_clicks` | Số click vào link trong bài | Facebook, Instagram | Chỉ có khi post có URL. Facebook: field `inline_link_clicks`; Instagram: chỉ có nếu dùng Instagram Shopping hoặc link in bio redirect |
-| `profile_visits` | Số lần xem profile từ bài đăng | Instagram | Chỉ có trên Instagram Insights, cần Business/Creator account |
-| `follows` (follower\_delta per post) | Số follow mới từ bài đăng cụ thể | Instagram | Field `follows` trong Instagram post insights — **không lấy được per-day từ Facebook per post**, chỉ lấy được page-level per day |
-
-**❌ Không lấy được per-post (chỉ lấy được page-level):**
-
-| Metric | Lý do không lấy được per post |
-| :---- | :---- |
-| `follower_delta` theo ngày đăng (Facebook) | Meta chỉ expose `fan_count` change ở page-level per day, không map được về từng post |
-| `story_replies`, `story_exits` | Chỉ available cho Instagram Stories qua Stories Insights, không phải Feed posts |
-| `reach` breakdown theo demographic (tuổi, giới tính) | Chỉ có ở Page Insights level, không per post |
-
-**Công thức engagement\_rate tự tính (không dùng giá trị Meta tự tính):**
-
-engagement\_rate \= (likes \+ comments \+ shares \+ saves) / reach × 100
-
-Trong đó `shares` \= 0 nếu Instagram; `saves` \= 0 nếu Facebook.
-
-###### *Tool Calls*
-
-- `T07 collect_meta_metrics` → gọi Meta Graph API per post ID  
-- `T18 write_analytics_record` → ghi metrics đã clean vào DB
-
-###### *Data Cleaning Rules*
-
-1. Loại bỏ record nào có `reach = 0` — post bị ẩn, bị xóa, hoặc API lỗi trả về 0 không có nghĩa  
-2. Tính `engagement_rate` theo công thức chuẩn ở trên — không dùng `total_interactions` của Meta (định nghĩa không nhất quán qua các version API)  
-3. Field nào API trả về `null` do conditional permission → **giữ nguyên `null`**, không replace bằng 0 (để G02 biết đây là "không có data" chứ không phải "bằng 0")  
-4. Ngoại lệ: `video_views = null` khi `media_type ≠ VIDEO` → replace bằng `0` (vì chắc chắn không có view nào, không phải missing data)  
-5. Flag anomaly: `impressions < reach` → ghi `data_quality_flag: "impressions_below_reach"`, không loại bỏ record, để G02 biết khi phân tích  
-6. Ghi log `fields_retrieved` và `fields_null` cho từng post — để G02 biết trường nào có thể tin cậy khi phân tích
-
-###### *Outputs*
-
-- Cleaned metrics dataset per post (ghi vào DB)  
-- Data quality report: số field null, anomaly flags  
-- State: post → `analyzing`
-
-###### *Failure Behavior*
-
-- Meta API fail → retry 3 lần (24h interval) → nếu vẫn fail → ghi record với `data_status: "collection_failed"`, alert Agency Admin  
-- Không được fabricate hoặc estimate metrics nếu không lấy được từ API
-
----
-
-##### 7.4.3.10. G02 — Descriptive Analysis *(C10)*
-
-**Agent Code:** G02  
-**Role:** Phân tích mô tả (descriptive) từ metrics dataset đã clean **kết hợp với metadata nội dung** của từng bài đăng. G02 không đánh giá tốt/xấu — chỉ mô tả "chuyện gì đã xảy ra" trong tuần vừa qua, bao gồm cả chỉ số và bối cảnh content của từng bài.
-
-###### *Triggers*
-
-- A01 dispatch sau khi G01 hoàn thành và ghi metrics cho toàn bộ post trong cycle
-
-###### *Inputs — 2 nguồn dữ liệu*
-
-**Nguồn 1 — Metrics dataset từ G01:**
-
-- Bảng `analytics_records` (PostgreSQL — Tầng 1): `post_id`, `reach`, `impressions`, `likes`, `comments`, `shares`, `saved`, `video_views`, `link_clicks`, `reactions_breakdown`, `engagement_rate`, `fields_null`, `data_quality_flag`
-
-**Nguồn 2 — Content metadata từ DB (dùng `T21 read_published_content_metadata`):**
-
-- Bảng `content_items` \+ `planning_artifacts` (PostgreSQL — Tầng 1), JOIN theo `content_item_id` → `post_id`  
-- Các field cần đọc:
-
-| Field | Bảng | Ý nghĩa |
-| :---- | :---- | :---- |
-| `pillar_id`, `pillar_name` | `content_items` | Trụ nội dung của bài |
-| `content_type` | `content_items` | product\_feature / lifestyle / poster / promotion... |
-| `facebook_caption`, `instagram_caption` | `content_items` | Nội dung caption đã đăng |
-| `hook` | `content_items` | Câu hook đầu bài (tách riêng khi D01 tạo output) |
-| `hashtags` | `content_items` | Hashtag đã dùng |
-| `image_brief_visual_direction` | `content_items` | Brief ảnh D01 viết, để biết visual style |
-| `scheduled_at` (giờ đăng thực tế) | `content_items` | Timestamp đăng bài, dùng để phân tích time slot |
-| `platform` | `content_items` | facebook / instagram |
-| `campaign_id` | `content_items` | Bài có thuộc campaign không |
-| `content_plan_angle` | `planning_artifacts` (content\_plan) | Angle đã plan từ B03 |
-| `e01_caption_score`, `e01_visual_score` | `content_items` | Điểm E01 đã chấm trước khi publish |
-
-**Lý do G02 cần cả 2 nguồn:** Metrics đơn thuần (reach, engagement) chỉ cho biết bài tốt hay kém — nhưng không biết *vì sao*. Khi G02 biết thêm bài đó thuộc pillar gì, dùng hook kiểu gì, đăng giờ nào, có campaign không — nó mới có thể vẽ được bức tranh đầy đủ cho G03 chạy diagnostic. Ví dụ: "3 bài có engagement cao nhất đều dùng hook dạng câu hỏi, đăng từ 19–21h, thuộc pillar lifestyle" — thông tin này không thể có nếu chỉ đọc metrics.
-
-###### *Tool Calls*
-
-- `T21 read_published_content_metadata` → JOIN `content_items` \+ `planning_artifacts` lấy metadata đầy đủ per post theo `content_item_id` → `post_id` mapping
-
-###### *LLM Calls*
-
-Model tier cố định cho toàn bộ G02: **Standard**.
-
-###### *Outputs — Descriptive Report gồm:*
-
-1. **Summary stats per post** (bảng đầy đủ): post\_id, pillar, content\_type, platform, posting\_hour, reach, impressions, engagement\_rate, saves, comments, e01\_score, campaign hay không  
-2. **Platform comparison:** Facebook vs Instagram — reach trung bình, engagement rate trung bình, số bài mỗi platform  
-3. **Content type breakdown:** Product post vs lifestyle vs promotion vs poster — stats trung bình từng loại  
-4. **Pillar performance:** Pillar nào có engagement\_rate trung bình cao nhất/thấp nhất trong cycle  
-5. **Time slot analysis:** Phân bổ engagement theo khung giờ đăng (6–9h / 11–13h / 19–21h / khác)  
-6. **Hook type analysis:** Nếu hook được tag (câu hỏi / statement / số liệu / emotional) — engagement theo từng loại hook  
-7. **Top 3 posts và bottom 3 posts** (theo engagement\_rate) — kèm đủ context: pillar, giờ, content\_type, hook snippet  
-8. **Raw enriched table** đi kèm để G03 dùng (metrics \+ metadata đã join, không cần G03 query lại DB)
-
-###### *Business Rules*
-
-1. G02 chỉ mô tả, không recommend — không viết "bạn nên đăng ít hơn vào thứ Hai"  
-2. G02 phải đọc cả 2 nguồn — nếu `T21` fail (metadata không lấy được) → ghi note "content metadata unavailable — analysis limited to metrics only", tiếp tục chạy với metrics đơn thuần  
-3. Nếu cycle có ít hơn 3 posts → ghi note "Insufficient data for pattern analysis"  
-4. Field `e01_caption_score` và `e01_visual_score` phải được đưa vào report nhưng **không hiển thị ra phía client** — chỉ dùng nội bộ cho G03
-
-###### *Failure Behavior*
-
-- Nếu metrics dataset rỗng (G01 fail hoàn toàn) → G02 không chạy, alert Agency Admin
-
----
-
-##### 7.4.3.11. G03 — Diagnostic Analysis *(C11)*
-
-**Agent Code:** G03  
-**Role:** Phân tích chẩn đoán (diagnostic) — so sánh performance tuần này với baseline lịch sử để tìm ra "tại sao" chứ không chỉ "là gì". G03 nhận output từ G02 và thêm historical context.
-
-###### *Triggers*
-
-- A01 dispatch sau G02 hoàn thành
-
-###### *Inputs*
-
-- **Enriched table từ G02** (metrics \+ content metadata đã join sẵn — G03 không cần query DB lại): bảng đầy đủ gồm post\_id, pillar, content\_type, hook\_snippet, posting\_hour, platform, campaign\_id, reach, engagement\_rate, saves, comments, e01\_caption\_score, e01\_visual\_score, data\_quality\_flag  
-- **Historical baseline** từ `T10 read_performance_patterns`: performance patterns 4–8 tuần gần nhất — engagement rate trung bình theo pillar, theo time slot, theo content type  
-- ClientConfig: pillar weights hiện tại, thông tin campaign nào đang/vừa active
-
-###### *LLM Calls*
-
-Model tier cố định cho toàn bộ G03: **Standard** (áp cho tất cả các bước: so sánh baseline, drill-down segmentation, hypothesis checklist, kết luận root cause).
-
-###### *Outputs — Diagnostic Report gồm:*
-
-1. **Week-over-week comparison:** Mỗi metric so với 4 tuần trước (% change) — breakdown theo pillar, content\_type, time\_slot, platform  
-2. **Pillar performance diagnosis:** Pillar nào đang outperform / underperform so với baseline lịch sử — kèm hypothesis lý giải (pillar mới chưa có audience? pillar bão hòa? campaign boost?)  
-3. **Content context diagnosis:** Hook kiểu nào đang hoạt động tốt? Content type nào kéo engagement? Giờ đăng nào underperform? — đây là layer phân tích chỉ có được vì G02 đã join metadata  
-4. **Anomaly detection:** Bài nào outlier (quá tốt / quá kém so với baseline của cùng pillar \+ time slot) — kèm note về e01\_score để biết có phải do chất lượng content không  
-5. **Root cause hypotheses** (H1–H7 theo thứ tự checklist chuẩn — xem mô tả kỹ thuật ở phần "G03 — Diagnostic Analysis" đầu tài liệu): mỗi hypothesis có `evidence: Strong / Moderate / Weak / No evidence`  
-6. **Structured diagnostic package** cho G04: JSON có delta metrics, hypothesis results, anomaly list, context insights
-
-###### *Business Rules*
-
-1. Nếu client mới (ít hơn 4 tuần data) → ghi "Cold start — baseline not yet established", bỏ qua WoW comparison, chỉ làm within-cycle analysis  
-2. G03 không recommend — chỉ diagnose và đưa ra hypothesis có evidence  
-3. Mọi hypothesis phải reference **data cụ thể** từ enriched table — không được suy diễn không có căn cứ  
-4. `e01_caption_score` và `e01_visual_score` được dùng trong diagnosis (để phân biệt "content kém" vs "distribution kém") nhưng **không được đưa vào phần output visible cho client**
-
----
-
-##### 7.4.3.12. G04 — Recommendation *(C12)*
-
-**Agent Code:** G04  
-**Role:** Từ diagnostic output của G03, tạo đề xuất actionable cho tuần tiếp theo. G04 tạo 2 output song song: human-readable report cho client và machine-readable learning packet cho hệ thống.
-
-###### *Triggers*
-
-- A01 dispatch sau G03 hoàn thành
-
-###### *Inputs*
-
-- Diagnostic report từ G03  
-- Episodic memory: recommendations từ các cycle trước \+ action đã thực hiện  
-- Performance patterns từ `T10 read_performance_patterns`
-
-###### *RAG Usage*
-
-- `T02 recall_episodic_memory` → recommendations lịch sử và kết quả  
-- `T10 read_performance_patterns` → pattern library
-
-###### *LLM Calls*
-
-Model tier cố định cho toàn bộ G04: **Power** (áp cho cả tổng hợp recommendation lẫn tạo machine-readable learning packet — đây là agent strategy level cần reasoning sâu nhất trong analytics pipeline).
-
-###### *Outputs*
-
-**1\. Human-readable report (cho client xem trên Portal):**
-
-- Tóm tắt tuần vừa qua (2–3 câu ngắn gọn)  
-- Top 3 điểm làm tốt  
-- Top 3 điểm cần cải thiện (với lý do)  
-- Đề xuất cụ thể cho tuần sau (pillar, giờ đăng, loại content)  
-- Yêu cầu từ client (ví dụ: "Cần thêm ảnh mới của sản phẩm X")
-
-**2\. Machine-readable learning packet:**
-
-{
-
-"client\_id": "bardinh\_coffee",
-
-"cycle\_id": "uuid",
-
-"pillar\_adjustments": \[{"pillar": "lifestyle", "action": "increase\_weight", "reason": "+35% engagement vs avg"}\],
-
-"angle\_adjustments": \[{"angle": "behind\_the\_scenes", "action": "do\_more"}\],
-
-"posting\_time\_insights": \[{"platform": "facebook", "best\_window": "19:00-21:00"}\],
-
-"asset\_insights": \[{"tag": "iced\_coffee", "action": "request\_more\_photos"}\],
-
-"caption\_style\_insights": \[{"pattern": "question\_opener", "performance": "above\_avg"}\],
-
-"do\_more": \["real\_photo\_posts", "tuesday\_posts"\],
-
-"do\_less": \["text\_only\_posts", "monday\_morning\_posts"\]
-
-}
-
-###### *Tool Calls*
-
-- `T03 retain_episodic_memory` → ghi learning packet vào Hindsight  
-- `T11 write_performance_patterns` → cập nhật pattern collection  
-- `T19 write_learning_packet` → ghi vào DB để P01 xử lý
-
-###### *Business Rules*
-
-1. G04 phải tạo cả 2 output — không chỉ human report mà thiếu machine packet  
-2. Recommendation phải dựa trên data thật từ G03, không được tự suy diễn  
-3. Nếu cùng recommendation đã được đề xuất 3 lần liên tiếp mà không có thay đổi → ghi note "Persistent issue — may need Agency Admin intervention"  
-4. Sau khi learning packet ghi xong → kích hoạt P01 pipeline
-
----
-
-#### 7.4.4. NFR & Acceptance Criteria — Tầng 3 *(Part D)*
-
-##### 7.4.4.1. Non-Functional Requirements *(D1)*
-
-| ID | Yêu cầu | Target | Scope |
-| :---- | :---- | :---- | :---- |
-| NFR-T3-01 | Latency per agent task (end-to-end, bao gồm LLM call) | ≤ 120s p90 | B01, B02, B03, D01, G02, G03, G04 |
-| NFR-T3-02 | Latency D02 (image generation) | ≤ 60s p90 | D02 |
-| NFR-T3-03 | Latency F01 (publish call to Meta) | ≤ 30s p90 | F01 |
-| NFR-T3-04 | Latency G01 (data collection per post) | ≤ 20s p90 | G01 |
-| NFR-T3-05 | Config reload sau khi client thay đổi model/budget | ≤ 5 phút | Tất cả agent |
-| NFR-T3-06 | E01 evaluate 1 content item (caption \+ visual) | ≤ 60s p90 | E01 |
-| NFR-T3-07 | G04 learning packet ghi vào memory | ≤ 30s p90 | G04 |
-| NFR-T3-08 | System prompt và task instruction của mọi agent | Phải viết bằng tiếng Anh | Tất cả agent |
-| NFR-T3-09 | Direct assign task response time (kể từ lúc client submit đến lúc agent bắt đầu chạy) | ≤ 60s | T20 |
-
-##### 7.4.4.2. Acceptance Criteria Tổng Hợp Tầng 3 *(D2)*
-
-| ID | Acceptance Criteria |
-| :---- | :---- |
-| AC-T3-01 | Onboard client mới bằng cách tạo ClientConfig file mới — không cần sửa code agent nào |
-| AC-T3-02 | Client A thay đổi model của D01 từ Claude Sonnet sang GPT-5.4 trên Portal → task D01 tiếp theo của client A dùng đúng GPT-5.4; client B không bị ảnh hưởng |
-| AC-T3-03 | Client A thay đổi budget D01 từ $25 → $30 → agent nhận config mới trong ≤ 5 phút |
-| AC-T3-04 | Client không có campaign active → A01 không dispatch B01; workflow bắt đầu từ B02 |
-| AC-T3-05 | Client có campaign active → workflow chạy B01 → S1 → B02 → S2 → B03 → S3 trước khi D01/D02 chạy |
-| AC-T3-06 | D02 nhận content item type \= "product\_feature" → không AI generate ảnh dù không có ảnh trong library → tạo asset\_request, content item chuyển `waiting_asset` |
-| AC-T3-07 | D02 nhận content item type \= "poster" → AI generate ảnh bằng configured image model → không cần tìm ảnh thật |
-| AC-T3-08 | E01 chấm D01 caption score 6.5 → retry D01 (không retry D02); fix\_instructions ghi rõ tiêu chí cần sửa |
-| AC-T3-09 | E01 chấm D02 visual score 2.0 (hard fail) → không retry → alert Agency Admin; caption không bị hủy |
-| AC-T3-09b | Content item trạng thái `waiting_asset` → E01 không được dispatch; sau khi client submit asset và D02 chạy lại thành công → E01 mới được gọi |
-| AC-T3-10 | F01 nhận content item ở state `content_approved` → publish lên đúng platform, ghi post\_id và published\_at; không publish item ở bất kỳ state nào khác |
-| AC-T3-11 | Hashtag\_strategy \= "first\_comment" → F01 đăng bài thành công → F01 tự comment hashtag vào first comment của bài vừa đăng |
-| AC-T3-12 | G01 ghi đúng field null thay vì 0 cho metric conditional (link\_clicks khi không có link, reactions\_breakdown trên Instagram); log `fields_retrieved` và `fields_null` cho từng post |
-| AC-T3-12b | `follower_delta` không được collect per-post cho Facebook (chỉ page-level); G01 không ghi giá trị này cho Facebook post, chỉ ghi cho Instagram nếu field `follows` available |
-| AC-T3-13 | G04 tạo đúng 2 output: human report \+ machine-readable learning packet; thiếu 1 trong 2 → agent task coi là failed |
-| AC-T3-13b | G02 đọc đủ 2 nguồn: metrics dataset từ G01 và content metadata từ `T21` (pillar, content\_type, caption, hook, posting\_hour, campaign\_id, e01\_scores); nếu T21 fail → tiếp tục với metrics only \+ ghi note |
-| AC-T3-13c | A01 dispatch D02 **sau khi** D01 trả về `caption_and_brief_ready` — không dispatch song song; D02 đọc `image_brief` từ D01 output trước khi chạy |
-| AC-T3-14 | Client assign task trực tiếp cho D01 với brief đầy đủ (bypass A01) → D01 chạy, E01 chấm, trả kết quả → không tạo cycle mới |
-| AC-T3-15 | Client assign task trực tiếp cho D02 ("chỉnh sửa ảnh bài X") → D02 xử lý ảnh cụ thể → E01 chấm visual → trả kết quả |
-| AC-T3-16 | System prompt của mọi agent được viết bằng tiếng Anh; output content (caption, report) vẫn bằng tiếng Việt theo config `language` |
-| AC-T3-17 | P01 đọc learning packet từ G04 → ghi memory update đúng agent (B02, B03, D01, D02) → cycle sau các agent nhận được insight từ cycle này |
-| AC-T3-18 | Khi D01 nhận fix\_instructions từ E01 retry, prompt layer 3 bổ sung fix\_instructions vào task instruction, không override system prompt |
-
 ### 7.5. Key Features — Tầng 4: Portal & External Interfaces
 
-Tầng 4 định nghĩa toàn bộ bề mặt bên ngoài của hệ thống: hạ tầng/deploy (7.5.1), API/auth (7.5.2), Client Portal (7.5.3), Internal App cho Agency Admin (7.5.4), notification system (7.5.5), tích hợp Meta Graph API (7.5.6), và NFR/Acceptance Criteria riêng cho tầng này (7.5.7).
+Tài liệu này hợp nhất các bản thiết kế Tầng 4 (Client Portal, Internal App, Notification & Meta Integration) thành **một nguồn duy nhất**, đối chiếu và đồng bộ hoàn toàn với kiến trúc tổng thể CrewLab.
 
-# 7.5.1. Hạ Tầng & Deploy (Infrastructure & Deployment Topology)
+> ⚠️ **Open Question chưa chốt (giữ nguyên từ PRD gốc, không tự resolve):** Threshold pass/fail của E01 đang **lệch giữa 2 tài liệu** — Tầng 2 ghi 7.0, Tầng 3 ghi 8.0. Badge pass/fail ở Debug View và mọi nơi hiển thị kết quả E01 cần chốt 1 giá trị trước khi build.
 
-*(Giữ nguyên từ v1.0 — không có thay đổi kỹ thuật hạ tầng nào phát sinh từ Pixel Office/Kanban/Content Hub, vì đây thuần là thay đổi UI/UX trên cùng data layer và cùng 3 service topology.)*
+#### Mục lục Tầng 4
 
-## 7.5.1.1. Tổng quan Topology — 3 service độc lập
+- [7.5.1 — Hạ Tầng & Deploy](#751-hạ-tầng--deploy)
+- [7.5.2 — API & Auth Standard](#752-api--auth-standard)
+- [7.5.3 — Client Portal](#753-client-portal)
+  - [7.5.3.0 Information Architecture](#7530-information-architecture)
+  - [7.5.3.1 Pixel Office ⭐ MỚI](#7531-pixel-office--màn-hình-chính-mới)
+  - [7.5.3.2 Kanban Dashboard ⭐ MỚI](#7532-kanban-dashboard--bảng-quản-lý-task-mới)
+  - [7.5.3.3 Content Hub ⭐ MỚI](#7533-content-hub-mới--gộp-campaign--pillar--angle--content-plan)
+  - [7.5.3.4 Gate 3 — Báo cáo](#7534-analytics-acknowledgment-gate-gate-3--báo-cáo)
+  - [7.5.3.5 Asset Request](#7535-asset-request--upload-flow)
+  - [7.5.3.6 Direct Assign](#7536-direct-assign-task-ui-t20)
+  - [7.5.3.7 Cài đặt (Settings)](#7537-cài-đặt-settings--gộp-thêm-thư-viện-ảnh)
+  - [7.5.3.8 Notification Center](#7538-notification-center)
+- [7.5.4 — Internal App (Agency Admin)](#754-internal-app-agency-admin)
+  - [7.5.4.0 Information Architecture & Ghi chú phạm vi](#7540-information-architecture--ghi-chú-phạm-vi)
+  - [7.5.4.1 Client List — Màn hình đầu tiên](#7541-client-list--màn-hình-đầu-tiên)
+  - [7.5.4.2 Onboard Client Mới — Wizard 9 bước](#7542-onboard-client-mới--wizard-9-bước)
+  - [7.5.4.3 Quản lý Chi phí AI](#7543-quản-lý-chi-phí-ai)
+  - [7.5.4.4 Acceptance Criteria Internal App](#7544-acceptance-criteria-internal-app)
+- [7.5.5 — Notification System](#755-notification-system)
+- [7.5.6 — Meta Graph API Integration](#756-tích-hợp-meta-graph-api)
+- [7.5.7 — NFR & Acceptance Criteria](#757-nfr--acceptance-criteria)
+
+---
+
+#### 7.5.1. Hạ Tầng & Deploy
+
+*(Không đổi so với bản thiết kế chính — không có thay đổi kỹ thuật hạ tầng nào phát sinh từ Pixel Office/Kanban/Content Hub, vì đây thuần là thay đổi UI/UX trên cùng data layer và cùng topology 3 service.)*
+
+##### Topology — 3 service độc lập
 
 | Service | Vai trò | Người dùng | Deploy ở đâu |
-| :---- | :---- | :---- | :---- |
-| Backend API (FastAPI) | Toàn bộ business logic, endpoint `/api/v1/...`, Celery worker, webhook receiver | Cả 2 frontend gọi vào | PaaS có persistent process (xem 7.5.1.3) |
+|---------|---------|-----------|---------------|
+| Backend API (FastAPI) | Toàn bộ business logic, endpoint `/api/v1/...`, Celery worker, webhook receiver | Cả 2 frontend gọi vào | PaaS có persistent process |
 | Client Portal (Next.js) | UI cho `client_admin`/`client_staff` — Pixel Office, Kanban, Content Hub, duyệt bài, báo cáo, cấu hình | Khách hàng (Bardinh Coffee...) | Vercel, domain riêng trả phí |
 | Internal App (Next.js) | UI cho `agency_admin` — debug, DLQ replay, LLM provider config, cross-client view | Nội bộ CrewLab | Vercel free tier, subdomain miễn phí |
 
-Lý do tách hẳn 2 frontend project: 2 audience khác nhau, tránh lộ surface area (DLQ, debug view, cross-client data) qua bundle JS; Internal App thay đổi nhanh, tách deploy để không ảnh hưởng uptime Portal khách trả tiền.
+**Lý do tách 2 frontend:** 2 audience khác nhau, tránh lộ surface area (DLQ, debug view, cross-client data) qua bundle JS; Internal App thay đổi nhanh, tách deploy để không ảnh hưởng uptime Portal khách trả tiền. Cả 2 vẫn gọi chung 1 Backend API — phân biệt bằng JWT role claim, không tách hạ tầng dữ liệu.
 
-Cả 2 frontend vẫn gọi chung 1 Backend API vì cùng schema, cùng RLS, cùng business logic (FSM, retry, budget) — phân biệt bằng JWT role claim là đủ, không tách hạ tầng dữ liệu.
+##### Domain Map
 
-## 7.5.1.2. Domain Map
-
-| Domain/Subdomain | Trỏ tới | Ghi chú |
-| :---- | :---- | :---- |
-| crewlab.com | Client Portal (Vercel) | Domain trả phí, custom domain qua Vercel |
-| crewlab-admin.vercel.app | Internal App (Vercel free) | Dùng thẳng subdomain mặc định cho MVP |
+| Domain | Trỏ tới | Ghi chú |
+|--------|---------|---------|
+| crewlab.com | Client Portal (Vercel) | Domain trả phí |
+| crewlab-admin.vercel.app | Internal App (Vercel free) | Subdomain mặc định cho MVP |
 | api.crewlab.vn | Backend API (FastAPI) | Domain riêng cho backend |
 
-Quy tắc: Backend KHÔNG bao giờ phục vụ HTML/frontend — chỉ trả JSON theo response envelope (7.5.2.1).
+Backend KHÔNG bao giờ phục vụ HTML/frontend — chỉ trả JSON theo response envelope (7.5.2).
 
-## 7.5.1.3. Backend Hosting
+##### Backend Hosting
 
-Celery worker cần process chạy liên tục, webhook receiver cần endpoint luôn sẵn sàng → loại serverless thuần.
+Celery worker cần process chạy liên tục, webhook receiver cần endpoint luôn sẵn sàng → loại serverless thuần. **Railway** cho Backend API + Celery worker + Postgres trong giai đoạn pilot (chi phí <$20/tháng/client, tránh cold-sleep của free tier Render). ChromaDB chạy chung instance với backend cho pilot, tách riêng khi cần scale.
 
-**Khuyến nghị: Railway** cho Backend API \+ Celery worker \+ Postgres trong pilot — chi phí thấp (\<$20/tháng/client), tránh cold-sleep của free tier Render. ChromaDB chạy chung instance với backend cho pilot, tách riêng khi cần scale.
+> **Ghi chú đồng bộ:** Changelog PRD gốc v1.1 ghi rằng hạ tầng đã **chốt lại về Hetzner VPS CAX31 + Coolify** (không dùng Railway/Render) — xem Section 7.6 Technology của PRD gốc. Bảng trên phản ánh quyết định ở thời điểm viết Tầng 4 ban đầu; **Hetzner + Coolify là quyết định cuối cùng, override phần Railway ở đây.** Nếu dev bắt đầu implement, dùng Hetzner CAX31 + Coolify, không dùng Railway.
 
-## 7.5.1.4. CORS Policy
+##### CORS Policy
 
-Whitelist rõ ràng, không wildcard: `https://crewlab.com`, `https://crewlab-admin.vercel.app`, `http://localhost:3000`, `http://localhost:3001` (dev). Không set `Access-Control-Allow-Origin: *` vì endpoint có side-effect \+ credential JWT.
+Whitelist rõ ràng, không wildcard: `https://crewlab.com`, `https://crewlab-admin.vercel.app`, `http://localhost:3000`, `http://localhost:3001` (dev). Không set `Access-Control-Allow-Origin: *` vì endpoint có side-effect + credential JWT.
 
-## 7.5.1.5. Environment Separation
+##### Environment Separation
 
 | Environment | Backend | Frontend | Database |
-| :---- | :---- | :---- | :---- |
+|-------------|---------|----------|----------|
 | Local | uvicorn reload | `next dev` | Postgres local / Supabase dev |
-| Staging | Railway staging | Vercel Preview | Supabase project staging riêng |
-| Production | Railway production | Vercel Production | Supabase production |
+| Staging | Staging service riêng | Vercel Preview | Supabase project staging riêng |
+| Production | Production service | Vercel Production | Supabase production |
 
-Quy tắc cứng: Staging và Production **không bao giờ share database**.
+**Quy tắc cứng:** Staging và Production **không bao giờ share database**.
 
-## 7.5.1.6. CI/CD Flow
+##### CI/CD Flow
 
-- Backend (Railway): push `main` → auto deploy production; push `staging` → deploy staging service riêng.  
-- Client Portal (Vercel): mỗi PR có Preview Deployment; merge `main` → production tại crewlab.com.  
-- Internal App (Vercel free): merge `main` → production luôn, không cần Preview phức tạp.  
+- Backend: push `main` → auto deploy production; push `staging` → deploy staging service riêng.
+- Client Portal (Vercel): mỗi PR có Preview Deployment; merge `main` → production tại crewlab.com.
+- Internal App (Vercel free): merge `main` → production luôn, không cần Preview phức tạp.
 - Migration: qua Supabase CLI/Alembic, chạy thủ công có review trước khi áp production.
 
-## 7.5.1.7. Secrets & Config Management
+##### Secrets & Config Management
 
-Railway: Environment Variables panel tách theo service. Vercel: tách theo Production/Preview/Development. Secret nhạy cảm (Meta App Secret, Telegram Bot Token, Supabase Service Role Key, LLM Provider API keys) không bao giờ xuất hiện ở frontend — chỉ tồn tại ở Backend Railway env.
-
-## 7.5.1.8. Tóm tắt quyết định 7.5.1
-
-| Quyết định | Lựa chọn | Lý do ngắn gọn |
-| :---- | :---- | :---- |
-| Portal vs Internal App | 2 project độc lập | Tách audience, tách rủi ro lộ bundle, tách uptime risk |
-| Backend | 1 service duy nhất | Tránh đồng bộ logic 2 lần |
-| Backend hosting | Railway | Celery worker \+ webhook cần persistent process |
-| Internal App hosting | Vercel free tier | Traffic thấp |
-| Portal hosting | Vercel, domain riêng | Khách hàng cần trải nghiệm chuyên nghiệp |
-| Staging/Production DB | Tách biệt hoàn toàn | Tránh data rác, tránh gửi nhầm tin nhắn thật |
+Secret nhạy cảm (Meta App Secret, Telegram Bot Token, Supabase Service Role Key, LLM Provider API keys) không bao giờ xuất hiện ở frontend — chỉ tồn tại ở Backend env.
 
 ---
 
-# 7.5.2. API & Auth (API & Auth Standard)
+#### 7.5.2. API & Auth Standard
 
-*(Giữ nguyên từ v1.0. Mọi endpoint mới phục vụ Pixel Office/Kanban/Content Hub ở 7.5.3 đều tuân theo chuẩn này, không tự phát minh format riêng.)*
+*(Không đổi. Mọi endpoint mới phục vụ Pixel Office/Kanban/Content Hub đều tuân theo chuẩn này, không tự phát minh format riêng.)*
 
-## 7.5.2.1. API Convention
+##### API Convention
 
-- Versioning: mọi endpoint dưới `/api/v1/...`. Breaking change → tăng version.  
+- Versioning: mọi endpoint dưới `/api/v1/...`. Breaking change → tăng version.
 - Response envelope chuẩn:
-
+```json
 { "success": true, "data": { }, "error": null }
+{ "success": false, "data": null, "error": { "error_code": "...", "message": "...", "details": {} } }
+```
+- Pagination: cursor-based cho mọi list endpoint (Kanban board, Notification Center, Audit Log...) — không offset.
+- Idempotency: mọi endpoint có side-effect (approve, publish trigger, direct assign, asset upload, **kéo-thả card đổi state**) bắt buộc nhận `idempotency_key`.
 
-{ "success": false, "data": null, "error": { "error\_code": "...", "message": "...", "details": {} } }
+##### Authentication & Session
 
-- Pagination: cursor-based cho mọi list endpoint (Kanban board, Notification Center, Audit Log...) — không offset.  
-- Idempotency: mọi endpoint có side-effect (approve, publish trigger, direct assign, asset upload, kéo-thả card đổi state) bắt buộc nhận `idempotency_key`, tái sử dụng pattern Tầng 2 EXT.17.
-
-## 7.5.2.2. Authentication & Session
-
-- MVP: email/password qua Supabase Auth. Magic link Post-MVP.  
-- JWT mang claims đã định nghĩa ở Tầng 1 EXT (7.5.4.6-EXT.1): `role`, `client_id`, `user_id`.  
-- Session refresh tự động khi còn hiệu lực \< 5 phút.  
-- Remember me: giữ phiên 30 ngày, mặc định hết hạn cuối ngày.  
+- MVP: email/password qua Supabase Auth. Magic link Post-MVP.
+- JWT mang claims: `role`, `client_id`, `user_id`.
+- Session refresh tự động khi còn hiệu lực < 5 phút.
+- Remember me: giữ phiên 30 ngày, mặc định hết hạn cuối ngày.
 - Password reset: email link, hết hạn 1 giờ, dùng 1 lần.
 
-## 7.5.2.3. Authorization Middleware
+##### Authorization Middleware
 
-- `require_role`, `require_client_match` (trừ `agency_admin` thao tác cross-client trong Internal App).  
-- Defense-in-depth layer 2: RLS ở DB (Tầng 1 EXT 7.5.4.6-EXT.2) chặn ở tầng dữ liệu; middleware chặn sớm ở tầng API, trả 403 rõ ràng.  
-- 2 role xuyên suốt: `agency_admin` (full access, Internal App), `client_admin` (full access trong client mình, có quyền Approve). `client_staff` xem được nhưng không có nút Approve/Reject.
+- `require_role`, `require_client_match` (trừ `agency_admin` thao tác cross-client trong Internal App).
+- Defense-in-depth layer 2: RLS ở DB chặn ở tầng dữ liệu; middleware chặn sớm ở tầng API, trả 403 rõ ràng.
+- **3 role:** `agency_admin` (full access, Internal App), `client_admin` (full access trong client mình, có quyền Approve), `client_staff` (xem được nhưng **không có nút Approve/Reject** ở bất kỳ đâu — card Kanban, modal Content Plan, Gate 3).
 
-## 7.5.2.4. Error Response Standard
+##### Error Response Standard
 
-| Nhóm error\_code | HTTP Status | Khi nào dùng |
-| :---- | :---- | :---- |
+| Nhóm error_code | HTTP Status | Khi nào dùng |
+|-----------------|-------------|--------------|
 | `auth_*` | 401 | Login sai, token hết hạn |
 | `validation_*` | 422 | Request body sai schema |
 | `not_found_*` | 404 | Resource không tồn tại/không thuộc user |
-| `conflict_*` | 409 | Hành động xung đột state hiện tại (vd: approve 2 lần, kéo card sang state không hợp lệ) |
-| `rate_limited` | 429 | Vượt rate limit (7.5.2.5) |
+| `conflict_*` | 409 | Hành động xung đột state hiện tại (vd: approve 2 lần, **kéo card sang state không hợp lệ**) |
+| `rate_limited` | 429 | Vượt rate limit |
 | `upstream_*` | 502 | Lỗi từ Meta/Telegram |
 | `server_error` | 500 | Lỗi không xác định |
 
 `message` luôn user-facing: tiếng Việt cho Client Portal, tiếng Anh cho Internal App.
 
-## 7.5.2.5. Rate Limiting & Abuse Prevention
+##### Rate Limiting & Webhook Signature
 
-- Endpoint upload (Asset Request, ảnh Telegram): tối đa 50 request/giờ/user.  
-- Endpoint webhook: không rate limit kiểu user thường, dùng signature verification (7.5.2.6) làm chốt chặn chính.
-
-## 7.5.2.6. Webhook Signature Verification
-
-Mọi webhook (Meta, Telegram) bắt buộc verify chữ ký trước khi xử lý field bất kỳ. Không verify được → reject 401, ghi audit log `SECURITY_BREACH`, không xử lý tiếp dù payload hợp lệ.
+- Endpoint upload (Asset Request, ảnh Telegram): tối đa 50 request/giờ/user.
+- Webhook: không rate limit kiểu user thường, dùng **signature verification** làm chốt chặn chính.
+- Mọi webhook (Meta, Telegram) bắt buộc verify chữ ký trước khi xử lý field bất kỳ. Không verify được → reject 401, ghi audit log `SECURITY_BREACH`, không xử lý tiếp dù payload hợp lệ.
 
 ---
 
-# 7.5.3. Client Portal
+#### 7.5.3. Client Portal
 
-## 7.5.3.0. Information Architecture (mới)
+##### 7.5.3.0. Information Architecture
 
+```
 ┌─────────────────────────────────────────────┐
-
 │  🏢 Văn phòng (Pixel Office)  ← màn hình chính sau login │
-
 ├─────────────────────────────────────────────┤
-
 │  📋 Bảng công việc (Kanban Dashboard)        │
-
 │  📁 Content Hub                              │
-
 │      ├─ Tab: Campaign                        │
-
-│      ├─ Tab: Pillar & Angle                   │
-
-│      └─ Tab: Content Plan (Calendar)          │
-
-│  📸 Yêu cầu ảnh (Asset Request)               │
-
-│  ⚡ Giao việc nhanh (Direct Assign)            │
-
-│  📊 Báo cáo (Analytics Gate)                  │
-
-│  🔔 Thông báo                                 │
-
-│  ⚙️ Cài đặt (Settings)                        │
-
-│      ├─ Model & Ngân sách                     │
-
-│      ├─ Lịch đăng bài                         │
-
-│      ├─ Brand Voice                           │
-
-│      ├─ Thư viện ảnh (Media Library)  ← mới dời vào đây │
-
-│      └─ Tích hợp (Telegram Pairing, Meta)     │
-
+│      ├─ Tab: Pillar & Angle                  │
+│      └─ Tab: Content Plan (Calendar)         │
+│  📸 Yêu cầu ảnh (Asset Request)              │
+│  ⚡ Giao việc nhanh (Direct Assign)           │
+│  📊 Báo cáo (Analytics Gate)                 │
+│  🔔 Thông báo                                │
+│  ⚙️ Cài đặt (Settings)                       │
+│      ├─ Model & Ngân sách                    │
+│      ├─ Lịch đăng bài                        │
+│      ├─ Brand Voice                          │
+│      ├─ Thư viện ảnh (Media Library)         │
+│      └─ Tích hợp (Telegram Pairing, Meta)    │
 └─────────────────────────────────────────────┘
+```
 
-Nguyên tắc điều hướng: **Pixel Office** trả lời "đang có chuyện gì xảy ra" (overview trực quan) → **Kanban** trả lời "việc gì đang ở đâu, tôi cần làm gì" (tác vụ cụ thể) → **Content Hub** trả lời "kế hoạch nội dung của tôi trông như thế nào" (planning/config nội dung) → **Settings** chứa toàn bộ cấu hình ít thay đổi (bao gồm Media Library).
+**Nguyên tắc điều hướng:**
 
-Sidebar/bottom-tab (mobile) chỉ hiện 5 mục chính: Văn phòng, Công việc, Content, Báo cáo, Cài đặt — Asset Request và Direct Assign truy cập qua notification/CTA nổi, không chiếm chỗ cố định trên sidebar để tránh rối.
+| Màn hình | Trả lời câu hỏi gì |
+|----------|---------------------|
+| Pixel Office | "Đang có chuyện gì xảy ra?" (overview trực quan) |
+| Kanban | "Việc gì đang ở đâu, tôi cần làm gì?" (tác vụ cụ thể) |
+| Content Hub | "Kế hoạch nội dung của tôi trông như thế nào?" (planning/config) |
+| Settings | Toàn bộ cấu hình ít thay đổi (bao gồm Media Library) |
+
+**Sidebar/bottom-tab (mobile)** chỉ hiện **5 mục chính**: Văn phòng, Công việc, Content, Báo cáo, Cài đặt. Asset Request và Direct Assign **không có chỗ cố định trên sidebar** — truy cập qua notification/CTA nổi, tránh rối navigation.
 
 ---
 
-## 7.5.3.1. Pixel Office — Màn hình chính (MỚI)
+##### 7.5.3.1. Pixel Office — Màn hình chính (MỚI)
 
-### Mục đích
+###### Mục đích
 
 Đây là màn hình đầu tiên sau khi login. Thay vì nhìn số liệu, chủ quán nhìn thấy **một văn phòng pixel-art isometric** nơi các nhóm AI agent (team desk) đang "làm việc" cho họ theo thời gian thực — cảm giác giống nhìn vào văn phòng qua camera, không phải đọc dashboard.
 
-### Nguyên tắc thiết kế
+###### Nguyên tắc thiết kế
 
-- Đây là lớp **visualization**, không phải nơi thao tác nghiệp vụ sâu. Mọi hành động thực sự (duyệt bài, sửa caption...) đều dẫn người dùng sang Kanban/Content Hub — Pixel Office chỉ là cổng vào \+ overview trạng thái.  
-- Không hiển thị số liệu kỹ thuật (eval\_score, token usage...) ở đây — giữ đúng tinh thần "nhìn phát biết chuyện gì đang xảy ra" cho người không rành kỹ thuật.  
-- Animation nhẹ (idle loop, typing loop) — không dùng video/GIF nặng, dùng sprite-sheet CSS animation để nhẹ tải trên mobile 3G (đồng bộ NFR-T4-04 cũ).
+- Đây là lớp **visualization**, không phải nơi thao tác nghiệp vụ sâu. Mọi hành động thực sự (duyệt bài, sửa caption...) đều dẫn người dùng sang Kanban/Content Hub — Pixel Office chỉ là cổng vào + overview trạng thái.
+- Không hiển thị số liệu kỹ thuật (eval_score, token usage...) ở đây — giữ đúng tinh thần "nhìn phát biết chuyện gì đang xảy ra" cho người không rành kỹ thuật.
+- Animation nhẹ (idle loop, typing loop) — dùng sprite-sheet CSS animation để nhẹ tải trên mobile 3G.
 
-### Cấu trúc: 4 bàn làm việc (team desk)
+###### Cấu trúc: 4 bàn làm việc (team desk)
 
-Mỗi bàn đại diện **1 nhóm agent** (3–4 bàn theo quyết định sản phẩm), map trực tiếp từ 12 agent ở Tầng 3:
-
-| \# | Bàn (Team Desk) | Agent trực thuộc | Vai trò hiển thị |
-| :---- | :---- | :---- | :---- |
+| # | Bàn (Team Desk) | Agent trực thuộc | Vai trò hiển thị |
+|---|------------------|------------------|------------------|
 | 1 | 🧭 Bàn Chiến lược (Strategy Desk) | A01 Orchestrator, B01 IMC Planner, B02 Content Pillar, B03 Content Plan | Lên kế hoạch tuần/campaign |
 | 2 | ✍️ Bàn Sáng tạo (Creative Desk) | D01 Caption Writer, D02 Image Designer | Viết caption, thiết kế ảnh |
 | 3 | ✅ Bàn Kiểm duyệt & Xuất bản (QA & Publish Desk) | E01 Evaluator, F01 Publisher | Chấm chất lượng, đăng bài lên Meta |
 | 4 | 📈 Bàn Phân tích (Analytics Desk) | G01 Metrics Collector, G02/G03 Insight, G04 Report, H01 Feedback Loop | Thu thập số liệu, viết báo cáo, học từ feedback |
 
-### Bố cục màn hình
+###### Bố cục màn hình
 
+```
 ┌────────────────────────────────────────────────────────┐
-
 │  Bardinh Coffee — Văn phòng CrewLab      🔔 3   👤 Admin│
-
 ├────────────────────────────────────────────────────────┤
-
 │                                                          │
-
-│   \[Pixel-art isometric office — 4 bàn làm việc\]         │
-
+│   [Pixel-art isometric office — 4 bàn làm việc]         │
 │                                                          │
-
-│    🧭 Strategy      ✍️ Creative     ✅ QA\&Publish  📈 Analytics │
-
-│    \[nhân viên đang  \[nhân viên đang  \[ghế trống,   \[nhân viên   │
-
+│    🧭 Strategy      ✍️ Creative     ✅ QA&Publish  📈 Analytics │
+│    [nhân viên đang  [nhân viên đang  [ghế trống,   [nhân viên   │
 │     gõ máy, bubble:  vẽ, bubble:      bubble: "Chờ   đang xem    │
-
 │     "Đang lên kế     "Đang viết       bạn duyệt      biểu đồ,    │
-
-│     hoạch tuần 25"\]  caption..."\]     3 bài"\]        idle\]       │
-
+│     hoạch tuần 25"]  caption..."]     3 bài"]        idle]       │
 │                                                          │
-
 │   Banner nổi (nếu có việc gấp):                         │
-
-│   ⚠️ 3 bài đang chờ bạn duyệt — \[Xem ngay →\]            │
-
+│   ⚠️ 3 bài đang chờ bạn duyệt — [Xem ngay →]            │
 │                                                          │
-
 │   Thanh trạng thái dưới cùng: Tuần 25 · 4/6 bài đã đăng│
-
 └────────────────────────────────────────────────────────┘
+```
 
-### Trạng thái hiển thị trên từng bàn
+###### Trạng thái hiển thị trên từng bàn
 
-Mỗi bàn có **1 trong 5 trạng thái**, map từ FSM state thật của content item/cycle liên quan đến agent nhóm đó — không phải trạng thái giả lập:
+Mỗi bàn có **1 trong 5 trạng thái**, map từ FSM state thật:
 
 | Trạng thái | Animation/Icon | Điều kiện kích hoạt |
-| :---- | :---- | :---- |
+|------------|----------------|---------------------|
 | 💤 Idle (nghỉ) | Nhân viên ngồi yên, màn hình máy tính mờ | Không có task nào của nhóm agent này đang active |
 | ⌨️ Working (đang làm) | Nhân viên gõ phím/vẽ, có hiệu ứng "..." nhấp nháy trên màn hình pixel | Có content item đang ở state do agent nhóm này xử lý (GENERATING, EVALUATING, PLANNING...) |
-| ⏳ Waiting (chờ người) | Nhân viên ngồi quay ra nhìn người dùng, bubble hiện số lượng | Có item đang ở state cần **client action** (PENDING\_PLAN\_APPROVAL, PENDING\_CONTENT\_APPROVAL, ANALYTICS\_ACK\_PENDING) |
+| ⏳ Waiting (chờ người) | Nhân viên ngồi quay ra nhìn người dùng, bubble hiện số lượng | Có item đang ở state cần **client action** (PENDING_PLAN_APPROVAL, PENDING_CONTENT_APPROVAL, ANALYTICS_ACK_PENDING) |
 | ❗ Blocked/Error | Bàn có biển cảnh báo đỏ nhấp nháy, nhân viên đứng khoanh tay | Có item liên quan bị stale/error/vào DLQ (F01 fail, retry vượt giới hạn) |
 | 🏖️ Waiting Asset | Bàn Creative có hộp ảnh trống với dấu hỏi | Có item ở state `waiting_asset` |
 
-**Rule ưu tiên hiển thị:** nếu 1 bàn có nhiều item ở nhiều trạng thái khác nhau cùng lúc, hiển thị theo độ ưu tiên `Blocked/Error > Waiting > Working > Idle` — luôn cho người dùng thấy vấn đề nghiêm trọng nhất trước.
+**Rule ưu tiên hiển thị:** `Blocked/Error > Waiting > Working > Idle`.
 
-### Tương tác
+###### Tương tác & Nguồn dữ liệu
 
-- **Click vào 1 bàn** → mở **side panel** (không chuyển trang) hiển thị:  
-  - Tên team \+ danh sách agent  
-  - Task hiện tại: tên content item, đang ở bước nào, đã chạy bao lâu  
-  - Nếu có action chờ (waiting) → nút CTA trực tiếp: "Duyệt ngay →" (mở đúng Task Detail Panel của task loại Người thuộc desk đó, xem 7.5.3.2)  
-  - Nếu blocked → thông báo ngắn gọn không kỹ thuật: "Bài này đang gặp trục trặc khi đăng, Agency đang xử lý" (không hiện error\_code kỹ thuật cho client)  
-- **Click vào banner nổi** → nhảy thẳng tới Kanban Task Board, tự bật toggle "Chỉ hiện task cần tôi duyệt" (không phải lọc theo cột, vì task cần duyệt luôn nằm ở cột Review — xem 7.5.3.2).  
-- **Hover (desktop)** → tooltip ngắn gọn tên bàn \+ số task đang chạy, không cần click mới biết sơ bộ.
-
-### Nguồn dữ liệu & cập nhật
-
-- Subscribe Supabase Realtime trên `content_items` \+ `workflow_cycles` (đã có ở Tầng 1 EXT) — không polling.  
-- Mapping state → animation xử lý ở frontend, dựa theo bảng field `current_state` \+ `assigned_agent_group` (field mới cần thêm ở Tầng 4, suy ra từ state hiện tại, xem 7.5.2.4.1 bên dưới).  
-- **7.5.2.4.1 — Bổ sung field suy ra (derived, không lưu DB):** Backend trả thêm `desk_status` trong response `/api/v1/office/status` — tính toán từ state hiện tại của tất cả content item \+ cycle thuộc client đó tại thời điểm gọi, group theo 4 team desk ở bảng trên.
-
-### Endpoint liên quan
-
-GET /api/v1/office/status
-
-→ trả về desk\_status cho cả 4 team desk: { desk\_id, status, active\_item\_count, top\_item: {id, title, state}, waiting\_count }
-
-Realtime cập nhật qua Supabase channel `office_status:{client_id}`.
-
-### UX Decisions
-
-- Pixel Office **không thay thế** Kanban/Content Hub — nó là "cổng vào cảm xúc", mọi hành động sâu đều điều hướng sang các màn hình chuyên biệt.  
-- Trên mobile: layout đổi thành carousel ngang 4 bàn (swipe qua lại) thay vì hiển thị cùng lúc, vì không đủ không gian ngang.  
-- Không có sound effect mặc định (tránh làm phiền môi trường quán cà phê), có thể bật tùy chọn trong Settings \> Giao diện (Post-MVP).  
-- Internal App (Agency Admin) có phiên bản Pixel Office riêng ở mục 15.1 — hiển thị **nhiều văn phòng thu nhỏ**, mỗi văn phòng \= 1 client, giúp Agency Admin quét nhanh toàn bộ client cùng lúc.
+- **Click vào 1 bàn** → mở **side panel** hiển thị: Tên team + danh sách agent, Task hiện tại, nút CTA trực tiếp ("Duyệt ngay →"), hoặc thông báo lỗi đơn giản.
+- **Click vào banner nổi** → nhảy thẳng tới Kanban Task Board, tự bật toggle "Chỉ hiện task cần tôi duyệt".
+- Realtime cập nhật qua Supabase channel `office_status:{client_id}`.
 
 ---
 
-## 7.5.3.2. Kanban Dashboard — Bảng quản lý Task (MỚI, chuẩn Trello — thay thế Dashboard dạng list)
+##### 7.5.3.2. Kanban Dashboard — Bảng quản lý Task (MỚI, chuẩn Trello)
 
-### Mục đích và khái niệm quan trọng — đọc kỹ trước khi build
+###### Mục đích
 
-**Đây KHÔNG PHẢI màn hình quản lý trạng thái duyệt bài viết.** Màn hình quản lý bài viết/lịch đăng đã có riêng ở Content Hub \> Content Plan Calendar (7.5.3.3). Kanban Dashboard là **bảng quản lý TASK của cả văn phòng AI (agent) lẫn con người**, đúng tinh thần 1 board Trello quản lý dự án thật: mỗi card \= 1 công việc cụ thể ai đó (agent hoặc người) đang/đã/sẽ làm, không phải 1 bài đăng.
+Đây KHÔNG PHẢI màn hình quản lý bài viết/lịch đăng (đó là Content Plan Calendar ở §7.5.3.3). Kanban Dashboard là **bảng quản lý TASK của cả văn phòng AI (agent) lẫn con người**: mỗi card = 1 công việc cụ thể ai đó đang/đã/sẽ làm.
 
-**Định nghĩa Task:** mỗi bước xử lý trong pipeline là **1 task riêng biệt**, không gộp chung thành 1 task xuyên suốt cho cả vòng đời 1 bài viết. Task sau chỉ được tạo khi task trước Done, đúng theo workflow đã định nghĩa ở Tầng 2 — Kanban Dashboard là lớp hiển thị, không tự phát minh luồng xử lý nào mới. Ví dụ bài "Cold Brew mùa hè" khi chạy hết pipeline sẽ sinh ra một chuỗi task nối tiếp:
+###### Cột (Columns) & Swimlane
 
-Task 1  \[🧭 Strategy\]   B03 — Lên content plan tuần 25          → Done
+- **To Do:** Task đã được tạo, đang xếp hàng chờ.
+- **In Progress:** Agent đang xử lý task (LLM call / generate ảnh).
+- **Review:** Task cần xác nhận (task loại Người sinh ra ở đây, hoặc task loại Agent vừa xong đang chờ bước kế tiếp).
+- **Done:** Task hoàn tất.
 
-Task 2  \[✍️ Creative\]   D01 — Viết caption "Cold Brew mùa hè"   → Done
+**4 Swimlane ngang:** 🧭 Strategy Desk, ✍️ Creative Desk, ✅ QA & Publish Desk, 📈 Analytics Desk.
 
-Task 3  \[✍️ Creative\]   D02 — Thiết kế ảnh "Cold Brew mùa hè"   → Done
-
-Task 4  \[✅ QA\&Publish\] E01 — Chấm điểm nội dung                → Done (pass)
-
-Task 5  \[✅ QA\&Publish\] 👤 Bạn — Duyệt bài "Cold Brew mùa hè"    → Review (đang chờ bạn)
-
-Task 6  \[✅ QA\&Publish\] F01 — Đăng bài lên Instagram             → To Do (chờ Task 5 xong)
-
-Task 7  \[📈 Analytics\]  G01 — Thu thập số liệu (T+7)             → To Do (chờ Task 6 xong)
-
-Mỗi task có:
-
-- **assignee**: 1 trong 12 agent (D01, D02, E01, F01...) hoặc **"Bạn"** nếu là bước cần con người quyết định (Gate 1/2/3 — HITL)  
-- **team\_desk**: suy ra từ assignee, khớp đúng 4 bàn ở Pixel Office (7.5.3.1) — 1 trong Strategy / Creative / QA\&Publish / Analytics  
-- **linked\_item** (tuỳ chọn): content item, campaign, hoặc cycle mà task này thuộc về — có task **không gắn bài viết nào** (vd "G04 — Viết báo cáo tuần 24" là task cấp cycle, không phải 1 bài cụ thể)
-
-### Cột (Columns) — chuẩn Trello, áp dụng chung mọi loại task
-
-| Cột | Ý nghĩa |
-| :---- | :---- |
-| **To Do** | Task đã được tạo, đang xếp hàng chờ tới lượt xử lý hoặc chờ task đứng trước (dependency) hoàn tất |
-| **In Progress** | Agent đang xử lý task này (LLM call / xử lý ảnh đang chạy thật) |
-| **Review** | Task đã có kết quả, cần xác nhận trước khi tính là xong. 2 trường hợp: **(a)** task loại **Người** (Gate 1/2/3) luôn sinh ra ở cột này, nằm chờ tới khi bạn hành động; **(b)** task loại **Agent** vừa chạy xong, đang trong lúc chờ bước kiểm tra tự động kế tiếp (vd D01 vừa viết xong, đang chờ E01 chấm điểm) |
-| **Done** | Task hoàn tất, kết quả đã bàn giao cho task kế tiếp trong chuỗi (hoặc kết thúc chuỗi) |
-
-**Không có cột riêng cho lỗi/chặn.** Task gặp lỗi (agent fail, đang retry, vào DLQ...) vẫn nằm ở cột phù hợp với trạng thái xử lý thật (thường là **To Do** — đang chờ retry, hoặc **In Progress** — đang thử lại) nhưng có **label đỏ 🔴 Lỗi** nổi bật trên card kèm số lần retry — đúng tinh thần Trello dùng label thay vì đẻ thêm cột, tránh board bị rối.
-
-### Swimlane — theo Team Desk, khớp Pixel Office
-
-Board chia thành **4 swimlane ngang**, mỗi swimlane \= 1 team desk, đúng 4 bàn ở Pixel Office (7.5.3.1), giúp người dùng liên kết trực quan giữa 2 màn hình:
-
+```
 ┌───────────────────────────────────────────────────────────────┐
-
-│  Bảng công việc                           \[Lọc ▾\]  \[Tuần 25 ▾\]│
-
+│  Bảng công việc                           [Lọc ▾]  [Tuần 25 ▾]│
 ├─────────────┬─────────────┬─────────────┬───────────────────┤
-
 │    To Do    │ In Progress │   Review    │        Done         │
-
 ├─────────────┴─────────────┴─────────────┴───────────────────┤
-
 │ 🧭 STRATEGY DESK                                   (1·0·0·3)   │
-
-│ \[B02: Pillar│             │             │ \[B01\]\[B02\]\[B03\]     │
-
-│  tuần 26\]   │             │             │                      │
-
+│ [B02: Pillar│             │             │ [B01][B02][B03]     │
+│  tuần 26]   │             │             │                      │
 ├─────────────┼─────────────┼─────────────┼───────────────────┤
-
 │ ✍️ CREATIVE DESK                                   (0·2·1·4)   │
-
-│             │\[D01: Viết   │\[D02: Ảnh    │ \[...\]\[...\]           │
-
-│             │ caption·Bài E\]│ Cold Brew·  │                      │
-
-│             │             │ chờ E01\]    │                      │
-
+│             │[D01: Viết   │[D02: Ảnh    │ [...][...]           │
+│             │ caption·Bài E]│ Cold Brew·  │                      │
+│             │             │ chờ E01]    │                      │
 ├─────────────┼─────────────┼─────────────┼───────────────────┤
-
 │ ✅ QA & PUBLISH DESK                          (0·1·2·5) 🔴     │
-
-│             │\[F01: Đăng   │\[👤 Duyệt bài │                      │
-
+│             │[F01: Đăng   │[👤 Duyệt bài │                      │
 │             │ bài·retry   │ Cold Brew·  │                      │
-
-│             │ lần 2 🔴\]   │ còn 18h\]    │                      │
-
+│             │ lần 2 🔴]   │ còn 18h]    │                      │
 ├─────────────┼─────────────┼─────────────┼───────────────────┤
-
 │ 📈 ANALYTICS DESK                                  (0·0·1·2)   │
-
-│             │             │\[👤 Xác nhận  │                      │
-
+│             │             │[👤 Xác nhận  │                      │
 │             │             │ báo cáo     │                      │
-
-│             │             │ tuần 24\]    │                      │
-
+│             │             │ tuần 24]    │                      │
 └─────────────┴─────────────┴─────────────┴───────────────────┘
-
-Số trong ngoặc ở đầu mỗi swimlane \= số task theo từng cột (To Do·In Progress·Review·Done); badge 🔴 xuất hiện ở tên swimlane nếu desk đó có ít nhất 1 task lỗi — đồng bộ đúng thứ tự ưu tiên hiển thị lỗi đã có ở Pixel Office (7.5.3.1: `Blocked/Error > Waiting > Working > Idle`).
-
-Swimlane có thể **thu gọn (collapse)** riêng từng dòng để tập trung vào 1 team đang cần chú ý.
-
-### Card task — thông tin hiển thị
-
-- **Avatar**: icon pixel nhỏ của agent (đồng bộ sprite với Pixel Office), hoặc avatar **"👤 Bạn"** nếu là task cần người duyệt  
-- **Tên task**: `{Agent/Bạn}: {hành động} — {tên bài/campaign nếu có}` (vd "D01: Viết caption — Cold Brew mùa hè", "👤 Bạn: Duyệt bài — Cold Brew mùa hè")  
-- Thumbnail nhỏ nếu task có `linked_item` là content item có ảnh; task không gắn bài viết nào hiển thị icon 📄 thay thumbnail  
-- Badge phụ: `🔁 Lần 2` (retry), `⏳ Còn 18h` (SLA cho task loại người), `🔴 Lỗi`
-
-### Click vào card → Task Detail Panel
-
-Mở panel bên phải (desktop) / modal full-screen (mobile):
-
-- **Task loại Agent** (D01, D02, E01, F01, G01...): hiển thị **read-only** — tên task, agent phụ trách, đã chạy bao lâu, vị trí trong chuỗi (mini timeline dọc: task nào trước/sau). Nếu có lỗi: mô tả ngắn không kỹ thuật ("Agent gặp trục trặc khi đăng bài, đang thử lại"). **Không hiện `eval_score`, token usage, prompt/response thô** cho client — chi tiết kỹ thuật này chỉ có ở Internal App Debug View (7.5.4.3).  
-- **Task loại Người** (Gate 1/2/3): mở đúng **component duyệt đã có sẵn**, không xây UI riêng — Gate 2 mở preview 2 cột (mockup FB/IG) \+ Duyệt/Sửa caption/Từ chối, giống hệt modal mở từ Content Plan Calendar (7.5.3.3); Gate 3 mở report reader (7.5.3.4); Gate 1 dẫn sang Content Hub \> Content Plan \> "Duyệt tất cả tuần". Card task người duyệt trên Kanban chỉ là **lối vào nhanh**, dùng chung 1 component với các màn hình kia để tránh trùng lặp UI.
-
-### Kéo-thả (drag & drop) — chỉ áp dụng cho task loại Người
-
-- **Task loại Agent**: card **không kéo-thả được** — agent tự động chuyển trạng thái theo pipeline thật, người dùng không có quyền tự ý dời task của agent (tránh hiểu nhầm là có thể "ép" AI chạy nhanh/chậm bằng tay). Thử kéo → tooltip "Task của AI tự động cập nhật, không kéo được".  
-- **Task loại Người** (Gate 1/2/3) được phép kéo trong phạm vi hợp lệ:  
-  - Kéo **Review → Done** \= tương đương bấm Duyệt (mở confirm dialog nhỏ trước khi commit, không tự approve chỉ vì thả tay).  
-  - Kéo **Review → To Do** \= tương đương Từ chối (bắt buộc mở form chọn lý do taxonomy trước khi commit).  
-  - Kéo sang **In Progress** không hợp lệ với task loại người → card bounce về vị trí cũ \+ toast lỗi.  
-- Đây là lớp UI gọi lại đúng endpoint approve/reject đã có (7.5.2.1/7.5.2.3) — kéo-thả không tạo transition mới ngoài FSM Tầng 2 đã định nghĩa.
-
-### Filter & View options
-
-- Filter theo: Team Desk, Loại task (Agent / Người), Có lỗi hay không, Có gắn bài viết hay không.  
-- Toggle **"Chỉ hiện task cần tôi duyệt"** — thu gọn board về đúng các task loại Người đang ở cột Review, hữu ích khi bận (tương đương chức năng ưu tiên đã có ở Dashboard list v1.0).  
-- Chọn "Tuần 25 ▾" để xem task thuộc cycle nào — mặc định luôn hiện cycle đang active.
-
-### Mobile
-
-Swimlane chuyển thành **accordion** (mỗi team desk mở/đóng được), trong mỗi nhóm hiển thị task theo 4 cột dạng tab ngang thay vì hiển thị song song (không đủ không gian ngang). Không hỗ trợ kéo-thả trên mobile — chỉ tap card → action trong Task Detail Panel.
-
-### Nguồn dữ liệu & Endpoint
-
-Task không phải bảng hoàn toàn mới trong DB — được **tổng hợp (derived)** từ nguồn đã có ở Tầng 1/2: `content_item_state_log` (mỗi lần chuyển state \= 1 task tương ứng bước agent xử lý), `hitl_reviews` (task loại Người), và các job cấp cycle (`workflow_cycles`, job định kỳ của G04...). Tầng 4 chỉ định nghĩa 1 lớp aggregation ở backend để trả đúng format "task" cho UI, không đổi schema gốc Tầng 1/2.
-
-GET /api/v1/tasks/board?cycle\_id=...\&team\_desk=...\&filter=...
-
-→ trả list task, group theo swimlane (team\_desk) × column (status)
-
-  mỗi task: { task\_id, title, assignee\_type: agent|human, assignee\_code,
-
-              team\_desk, status, linked\_item: {id, type, title, thumbnail} | null,
-
-              retry\_count, has\_error, sla\_deadline, created\_at, started\_at, completed\_at }
-
-PATCH /api/v1/tasks/{id}/transition
-
-→ CHỈ áp dụng task loại human, dùng chung logic approve/reject/schedule đã có (7.5.2.1),
-
-  idempotency\_key bắt buộc
-
-Cập nhật real-time qua Supabase Realtime channel `tasks_board:{client_id}` — không polling (đồng bộ NFR-T4-02).
-
-### UX Decisions
-
-- Đây là bảng quản lý **công việc của cả văn phòng AI \+ con người**, không phải bảng quản lý bài viết. 2 màn hình bổ trợ nhau: **Kanban** trả lời "ai đang làm gì, tôi đang bị chờ ở đâu"; **Content Hub** (7.5.3.3) trả lời "bài nào đăng ngày nào, nội dung ra sao".  
-- Không tạo state machine mới — 4 cột Trello chỉ là **lớp hiển thị** nhóm từ state thật đã có ở Tầng 2, giống cách Content Plan Calendar nhóm hiển thị theo ngày.  
-- Card task loại Agent giữ tinh thần "xem cho biết" (read-only), card task loại Người mới là nơi thao tác thật — tránh người dùng nhầm tưởng có thể can thiệp trực tiếp vào việc AI đang làm.  
-- Badge 🔴 ở tên swimlane đồng bộ với trạng thái Blocked/Error ở bàn tương ứng trên Pixel Office — 2 màn hình luôn kể cùng 1 câu chuyện, không lệch nhau.
-
----
-
-## 7.5.3.3. Content Hub (MỚI — gộp Campaign \+ Pillar & Angle \+ Content Plan)
-
-### Mục đích
-
-Gộp 3 màn hình trước đây tách rời (Co-pilot 0A — Campaign, Co-pilot 0B — Pillar & Angle, Gate 1/Content Plan dạng bảng) vào **1 khu vực chia 3 tab**, vì cả 3 đều thuộc nhóm "lên kế hoạch nội dung" và người dùng thường cần qua lại giữa chúng khi cấu hình 1 tuần/1 campaign.
-
-┌────────────────────────────────────────────────────────┐
-
-│  Content Hub                                            │
-
-│  \[ Campaign \]   \[ Pillar & Angle \]   \[ Content Plan \]   │
-
-└────────────────────────────────────────────────────────┘
-
----
-
-### Tab 1 — Campaign
-
-Kế thừa nguyên business logic của "Campaign Management" \+ "Co-pilot 0A" ở v1.0, gộp làm 1 tab.
-
-**List view:**
-
-\[Đang chạy (1)\] \[Sắp tới (2)\] \[Đã kết thúc (5)\]      \[+ Tạo mới\]
-
-🟢 ĐANG CHẠY — Menu Mùa Hè
-
-1/6 → 30/6/2026 · Seasonal · "Làm mới menu với đồ uống lạnh mùa hè"
-
-                                      \[Xem kế hoạch AI\] \[Kết thúc sớm\]
-
-**Khi có campaign mới cần xác nhận kế hoạch (trigger từ B01):** hiện banner ở đầu tab dẫn vào Co-pilot editor:
-
-📋 Kế hoạch AI đề xuất — Menu Mùa Hè      \[Version: AI Draft\]  Còn 48h
-
-Tên campaign: \[Menu Mùa Hè ✏️\]
-
-Tagline: \[Mát lạnh \- Đậm vị ✏️\]
-
-Thông điệp chính: \[textarea\]
-
-Tone đặc biệt: \[dropdown \+ text override\]
-
-Đừng nhắc đến: \[chips\]
-
-CTA gợi ý: \[checkbox 3-5 option\]
-
-Facebook focus / Instagram focus: \[textarea\]
-
-💡 Gợi ý AI: Campaign tương tự tháng 4 đạt reach 6,200 nhờ "mát lạnh"
-
-\[Xem version gốc AI\]   \[Từ chối\]   \[Xác nhận ✓\]
-
-Field, validation, action giữ nguyên như v1.0 (Co-pilot 0A): 3 action Xác nhận/Từ chối/Xem diff, lock sau khi xác nhận, diff tracking tự động, timeout reminder \< 12h.
-
-**Form tạo campaign thủ công:** tên, loại (Seasonal/Product Launch/Promotion/Local Event/Anniversary), ngày bắt đầu/kết thúc, offer, thông điệp chính, target audience, pillar bổ sung, mức ưu tiên — giữ nguyên v1.0.
-
-**Kết thúc sớm:** dialog confirm, dừng dispatch B01 từ chu kỳ tiếp theo, bài đã approve vẫn đăng theo lịch.
-
----
-
-### Tab 2 — Pillar & Angle
-
-Kế thừa nguyên business logic "Co-pilot 0B" ở v1.0.
-
-Chủ đề tuần \#25                                    Còn 72h
-
-Tổng phân bổ: \[████████░░\] 100%
-
-┌─ 🔵 Product Spotlight ──────────────── \[40%\] ◄─ slider ─┐
-
-│ Giới thiệu đồ uống, combo                                │
-
-│ Góc khai thác: \[Hương vị đặc trưng\] \[Ảnh flat lay\] \[+Thêm\]│
-
-│ Platform: FB \[60%\] / IG \[40%\]                             │
-
-│                                          \[✏️ Sửa\] \[🗑 Xóa\] │
-
-└────────────────────────────────────────────────────────┘
-
-\[+ Thêm chủ đề mới\]
-
-💡 AI gợi ý: Tăng Behind the Scenes (engagement 4.2% — cao nhất 3 tuần qua)
-
-\[Đặt lại về đề xuất AI\]   \[Từ chối\]   \[Xác nhận ✓\]
-
-**Validation rules giữ nguyên v1.0:** tổng % phải \= 100 (nút Xác nhận disable nếu khác), mỗi pillar tối thiểu 5%, tối thiểu 2 – tối đa 5 pillar, live counter đổi màu đỏ/xanh, slider \+ input số đồng bộ, rebalance tự động khi xóa 1 pillar (cộng vào pillar cao nhất), không cho xóa xuống dưới 2 pillar.
-
-Khi pillar/angle đã confirm ở tab này, chúng trở thành **nguồn dữ liệu** cho dropdown "Pillar" khi xem/sửa từng bài ở Tab 3 (Content Plan) — không cho chọn pillar ngoài danh sách đã chốt, giữ đúng rule cũ ("không cho sửa pillar sang pillar ngoài danh sách" ở Gate 1 v1.0).
-
----
-
-### Tab 3 — Content Plan (dạng Calendar — thay đổi lớn nhất)
-
-**Thay đổi so với v1.0:** Gate 1 cũ trình bày Content Plan dạng **bảng** (cột: stt, pillar, angle, brief ý tưởng, brief ảnh, caption, ngày...). Ở v2.0, Content Plan hiển thị dạng **Calendar (lịch tháng/tuần)** — chỉ hiện tổng quan trên lịch, **bấm vào từng bài mới mở ra chi tiết đầy đủ** (bảng thông tin cũ chuyển thành nội dung của modal chi tiết, không hiển thị sẵn ngoài lịch).
-
-**Bố cục — Calendar view (mặc định: tuần; có thể chuyển tháng):**
-
-┌────────────────────────────────────────────────────────────────┐
-
-│  Content Plan            \[Tuần ▼\]  ◄  Tuần 25 (16–22/6)  ►      │
-
-│                                            \[Duyệt tất cả tuần\]   │
-
-├──────┬──────┬──────┬──────┬──────┬──────┬──────┬───────────────┤
-
-│  T2  │  T3  │  T4  │  T5  │  T6  │  T7  │  CN  │               │
-
-│ 17/6 │ 18/6 │ 19/6 │ 20/6 │ 21/6 │ 22/6 │ 23/6 │               │
-
-├──────┼──────┼──────┼──────┼──────┼──────┼──────┼───────────────┤
-
-│      │ 🟦IG │      │ 🟥FB │      │ 🟦IG │      │  Chú thích:    │
-
-│      │08:00 │      │18:00 │      │17:00 │      │  🟦 IG  🟥 FB  │
-
-│      │\[thumb│      │\[thumb│      │\[thumb│      │  ● đã đăng     │
-
-│      │ nhỏ\] │      │ nhỏ ⚠│      │ nhỏ\] │      │  ○ chờ duyệt   │
-
 │      │  ●   │      │  ○   │      │  ○   │      │  ◐ AI đang làm │
 
 └──────┴──────┴──────┴──────┴──────┴──────┴──────┴───────────────┘
@@ -4003,73 +3454,168 @@ Giữ đúng rule v1.0: đây là duyệt **kế hoạch tổng**, không duyệ
 
 # 7.5.4. Internal App (Agency Admin)
 
-*(Giữ nguyên phần lớn business logic v1.0. Bổ sung mục 15.1 — Multi-Office Overview, tương ứng khái niệm Pixel Office ở Client Portal nhưng cho phép xem nhiều client cùng lúc.)*
+*(Bản PRD thu hẹp có chủ đích cho giai đoạn 1–3 client pilot. Thu hẹp vào 2 trọng tâm: Onboard client mới & Quản lý chi phí AI. Các tính năng mở rộng khác như Multi-Office Overview, Cycle Monitor/Debug View, Dead Letter Queue, Reopen/Override, Meta Account Management, Beat Schedule, Audit Log, Escalation Alert Center sẽ bổ sung ở giai đoạn sau khi quy mô mở rộng.)*
 
-## 7.5.4.0 (mới). Multi-Office Overview
+## 7.5.4.0. Information Architecture & Ghi chú phạm vi
 
-Landing screen của Internal App, đặt trước Client List trong điều hướng:
+┌─────────────────────┐
+│  🔷 CrewLab Admin   │
+├─────────────────────┤
+│                     │
+│  👥 Clients         │  ← Màn hình đầu tiên (danh sách client)
+│  💰 Chi phí AI       │  ← Tổng quan chi phí tất cả client
+│                     │
+└─────────────────────┘
 
-┌────────────────────────────────────────────────────────┐
+Chỉ 2 mục chính trên sidebar. Không có Dashboard alert-first, không có Multi-Office Overview — phù hợp quy mô pilot.
 
-│  Tổng quan văn phòng — 5 client active                 │
+**Luồng sử dụng chính:**
+Mở app → Client List → 
+  ├─ Client mới chưa tồn tại → [+ Onboard Mới] → Wizard 9 bước
+  └─ Client đã có → Click vào → Xem/sửa Chi phí AI của client đó
 
-├───────────────────┬───────────────────┬────────────────┤
+Hoặc: Mở app → Chi phí AI (sidebar) → Xem tổng quan TẤT CẢ client cùng lúc
 
-│ 🏢 Bardinh Coffee  │ 🏢 Cafe XYZ        │ 🏢 Client 3    │
+---
 
-│ \[mini pixel office\]│ \[mini pixel office\]│ \[mini office\]  │
+## 7.5.4.1. Client List — Màn hình đầu tiên
 
-│ 🟢 Bình thường     │ 🔴 1 lỗi cần xử lý │ 🟡 Chờ duyệt   │
+### Mục đích
+Landing screen đơn giản — chỉ đủ để biết đang có client nào, chi phí ra sao, và điều hướng vào đúng nơi cần.
 
-│ \[Vào Client →\]     │ \[Vào Client →\]     │ \[Vào Client →\] │
+### Layout
+┌──────────────────────────────────────────────────────────┐
+│  Clients                                  [+ Onboard Mới]│
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │ 🟢  Bardinh Coffee                                  │  │
+│  │      Cafe · FB + IG                                 │  │
+│  │      Chi phí tháng này: $18.40 / $50 (36%)          │  │
+│  │                                                    │  │
+│  │      [Xem Chi Phí]  [Sửa Cấu Hình]                │  │
+│  └────────────────────────────────────────────────────┘  │
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │ 🟡  Cafe XYZ                                        │  │
+│  │      Cafe · FB only                                 │  │
+│  │      Chi phí tháng này: $27/$30 (90% — sắp hết!)   │  │
+│  │                                                    │  │
+│  │      [Xem Chi Phí]  [Sửa Cấu Hình]                │  │
+│  └────────────────────────────────────────────────────┘  │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
 
-└───────────────────┴───────────────────┴────────────────┘
+### Client Card — Thông tin hiển thị
+| Field | Nguồn | Ghi chú |
+|---|---|---|
+| Tên client \+ Vertical | `clients` table | |
+| Platform | `client_config` | FB/IG/cả hai |
+| Chi phí tháng này | Tổng hợp từ `llm_usage` | % so với budget cap tổng |
+| Badge màu | Tính từ % chi phí | 🟢 \< 80% · 🟡 80-99% · 🔴 ≥ 100% (đã vượt) |
 
-Mỗi ô là bản thu nhỏ của Pixel Office client đó (4 bàn, không animation phức tạp, chỉ icon trạng thái tổng hợp) — giúp Agency Admin quét nhanh client nào đang gặp vấn đề mà không cần mở từng client. Click "Vào Client →" → chuyển sang Debug View/Cycle Monitor của đúng client đó.
+### Actions
+| Nút | Dẫn tới |
+|---|---|
+| \+ Onboard Mới | Wizard 9 bước (§7.5.4.2) |
+| Xem Chi Phí | Trang Chi phí AI, lọc sẵn theo client này (§7.5.4.3) |
+| Sửa Cấu Hình | Form chỉnh sửa nhanh: tên, platform, trạng thái active/paused |
 
-## 7.5.4.1. Client Lifecycle Management
+---
 
-*(Giữ nguyên v1.0.)* Onboarding form (9 bước, thay CLI Tầng 1 §8.2), bước tư vấn provider ghi lại kết quả trao đổi trước khi activate, Pause/Resume (`is_active`), Offboarding có dialog xác nhận 2 bước.
+## 7.5.4.2. Onboard Client Mới — Wizard 9 bước
 
-## 7.5.4.2. Cycle & Content Monitoring Dashboard
+### Mục đích
+Agency Admin đưa client mới vào hệ thống hoàn toàn trên UI — không cần chạy script/CLI. Tự động lưu draft tại mỗi bước.
 
-*(Bản kỹ thuật/cross-client của Task Board ở 7.5.3.2.)* Agency Admin dùng cùng model Task Board (swimlane theo team desk, cột To Do/In Progress/Review/Done) nhưng có thêm: filter theo **client**, hiển thị **mã agent kỹ thuật thật** (D01, D02...) thay vì tên thân thiện, và mở được chi tiết lỗi/log ngay trên card (không cần vòng qua Debug View cho lỗi đơn giản). List `workflow_cycles` theo client, drill-down vào item kèm FSM state, highlight cycle stale (từ `maintenance.check_stale_cycles`).
+### Progress bar
+\[1\]━━\[2\]━━\[3\]━━\[4\]━━\[5\]━━\[6\]━━\[7\]━━\[8\]━━\[9\]
 
-## 7.5.4.3. Debug View (Internal Only)
+### Bước 1 — Thông tin cơ bản
+- **Inputs:** Tên client (*bắt buộc, unique*), Vertical (*dropdown, vd: Cafe \& F\&B*), Timezone (*mặc định Asia/Ho\_Chi\_Minh*), Mô tả ngắn (internal).  
+- **Validation:** Trùng tên → gợi ý thêm suffix.
 
-*(Giữ nguyên v1.0.)* `eval_score`/`eval_feedback` đầy đủ, retry history timeline, LLM usage trace (link Langfuse). *Lưu ý phụ thuộc:* threshold E01 (pass/fail badge) hiện lệch giữa Tầng 2 (7.0) và Tầng 3 (8.0) — cần chốt 1 giá trị trước khi build badge này (xem Phụ lục Open Questions).
+### Bước 2 — Nền tảng & lịch đăng bài
+- **Inputs:** Platform (*Facebook / Instagram / TikTok*), Số bài/tuần, Lịch đăng FB/IG (ngày trong tuần \& khung giờ), Analytics delay (*mặc định 7 ngày*).
 
-## 7.5.4.4. Dead Letter Queue Management
+### Bước 3 — Khởi tạo ChromaDB
+- **Chức năng:** Khởi tạo 3 collections riêng cho client (`{client}_brand`, `{client}_content_history`, `{client}_tmp`).  
+- **Idempotency:** Nếu đã tồn tại → "⟳ Đã tồn tại — bỏ qua" thay vì báo lỗi.
 
-*(Giữ nguyên v1.0.)* List record DLQ chưa resolve, Replay (requeue \+ log actor/timestamp), Resolve without replay (ghi chú lý do bắt buộc).
+### Bước 4 — Khởi tạo Hindsight Memory Banks
+- **Chức năng:** Khởi tạo 13 memory banks cho 12 agent (A01, B01-B03, D01-D02, E01, F01, G01-G04, H01).  
+- **Trạng thái:** Hiển thị progress `13/13 banks sẵn sàng`.
 
-## 7.5.4.5. Reopen / Override Actions
+### Bước 5 — Upload tài liệu brand
+- **Inputs:** Drag \& drop file brand guidelines, menu, tone of voice (PDF, DOCX, TXT, MD).  
+- **Chức năng:** Ingest qua Docling \+ Chonkie vào ChromaDB collection `{client}_brand`. Hiển thị số chunk đã split per file.
 
-*(Giữ nguyên v1.0.)* Reopen content item (hiển thị `reopened_count/3`, từ chối nếu chạm giới hạn), Manual state override (quyền chặt, ghi audit log đầy đủ).
+### Bước 6 — Tạo Client Admin User
+- **Inputs:** Email client admin, Tên hiển thị. Role mặc định: `client_admin`.  
+- **Chức năng:** Tạo tài khoản qua Supabase Auth \& gửi email thiết lập mật khẩu.
 
-## 7.5.4.6. Beat Schedule Management
+### Bước 7 — Kết nối Meta
+- **Chức năng:** Popup OAuth Meta (Facebook Login for Business).  
+- **Inputs:** Chọn Facebook Page ID và Instagram Account ID đã kết nối.  
+- **Trạng thái:** Hiển thị thời hạn token, tự động refresh khi còn ≤ 7 ngày.
 
-*(Giữ nguyên v1.0 — Post-MVP/defer.)* View/edit schedule per client ở cấp Internal Admin; không block MVP vì 7.5.3.7.2 đã cho client tự sửa mức cần thiết.
+### Bước 8 — LLM Provider & API Key (⭐ Khởi tạo ban đầu)
+- **Inputs:**
+  - Bật/tắt Provider (Anthropic, OpenAI, Google...).  
+  - Nhập API Key \+ Nút **Test Connection** (verify model availability).  
+  - Ngân sách tổng/tháng (USD) cho client (*bắt buộc, tối thiểu $10*).  
+  - Model mặc định theo nhóm agent (Strategy, Content, Image, Evaluator, Analytics).  
+- **Validation:** Ít nhất 1 provider phải Test Connection thành công trước khi tiếp tục. Key được mã hóa ngay khi lưu (không bao giờ hiển thị lại full key).
 
-## 7.5.4.7. LLM Usage & Budget Dashboard
+### Bước 9 — Đăng ký lịch tự động & Smoke Test
+- **Chức năng:** Đăng ký Celery Beat schedule (`weekly_cycle`, `reflect_job`, `h01_batch`, `stale_check`, `analytics_trigger`) \& Chạy 6 bài Smoke Test:
+  1. ✅ ChromaDB collections — Accessible  
+  2. ✅ Hindsight Memory Banks — 13/13 respond  
+  3. ✅ Celery task dispatch — Test task thành công  
+  4. ✅ Meta API token — Valid  
+  5. ✅ Client Portal login — OK  
+  6. ✅ LLM Provider — API test call thành công  
+- **Xử lý lỗi:** Fail ở ChromaDB/Celery/LLM → block không cho qua. Fail ở Portal login/Meta token → cảnh báo và hỗ trợ fix nhanh.
 
-*(Giữ nguyên v1.0.)* Cross-client view tổng chi phí theo provider/agent, per-client budget status, alert log `quota_warning`/`quota_exceeded`. Đơn vị USD client-facing, quy đổi nội bộ từ token theo bảng giá per-model.
+---
 
-## 7.5.4.8. Meta Account Connection Management
+## 7.5.4.3. Quản lý Chi phí AI
 
-*(Giữ nguyên v1.0.)* List client \+ trạng thái kết nối (Page ID, IG Account ID, token expiry), Force refresh token, Connect mới (chi tiết flow 7.5.6.1).
+### Mục đích
+Xem và điều chỉnh chi phí LLM — cả tổng quan tất cả client lẫn đi sâu từng client. Nơi duy nhất (ngoài Bước 8 Wizard) để sửa provider, API key, model, và ngân sách sau khi onboard.
 
-## 7.5.4.9. Audit Log Viewer
+### 4.1. Tổng quan tất cả client
+- **Thanh tổng chi phí:** Hiển thị tổng $ đã dùng / $ tổng ngân sách của tất cả client, % đã dùng, breakdown theo Provider (Anthropic, OpenAI...).  
+- **Danh sách Per-Client:** Mỗi client có tiến trình chi phí ($ đã dùng / cap), màu badge (🟢/🟡/🔴), nút "Xem chi tiết →".  
+- **Cảnh báo vượt ngân sách:** Highlight client chạm 90%+ ngân sách kèm nút "Tăng ngân sách →".
 
-*(Giữ nguyên v1.0.)* Filter theo client/loại hành động/actor, filter riêng `SECURITY_BREACH`.
+### 4.2. Chi tiết per-client (Detail View)
+- **Thông tin ngân sách:** Ngân sách tổng/tháng hiện tại ($), đã dùng ($ và %), nút \[Sửa ngân sách\]. Thay đổi ngân sách có hiệu lực trong ≤ 5 phút.  
+- **Breakdown theo Agent:** Biểu đồ \& % chi phí phân bổ cho từng agent (D02 Image, D01 Caption, Analytics G01-G04...).  
+- **Biểu đồ theo ngày trong tháng:** Chart thể hiện chi phí từng ngày (nhận biết ngày cao điểm T2 khi cycle khởi động).  
+- **Quản lý Provider & API Key:**
+  - Bật/tắt từng provider.  
+  - Sửa API Key: ô nhập key mới → Test Connection → Lưu \& Cập nhật (hiển thị che `sk-***...4 ký tự cuối`).  
+  - **Cảnh báo khi tắt provider đang dùng:** Hiện rõ danh sách agent bị ảnh hưởng và model fallback trước khi xác nhận.  
+- **Phân bổ Model theo Agent:**
+  - Dropdown chọn model cho từng agent (A01, B01-B03, D01, D02, E01, G01-G04, H01).  
+  - **Logic lọc dropdown:** Chỉ hiển thị model thuộc provider **đã Test Connection thành công** (provider chưa bật/key invalid sẽ bị ẩn hẳn khỏi dropdown để tránh chọn nhầm).
 
-## 7.5.4.10. Escalation Alert Dashboard
+---
 
-*(Giữ nguyên v1.0.)* Mirror toàn bộ Telegram alert (Tầng 2 EXT.9), nút Acknowledge nối vào flag `re_alerted`.
+## 7.5.4.4. Acceptance Criteria Internal App
 
-## 7.5.4.11. LLM Provider & API Key Management
-
-*(Giữ nguyên v1.0 — bắt buộc để 7.5.4.1/7.5.3.7.1 có dữ liệu chạy.)* Per client: bật/tắt provider, nhập API key (mã hóa, hiển thị che `sk-***...xxxx`), nút Test Connection, khi tắt provider → agent đang dùng tự fallback về `default_provider`.
+| ID | Tiêu chí |
+|---|---|
+| IF-01 | Wizard bước 3 (ChromaDB) chạy lại lần 2 cho cùng client → hiện "⟳ Đã tồn tại", không tạo duplicate collection |
+| IF-02 | Wizard bước 8: không Test Connection thành công cho bất kỳ provider nào → nút "Lưu \& Tiếp tục" bị disable |
+| IF-03 | Wizard bước 9 (Smoke Test): ChromaDB/Celery fail → block; Portal login fail → cho phép bỏ qua |
+| IF-04 | Sau khi lưu API Key → không bao giờ hiển thị lại full key, chỉ hiện `sk-***...4 ký tự cuối` |
+| IF-05 | Tắt provider đang được ≥ 1 agent dùng → hiện rõ danh sách agent bị ảnh hưởng \+ model fallback trước khi confirm |
+| IF-06 | Sửa ngân sách → có hiệu lực cho task tiếp theo trong ≤ 5 phút |
+| IF-07 | Client đạt 100% ngân sách → badge chuyển 🔴 ở cả Client List lẫn trang Chi phí AI tổng quan |
+| IF-08 | Model dropdown chỉ hiện model thuộc provider đã test thành công — provider chưa bật hoàn toàn không xuất hiện |
+| IF-09 | Đổi model 1 agent ở trang Chi phí (ngoài wizard) → có hiệu lực trong ≤ 5 phút, client khác không bị ảnh hưởng |
 
 ---
 
