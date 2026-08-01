@@ -54,6 +54,8 @@ If these conflict, use this order and flag the conflict to the human instead of 
 - Frontend: Next.js — separate `portal/` (client-facing) and `internal-app/` (agency admin) folders in this monorepo
 - Deploy: backend → Hetzner VPS via Coolify; frontends → Vercel (root directory set per app)
 - LLM: per client config, see MVP-Scope for defaults — do not hardcode a single provider
+- LLM abstraction: `litellm` (pip install, MIT) — all agents call `call_llm()` in `backend/app/core/llm.py`, never import provider SDKs directly. See `docs/decisions/0004-litellm-abstraction.md`.
+- **API key management (Phase 1):** Dùng chung 1 bộ API key toàn Agency (không per-client). Model cụ thể per-agent lấy từ `client_llm_configs`, nhưng key lấy theo provider qua env var cố định (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`). **Đây là quyết định tạm cho Phase 1 (1 client).** Phase 6 (multi-client) sẽ cần vault/secret manager per-client — đừng tưởng nhầm đây là thiết kế cuối cùng.
 
 ## Commands
 

@@ -2364,9 +2364,9 @@ B03:
 
 D01:
 
-  provider: "openai"
+  provider: "anthropic"
 
-  model: "gpt-5.4"
+  model: "claude-sonnet-4-6"
 
   budget\\\_usd\\\_month: 25
 
@@ -2390,23 +2390,23 @@ G01:
 
   provider: "anthropic"
 
-  model: "claude-haiku-4-5"
+  model: "claude-sonnet-4-6"
 
   budget\\\_usd\\\_month: 5
 
 G02:
 
-  provider: "google"
+  provider: "anthropic"
 
-  model: "gemini-2.5-flash"
+  model: "claude-opus-4-8"
 
   budget\\\_usd\\\_month: 8
 
 G03:
 
-  provider: "google"
+  provider: "anthropic"
 
-  model: "gemini-3.5-flash"
+  model: "claude-opus-4-8"
 
   budget\\\_usd\\\_month: 10
 
