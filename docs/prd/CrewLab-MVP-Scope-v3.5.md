@@ -49,9 +49,9 @@
 |`d01\_complete` *(mới — PRD gốc gộp D01→D02 làm 1 bước tuần tự, MVP tách trigger riêng cho dễ test)*|D02|✅ Active|
 |`d02\_complete` (visual\_ready)|E01|✅ Active|
 |`asset\_submitted`|D02 lại (không phải D01 — caption không đổi)|✅ Active|
-|`asset\_request\_expired` *(mới, xem mục 3)*|Set `asset\_blocked` + `notify\_agency\_admin`|✅ Active|
+|`asset\_request\_expired` *(mới, xem mục 3)*|Set `asset\_blocked` + ghi `task\_logs` (không push notification ở MVP)|✅ Active|
 |`eval\_failed` (còn lượt retry)|D01 hoặc D02 theo bảng retry-routing dưới|✅ Active|
-|`eval\_failed` (hard fail / hết lượt)|Set `rejected` + `notify\_agency\_admin`|✅ Active|
+|`eval\_failed` (hard fail / hết lượt)|Set `rejected` + ghi `task\_logs` (không push notification ở MVP)|✅ Active|
 |`content\_gate\_approved`|Set `approved\_ready\_to\_post` (không dispatch — đăng tay)|✅ Active|
 |`campaign\_created` / `campaign\_ended`|B01 / cleanup|⏸ Phase 5|
 |`publish\_due`|F01|⏸ Phase 3|
@@ -486,9 +486,9 @@ planned
   → caption\_generating          (D01)
   → visual\_matching
   → waiting\_asset                 (thiếu ảnh thật → tạo asset\_request, chờ chủ quán nộp ảnh)
-  → asset\_blocked                 (MỚI — chỉ khi asset\_request hết hạn trong lúc waiting\_asset: escalate
-                                    Agency Admin, KHÔNG tự dùng ảnh AI/fallback, KHÔNG tự reject —
-                                    Agency Admin xử lý tay rồi mới đưa item quay lại visual\_matching
+  → asset\_blocked                 (MỚI — chỉ khi asset\_request hết hạn trong lúc waiting\_asset: ghi task\_logs + state\_log,
+                                    hiện trên Internal App, KHÔNG push notification, KHÔNG tự dùng ảnh AI/fallback,
+                                    KHÔNG tự reject — Agency Admin xử lý tay rồi mới đưa item quay lại visual\_matching
                                     hoặc reject thủ công — theo AC-WF-21 gốc PRD)
   → visual\_generating              (D02 — chạy khi asset đã có, dù đến từ waiting\_asset bình thường
                                     hay từ asset\_blocked đã được Agency Admin resolve)

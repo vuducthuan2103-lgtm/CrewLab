@@ -67,8 +67,22 @@ If these conflict, use this order and flag the conflict to the human instead of 
 - Lint (portal): `cd portal && npm run lint`
 - Lint (internal-app): `cd internal-app && npm run lint`
 
+## Codebase Knowledge Graph (codebase-memory-mcp)
+
+Dự án này sử dụng `codebase-memory-mcp` để duy trì kiến thức dạng đồ thị (Knowledge Graph).
+**BẮT BUỘC** ưu tiên sử dụng các công cụ MCP Graph thay vì `grep`/`glob`/đọc file thủ công khi tìm kiếm và phân tích code:
+
+1. `search_graph`: Tìm hàm, class, route, biến theo pattern.
+2. `trace_path`: Truy vết luồng gọi hàm (inbound/outbound call stack).
+3. `get_code_snippet`: Đọc chính xác mã nguồn của hàm/class thay vì xem toàn bộ file.
+4. `query_graph`: Truy vấn Cypher nâng cao cho cấu trúc phức tạp.
+5. `get_architecture`: Xem bức tranh tổng quan kiến trúc và các module seams.
+
+*Chỉ dùng `grep_search` khi:* Tìm chuỗi văn bản hằng số (string literals), log message, file cấu hình (yaml, json, .env) hoặc file không phải source code.
+
 ## Reference
 
 - Glossary of PRD-specific terms (FSM, HITL, Gate, Cycle, RAG, etc.): `docs/glossary.md`
 - Architecture decisions log: `docs/decisions/`
 - Full spec history: `specs/`
+

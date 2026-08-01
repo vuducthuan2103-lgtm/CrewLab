@@ -38,15 +38,27 @@ def run_async(coro):
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro)
 
+
+# Map agent_code → Celery task name
+AGENT_TASK_MAP = {
+    "B02": "agents.b02.content_pillar",
+    "B03": "agents.b03.content_plan",
+    "D01": "agents.d01.caption_writer",
+    "D02": "agents.d02.image_designer",
+    "E01": "agents.e01.evaluator",
+}
+
+
 @shared_task(name="a01_handle_trigger")
 def a01_handle_trigger(client_id: str, event_type: str, cycle_id: str = None, content_item_id: str = None):
     """
     Main entry point for Orchestrator A01.
+    Handles events and dispatches to appropriate agent Celery tasks.
     """
     client_uuid = uuid.UUID(client_id)
     cycle_uuid = uuid.UUID(cycle_id) if cycle_id else None
     item_uuid = uuid.UUID(content_item_id) if content_item_id else None
-    
+
     async def _run():
         async with AsyncSessionLocal() as session:
             # 1. Precheck
@@ -54,8 +66,8 @@ def a01_handle_trigger(client_id: str, event_type: str, cycle_id: str = None, co
             if not precheck.is_valid:
                 logger.info(f"A01 Precheck failed for client {client_id}: {precheck.reason}")
                 return
-                
-            # 2. Handle Event
+
+            # 2. Handle Event → get DispatchInstructions
             instructions = await handle_event(
                 session=session,
                 client_id=client_uuid,
@@ -63,14 +75,31 @@ def a01_handle_trigger(client_id: str, event_type: str, cycle_id: str = None, co
                 cycle_id=cycle_uuid,
                 content_item_id=item_uuid
             )
-            
-            # 3. Dispatch to Celery Queues
+
+            # 3. Dispatch each instruction to its Celery task
             for inst in instructions:
-                logger.info(f"Dispatching to {inst.agent_code} with idempotency {inst.idempotency_key}")
-                # In the future, this will call the respective agent's Celery task
-                # e.g., current_app.send_task(inst.agent_code.lower() + "_task", kwargs=inst.payload)
-                
+                task_name = AGENT_TASK_MAP.get(inst.agent_code)
+                if not task_name:
+                    logger.warning(
+                        f"No Celery task registered for agent={inst.agent_code}. "
+                        f"Skipping dispatch. (Add to AGENT_TASK_MAP when task is implemented.)"
+                    )
+                    continue
+
+                logger.info(
+                    f"Dispatching: agent={inst.agent_code} task={task_name} "
+                    f"idempotency={inst.idempotency_key}"
+                )
+                try:
+                    from celery import current_app as celery_app
+                    celery_app.send_task(task_name, kwargs={"payload": inst.payload})
+                except Exception as e:
+                    logger.error(
+                        f"Failed to dispatch {task_name} for agent={inst.agent_code}: {e}"
+                    )
+
     run_async(_run())
+
 
 @shared_task(name="check_scheduled_cycles")
 def check_scheduled_cycles():
@@ -104,34 +133,70 @@ def check_scheduled_cycles():
 
 @shared_task(name="check_asset_request_expiry")
 def check_asset_request_expiry():
-    """
-    Runs periodically to check if any Asset Request is expired.
-    """
+    """Runs periodically (hourly) to check if any pending AssetRequest has expired."""
     async def _run():
         from app.models.assets import AssetRequest
+        from app.models.content import ContentItem, ContentItemStateLog
+        from app.models.system import TaskLog
+
         async with AsyncSessionLocal() as session:
             now = datetime.now(pytz.utc)
-            
+
             stmt = select(AssetRequest).where(
-                AssetRequest.status == 'pending',
-                AssetRequest.expires_at <= now
+                AssetRequest.status == "pending",
+                AssetRequest.expires_at <= now,
             )
             result = await session.execute(stmt)
             requests = result.scalars().all()
-            
+
             for req in requests:
-                logger.info(f"AssetRequest {req.id} expired. Triggering A01.")
-                
-                # Update status of request
-                req.status = 'expired'
-                
-                a01_handle_trigger.delay(
-                    client_id=str(req.client_id),
-                    event_type="asset_request_expired",
-                    content_item_id=str(req.content_item_id)
+                # Guard check: skip if item is no longer in waiting_asset
+                item = await session.get(ContentItem, req.content_item_id)
+                if not item or item.status != "waiting_asset":
+                    logger.info(
+                        f"Skipping expired AssetRequest {req.id}: "
+                        f"item={req.content_item_id} status={item.status if item else 'None'}"
+                    )
+                    req.status = "expired"
+                    await session.commit()
+                    continue
+
+                logger.info(
+                    f"AssetRequest {req.id} expired for item={req.content_item_id}. "
+                    f"Transitioning waiting_asset -> asset_blocked"
                 )
-                
-            if requests:
+
+                # Update AssetRequest
+                req.status = "expired"
+
+                # Update ContentItem
+                previous_state = item.status
+                item.status = "asset_blocked"
+
+                # State log
+                session.add(
+                    ContentItemStateLog(
+                        content_item_id=req.content_item_id,
+                        agent_code="System",
+                        previous_state=previous_state,
+                        new_state="asset_blocked",
+                        reason=f"AssetRequest {req.id} expired at {req.expires_at}",
+                    )
+                )
+
+                # Task log (normal log, no alert push in MVP)
+                session.add(
+                    TaskLog(
+                        client_id=req.client_id,
+                        content_item_id=req.content_item_id,
+                        agent_code="System",
+                        task_type="asset_request_expiry",
+                        status="completed",
+                        wake_reason="beat_expiry_check",
+                    )
+                )
+
                 await session.commit()
-                
+
     run_async(_run())
+

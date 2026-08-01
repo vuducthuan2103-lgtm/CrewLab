@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Integer, Float, Text, ForeignKey, DateTime, Date, CheckConstraint
+from sqlalchemy import Column, String, Integer, Float, Boolean, Text, ForeignKey, DateTime, Date, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from ..core.db import Base, utcnow
@@ -90,6 +90,11 @@ class ContentItem(Base):
     asset_requests = relationship("AssetRequest", back_populates="item")
     hitl_reviews = relationship("HitlReview", back_populates="item")
     state_logs = relationship("ContentItemStateLog", back_populates="item")
+    eval_attempts = relationship(
+        "ContentItemEvalAttempt",
+        back_populates="item",
+        order_by="ContentItemEvalAttempt.attempt_number",
+    )
 
 
 class ContentItemStateLog(Base):
@@ -105,3 +110,38 @@ class ContentItemStateLog(Base):
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     item = relationship("ContentItem", back_populates="state_logs")
+
+
+class ContentItemEvalAttempt(Base):
+    """Stores each E01 evaluation attempt for a ContentItem.
+
+    One row per E01 run (max 3 rows per item in MVP — eval_retry_count tracks this).
+    Provides Agency Admin with full debug history when an item hard-fails.
+    """
+    __tablename__ = "content_item_eval_attempts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    content_item_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("content_items.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    attempt_number = Column(Integer, nullable=False)          # 1, 2, 3
+
+    # Scores
+    caption_score = Column(Float, nullable=True)              # 0.0–10.0
+    visual_score = Column(Float, nullable=True)               # 0.0–5.0 (None if no image)
+    caption_passed = Column(Boolean, nullable=True)
+    visual_passed = Column(Boolean, nullable=True)
+    overall_passed = Column(Boolean, nullable=False, default=False)
+
+    # Failure details
+    failed_criteria = Column(JSONB, nullable=True)            # ["brand_voice", "mobile_readability", ...]
+    fix_instructions_caption = Column(Text, nullable=True)    # Instructions for D01 retry
+    fix_instructions_visual = Column(Text, nullable=True)     # Instructions for D02 retry
+
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    item = relationship("ContentItem", back_populates="eval_attempts")

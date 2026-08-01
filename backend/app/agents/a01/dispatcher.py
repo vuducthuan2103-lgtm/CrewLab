@@ -145,24 +145,61 @@ async def handle_event(
         )
         
     elif event_type == "eval_failed":
-        # Retry routing based on failed_criteria
+        # Retry routing based on failed_criteria or hard-fail terminal transition
         if not cycle_id or not content_item_id:
             logger.error("eval_failed requires cycle_id and content_item_id")
             return instructions
-            
+
         stmt = select(ContentItem).where(ContentItem.id == content_item_id)
         result = await session.execute(stmt)
         item = result.scalar_one_or_none()
-        
+
         if not item:
             logger.error(f"ContentItem {content_item_id} not found")
             return instructions
-            
+
         failed_criteria = item.failed_criteria or []
         retry_count = item.eval_retry_count
-        
+
+        # Check if hard fail after 3 retries
+        if retry_count >= 3:
+            logger.warning(
+                f"ContentItem {content_item_id} hard-failed after {retry_count} eval retries. "
+                f"Transitioning to 'rejected' terminal state."
+            )
+            item.status = "rejected"
+
+            from app.models.content import ContentItemStateLog
+            from app.models.system import TaskLog
+
+            session.add(
+                ContentItemStateLog(
+                    content_item_id=content_item_id,
+                    agent_code="A01",
+                    previous_state="eval_failed",
+                    new_state="rejected",
+                    reason=(
+                        f"Hard fail after {retry_count} eval attempts. "
+                        f"Failed criteria: {failed_criteria}. Agency Admin review required."
+                    ),
+                )
+            )
+            session.add(
+                TaskLog(
+                    client_id=client_id,
+                    content_item_id=content_item_id,
+                    agent_code="A01",
+                    task_type="eval_hard_fail",
+                    status="terminal",
+                    wake_reason="eval_failed_terminal",
+                )
+            )
+            await session.commit()
+            return instructions  # Empty list — no further auto-dispatch
+
+        # retry_count < 3 -> route to target agent
         target_agent = determine_retry_route(failed_criteria)
-        
+
         instructions.append(
             DispatchInstruction(
                 agent_code=target_agent,
@@ -174,8 +211,8 @@ async def handle_event(
                     "wake_reason": WakeReason.retry.value,
                     "failed_criteria": failed_criteria,
                     "fix_instructions": item.fix_instructions,
-                    "context_packet": packet_dict
-                }
+                    "context_packet": packet_dict,
+                },
             )
         )
         

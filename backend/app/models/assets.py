@@ -11,7 +11,7 @@ class BrandAsset(Base):
     client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     asset_request_id = Column(UUID(as_uuid=True), ForeignKey("asset_requests.id", ondelete="SET NULL"), nullable=True, index=True)
     
-    url = Column(String, nullable=True) # Public URL có thể null nếu dùng pre-signed URLs
+    url = Column(String, nullable=False)
     storage_path = Column(String, nullable=False, server_default="") # Thêm tạm server_default để migration không lỗi nếu đã có data
     file_name = Column(String, nullable=True)
     tags = Column(JSONB, nullable=True)
@@ -40,8 +40,11 @@ class AssetRequest(Base):
     content_item_id = Column(UUID(as_uuid=True), ForeignKey("content_items.id", ondelete="CASCADE"), nullable=False, index=True)
     
     note = Column(Text, nullable=True)
-    status = Column(String, nullable=False, default="pending", index=True) # pending, fulfilled, expired
-    priority = Column(String, nullable=False, default="normal") # low, normal, high, urgent
+    shot_list = Column(JSONB, nullable=True)          # [{"angle": str, "description": str}]
+    reference_tags = Column(JSONB, nullable=True)     # Tags tham khảo từ image_brief
+    example_asset_ids = Column(JSONB, nullable=True)  # UUID[] ảnh ví dụ phong cách
+    status = Column(String, nullable=False, default="pending", index=True)  # pending, fulfilled, expired
+    priority = Column(String, nullable=False, default="normal")  # low, normal, high, urgent
     expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
     
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)

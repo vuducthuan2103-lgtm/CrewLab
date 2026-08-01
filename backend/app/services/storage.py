@@ -14,6 +14,9 @@ if settings.SUPABASE_URL and settings.SUPABASE_KEY:
 else:
     logger.warning("SUPABASE_URL or SUPABASE_KEY is missing. Storage features will be disabled.")
 
+BRAND_ASSETS_BUCKET = "brand-assets"
+
+
 def get_public_url(bucket_name: str, path: str) -> str:
     """Gets the public URL for a file in Supabase storage."""
     if not supabase_client:
@@ -23,6 +26,20 @@ def get_public_url(bucket_name: str, path: str) -> str:
         return res
     except Exception as e:
         logger.error(f"Error getting public URL from Supabase: {e}")
+        return ""
+
+
+def get_signed_url(bucket_name: str, path: str, expires_in: int = 300) -> str:
+    """Creates a temporary signed URL for private files in Supabase storage."""
+    if not supabase_client:
+        return ""
+    try:
+        res = supabase_client.storage.from_(bucket_name).create_signed_url(path, expires_in)
+        if isinstance(res, dict):
+            return res.get("signedURL") or res.get("signedUrl") or ""
+        return getattr(res, "signed_url", str(res))
+    except Exception as e:
+        logger.error(f"Error getting signed URL from Supabase for path={path}: {e}")
         return ""
 
 def upload_file(bucket_name: str, path: str, file_bytes: bytes, content_type: str = "application/octet-stream") -> bool:

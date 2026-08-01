@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
   TaskCard,
   ContentItem,
@@ -23,6 +23,19 @@ import {
   AGENT_MODEL_CONFIGS,
   DEMO_AI_EVENTS,
 } from './mock-data';
+import {
+  apiFetchContentItems,
+  apiApproveContent,
+  apiRejectContent,
+  apiMarkAsPosted,
+  apiConfirmPillars,
+  apiApproveWeek,
+  apiSubmitAssetRequest,
+  apiFetchTaskLogs,
+  apiUpdateBrandVoice,
+  apiUpdateAgentModel,
+  apiUpdateAgentBudget,
+} from './api';
 
 // ─── Store State ─────────────────────────────────────────────────────────────
 interface PortalState {
@@ -37,6 +50,8 @@ interface PortalState {
   weekApproved: boolean;
   demoEventIndex: number;
   isDark: boolean;
+  isLoading: boolean;
+  error: string | null;
 }
 
 // ─── Store Actions ────────────────────────────────────────────────────────────
@@ -50,30 +65,30 @@ interface PortalActions {
   unreadCount: number;
 
   // Content Approval (Gate 2)
-  approveContent: (id: string, editedCaption?: string, editedPublishTime?: Date) => void;
-  rejectContent: (id: string, reason: RejectionReason, feedback: string) => void;
-  markAsPosted: (id: string) => void;
+  approveContent: (id: string, editedCaption?: string, editedPublishTime?: Date) => Promise<void>;
+  rejectContent: (id: string, reason: RejectionReason, feedback: string) => Promise<void>;
+  markAsPosted: (id: string) => Promise<void>;
 
   // Gate S2 — Pillar & Angle
   updatePillarPercentage: (pillarId: string, newPercentage: number) => void;
-  confirmPillars: () => void;
+  confirmPillars: () => Promise<void>;
   resetPillarsToAI: () => void;
 
   // Gate S3 — Approve All Week
-  approveWeek: () => void;
+  approveWeek: () => Promise<void>;
 
   // Client Brief Action
   createClientBrief: (title: string, details: string, urgency: 'standard' | 'high' | 'urgent', platform?: 'all' | 'fb' | 'ig') => void;
 
   // Settings
-  updateBrandVoice: (config: BrandVoiceConfig) => void;
-  updateAgentModel: (agentCode: string, model: string, tier: string) => void;
-  updateAgentBudget: (agentCode: string, budget: number) => void;
+  updateBrandVoice: (config: BrandVoiceConfig) => Promise<void>;
+  updateAgentModel: (agentCode: string, model: string, tier: string) => Promise<void>;
+  updateAgentBudget: (agentCode: string, budget: number) => Promise<void>;
 
   // Asset Upload
-  submitAssets: (requestId: string, assetUrls: string[]) => void;
+  submitAssets: (requestId: string, assetUrls: string[]) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
-
 
 // ─── AI suggestion pillars (rebalanced to show B02 intelligence) ─────────────
 const AI_SUGGESTED_PILLARS: ContentPillar[] = [
@@ -98,6 +113,75 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   const [weekApproved, setWeekApproved] = useState(false);
   const [demoEventIndex, setDemoEventIndex] = useState(0);
   const [isDark, setIsDark] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ── Fetch Initial Real Data from Backend API ────────────────────────────────
+  const refreshData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const realItems = await apiFetchContentItems();
+      if (Array.isArray(realItems) && realItems.length > 0) {
+        const mappedItems: ContentItem[] = realItems.map((item: any) => ({
+          id: item.id,
+          title: item.topic,
+          platform: item.platform === 'both' ? 'both' : item.platform === 'instagram' ? 'ig' : 'fb',
+          state: item.status,
+          caption: item.caption,
+          imageUrl: item.image_url,
+          publishTime: item.scheduled_date ? new Date(item.scheduled_date) : new Date(),
+          pillarLabel: item.pillar_id || 'General',
+          weekNumber: 25,
+          retryCount: item.eval_retry_count || 0,
+          evalScoreCaption: item.eval_score_caption,
+          evalScoreVisual: item.eval_score_visual,
+          evalFeedback: item.fix_instructions,
+          failedCriteria: item.failed_criteria || [],
+          currentAgent: null,
+          needsRealPhoto: item.status === 'waiting_asset',
+          assetRequestId: undefined,
+          clientEditedCaption: item.client_edited_caption,
+          rejectionReason: undefined,
+          rejectionFeedback: undefined,
+          postedAt: item.posted_at ? new Date(item.posted_at) : undefined,
+          createdAt: new Date(item.created_at),
+          updatedAt: new Date(item.updated_at),
+        }));
+        setContentItems(mappedItems);
+      }
+
+      const realLogs = await apiFetchTaskLogs();
+      if (Array.isArray(realLogs) && realLogs.length > 0) {
+        const mappedTasks: TaskCard[] = realLogs.map((log: any) => ({
+          id: log.id,
+          title: `[${log.agent_code}] ${log.task_type}`,
+          assigneeType: 'agent',
+          assigneeCode: log.agent_code,
+          desk: log.agent_code === 'A01' || log.agent_code.startsWith('B') ? 'strategy' : log.agent_code.startsWith('D') ? 'creative' : 'qa',
+          column: log.status === 'completed' || log.status === 'success' ? 'done' : log.status === 'failed' ? 'todo' : 'in_progress',
+          linkedContentItemId: log.content_item_id,
+          retryCount: 0,
+          hasError: log.status === 'failed',
+          slaDeadline: new Date(new Date(log.created_at).getTime() + 24 * 3600 * 1000),
+          createdAt: new Date(log.created_at),
+          startedAt: new Date(log.created_at),
+          completedAt: log.status === 'completed' || log.status === 'success' ? new Date(log.created_at) : null,
+        }));
+        setTasks((prev) => [...mappedTasks, ...prev.filter(t => t.assigneeType === 'human')]);
+      }
+    } catch (err: any) {
+      console.warn('Backend API connection failed, using local mock fallback:', err.message);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   // ── Theme ──────────────────────────────────────────────────────────────────
   const toggleTheme = useCallback(() => {
@@ -133,9 +217,15 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     setDemoEventIndex((prev) => prev + 1);
   }, [demoEventIndex]);
 
-  // ── Content Approval ──────────────────────────────────────────────────────
+  // ── Content Approval (Gate 2) ──────────────────────────────────────────────
   const approveContent = useCallback(
-    (id: string, editedCaption?: string, _editedPublishTime?: Date) => {
+    async (id: string, editedCaption?: string, _editedPublishTime?: Date) => {
+      try {
+        await apiApproveContent(id, editedCaption);
+      } catch (e: any) {
+        console.warn('API approveContent failed, applying local state update:', e.message);
+      }
+      
       setContentItems((prev) =>
         prev.map((ci) => {
           if (ci.id !== id) return ci;
@@ -146,7 +236,6 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
           };
         })
       );
-      // Move corresponding human task to Done
       setTasks((prev) =>
         prev.map((t) =>
           t.linkedContentItemId === id && t.assigneeType === 'human' && t.column === 'review'
@@ -154,7 +243,6 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
             : t
         )
       );
-      // Mark notification as read
       setNotifications((prev) =>
         prev.map((n) => (n.linkedContentItemId === id ? { ...n, read: true } : n))
       );
@@ -162,7 +250,13 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const rejectContent = useCallback((id: string, reason: RejectionReason, feedback: string) => {
+  const rejectContent = useCallback(async (id: string, reason: RejectionReason, feedback: string) => {
+    try {
+      await apiRejectContent(id, reason, feedback);
+    } catch (e: any) {
+      console.warn('API rejectContent failed, applying local state update:', e.message);
+    }
+
     setContentItems((prev) =>
       prev.map((ci) =>
         ci.id === id
@@ -170,7 +264,6 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
           : ci
       )
     );
-    // Move task back to Todo (for retry)
     setTasks((prev) =>
       prev.map((t) =>
         t.linkedContentItemId === id && t.assigneeType === 'human' && t.column === 'review'
@@ -180,7 +273,13 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const markAsPosted = useCallback((id: string) => {
+  const markAsPosted = useCallback(async (id: string) => {
+    try {
+      await apiMarkAsPosted(id);
+    } catch (e: any) {
+      console.warn('API markAsPosted failed, applying local state update:', e.message);
+    }
+
     setContentItems((prev) =>
       prev.map((ci) => (ci.id === id ? { ...ci, state: 'posted' } : ci))
     );
@@ -188,29 +287,34 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
 
   // ── Gate S2 — Pillars ─────────────────────────────────────────────────────
   const updatePillarPercentage = useCallback((pillarId: string, newPercentage: number) => {
-    setPillars((prev) => {
-      const total = prev.reduce(
-        (sum, p) => (p.id === pillarId ? sum : sum + p.percentage),
-        0
-      );
-      // Simple clamp: just set the value, validation happens in UI
-      return prev.map((p) =>
+    setPillars((prev) =>
+      prev.map((p) =>
         p.id === pillarId ? { ...p, percentage: Math.max(5, Math.min(85, newPercentage)) } : p
-      );
-    });
+      )
+    );
   }, []);
 
-  const confirmPillars = useCallback(() => {
-    // In a real app, this would POST to /api/v1/pillars/confirm
-    // For now it's already stored in state
-  }, []);
+  const confirmPillars = useCallback(async () => {
+    try {
+      const payload = pillars.map((p) => ({ pillar_id: p.id, percentage: p.percentage }));
+      await apiConfirmPillars(payload);
+    } catch (e: any) {
+      console.warn('API confirmPillars failed:', e.message);
+    }
+  }, [pillars]);
 
   const resetPillarsToAI = useCallback(() => {
     setPillars(AI_SUGGESTED_PILLARS);
   }, []);
 
   // ── Gate S3 — Approve Week ────────────────────────────────────────────────
-  const approveWeek = useCallback(() => {
+  const approveWeek = useCallback(async () => {
+    try {
+      await apiApproveWeek('00000000-0000-0000-0000-000000000001');
+    } catch (e: any) {
+      console.warn('API approveWeek failed:', e.message);
+    }
+
     setWeekApproved(true);
     setContentItems((prev) =>
       prev.map((ci) =>
@@ -220,7 +324,13 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Asset Submit ──────────────────────────────────────────────────────────
-  const submitAssets = useCallback((requestId: string, _assetUrls: string[]) => {
+  const submitAssets = useCallback(async (requestId: string, assetUrls: string[]) => {
+    try {
+      await apiSubmitAssetRequest(requestId, assetUrls);
+    } catch (e: any) {
+      console.warn('API submitAssets failed:', e.message);
+    }
+
     setAssetRequests((prev) =>
       prev.map((ar) => (ar.id === requestId ? { ...ar, status: 'submitted' } : ar))
     );
@@ -264,12 +374,21 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Settings ──────────────────────────────────────────────────────────────
-  const updateBrandVoice = useCallback((config: BrandVoiceConfig) => {
+  const updateBrandVoice = useCallback(async (config: BrandVoiceConfig) => {
+    try {
+      await apiUpdateBrandVoice(config);
+    } catch (e: any) {
+      console.warn('API updateBrandVoice failed:', e.message);
+    }
     setBrandVoice(config);
   }, []);
 
-
-  const updateAgentModel = useCallback((agentCode: string, model: string, tier: string) => {
+  const updateAgentModel = useCallback(async (agentCode: string, model: string, tier: string) => {
+    try {
+      await apiUpdateAgentModel(agentCode, model, tier);
+    } catch (e: any) {
+      console.warn('API updateAgentModel failed:', e.message);
+    }
     setAgentModelConfigs((prev) =>
       prev.map((c) =>
         c.agentCode === agentCode ? { ...c, selectedModel: model, tier: tier as AgentModelConfig['tier'] } : c
@@ -277,7 +396,12 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const updateAgentBudget = useCallback((agentCode: string, budget: number) => {
+  const updateAgentBudget = useCallback(async (agentCode: string, budget: number) => {
+    try {
+      await apiUpdateAgentBudget(agentCode, budget);
+    } catch (e: any) {
+      console.warn('API updateAgentBudget failed:', e.message);
+    }
     setAgentModelConfigs((prev) =>
       prev.map((c) => (c.agentCode === agentCode ? { ...c, budgetUSD: budget } : c))
     );
@@ -295,6 +419,8 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     weekApproved,
     demoEventIndex,
     isDark,
+    isLoading,
+    error,
     toggleTheme,
     markNotificationRead,
     triggerDemoAiEvent,
@@ -311,8 +437,8 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     updateBrandVoice,
     updateAgentModel,
     updateAgentBudget,
+    refreshData,
   };
-
 
   return <PortalContext.Provider value={value}>{children}</PortalContext.Provider>;
 }

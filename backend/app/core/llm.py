@@ -57,8 +57,13 @@ def _mock_llm_response(
     agent_code: str,
     messages: list[dict],
     response_format: Optional[Type[BaseModel]] = None,
+    mock_key: Optional[str] = None,
 ) -> LLMResponse:
-    """Return a hardcoded mock response for testing without API keys."""
+    """Return a hardcoded mock response for testing without API keys.
+    
+    mock_key overrides agent_code for lookup — allows same agent (e.g. D02)
+    to have multiple distinct mock responses (D02_tags, D02_select).
+    """
     mock_responses = {
         "B02": json.dumps({
             "pillars": [
@@ -76,9 +81,66 @@ def _mock_llm_response(
                 {"topic": "Cách pha pour-over tại nhà", "platform": "facebook", "pillar_name": "Behind the Scenes", "scheduled_date": "2026-08-08", "scheduled_time": "09:00"},
             ]
         }),
+        "D01": json.dumps({
+            "caption": (
+                "☀️ Cold Brew mùa hè — Giải nhiệt theo cách của bạn!\n\n"
+                "Mùa hè nóng bức cần một thức uống đủ mát, đủ ngon, đủ chill. "
+                "Cold Brew BarĐỉnh được ngâm lạnh 12 giờ — đậm đà, mượt mà, không cần đường.\n\n"
+                "Ghé BarĐỉnh hôm nay, order ngay Cold Brew yêu thích của bạn! 🦹\n\n"
+                "#ColdBrew #BarDinh #CafeSaigon #GiaiNhiet #CafeMuaHe"
+            ),
+            "image_brief": {
+                "description": "Ly Cold Brew trên nền gỗ sáng, ánh nắng tự nhiên chiếu qua cửa sổ tạo bóng đổ nhẹ",
+                "mood": "Tươi mát, tự nhiên, summer vibes",
+                "suggested_tags": ["cold brew", "cà phê", "flat lay", "mùa hè", "ly đá"],
+                "composition_notes": "Ảnh dọc 4:5, close-up ly từ góc 45 độ, xung quanh vài viên đá và lá bạc hà",
+                "avoid": ["ảnh mờ", "nền tối", "góc chụp nghiêng nhiều"]
+            }
+        }),
+        "D02_tags": json.dumps({
+            "enhanced_tags": ["cold brew", "cà phê đá", "flat lay", "summer drink", "coffee shop", "nước uống", "sản phẩm"],
+            "search_priority": ["cold brew", "flat lay", "cà phê", "sản phẩm"]
+        }),
+        "D02_select": json.dumps({
+            "selected_asset_id": "b1000001-0000-0000-0000-000000000001",
+            "reason": "Ảnh flat lay ly sản phẩm có ánh sáng tự nhiên, khớp với brief về summer vibes"
+        }),
+        "E01": json.dumps({
+            "caption_eval": {
+                "score": 8.5,
+                "passed": True,
+                "failed_criteria": [],
+                "fix_instructions": ""
+            },
+            "visual_eval": {
+                "score": 4.2,
+                "passed": True,
+                "failed_criteria": [],
+                "fix_instructions": ""
+            },
+            "overall_passed": True,
+            "evaluation_reasoning": "Caption phản ánh đúng brand voice Bardinh Coffee, CTA rõ ràng. Ảnh sản phẩm có ánh sáng tốt và bố cục phù hợp."
+        }),
+        "E01_fail": json.dumps({
+            "caption_eval": {
+                "score": 5.5,
+                "passed": False,
+                "failed_criteria": ["brand_voice", "platform_fit"],
+                "fix_instructions": "Giọng văn quá sáo rỗng, thiếu từ ngữ đặc trưng thương hiệu. Thiếu hashtag phù hợp cho Facebook."
+            },
+            "visual_eval": {
+                "score": 2.5,
+                "passed": False,
+                "failed_criteria": ["mobile_readability", "visual_asset_fit"],
+                "fix_instructions": "Ảnh bị rối bố cục, góc chụp không làm nổi bật ly Cold Brew như mô tả trong Image Brief."
+            },
+            "overall_passed": False,
+            "evaluation_reasoning": "Caption chưa đúng brand voice. Ảnh chưa bám sát brief và khó nhìn trên di động."
+        }),
     }
 
-    content = mock_responses.get(agent_code, '{"result": "mock response"}')
+    key = mock_key or agent_code
+    content = mock_responses.get(key, '{"result": "mock response"}')
     return LLMResponse(
         content=content,
         model_used="mock-model",
@@ -99,6 +161,7 @@ async def call_llm(
     max_tokens: int = 4096,
     wake_reason: str = "task_assigned",
     content_item_id: Optional[uuid.UUID] = None,
+    mock_key: Optional[str] = None,
 ) -> LLMResponse:
     """
     Central LLM call function. All agents use this — never import provider SDKs directly.
@@ -113,6 +176,8 @@ async def call_llm(
         max_tokens: Max output tokens
         wake_reason: For task_logs observability
         content_item_id: Optional, for task_logs linking
+        mock_key: Override key for mock lookup (e.g. "D02_tags", "D02_select").
+                  Default=None uses agent_code. Only used in CREWLAB_LLM_MOCK=true mode.
     
     Returns:
         LLMResponse with content, usage stats, and provider info
@@ -120,8 +185,8 @@ async def call_llm(
 
     # --- Mock mode ---
     if os.environ.get("CREWLAB_LLM_MOCK", "").lower() in ("true", "1", "yes"):
-        logger.info(f"[LLM MOCK] agent={agent_code} client={client_id}")
-        response = _mock_llm_response(agent_code, messages, response_format)
+        logger.info(f"[LLM MOCK] agent={agent_code} mock_key={mock_key or agent_code} client={client_id}")
+        response = _mock_llm_response(agent_code, messages, response_format, mock_key=mock_key)
         if session:
             await _log_task(session, client_id, agent_code, response, wake_reason, content_item_id)
         return response
