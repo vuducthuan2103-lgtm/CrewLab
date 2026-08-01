@@ -77,6 +77,8 @@ class ContentItem(Base):
     fix_instructions = Column(Text, nullable=True)
     
     client_edited_caption = Column(Text, nullable=True)
+    scheduled_date = Column(Date, nullable=True)        # Ngày dự kiến đăng (B03 lên lịch)
+    scheduled_time = Column(String, nullable=True)      # "HH:MM" — giờ đăng theo timezone client
     posted_at = Column(DateTime(timezone=True), nullable=True)
     
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)

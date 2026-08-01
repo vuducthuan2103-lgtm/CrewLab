@@ -4,14 +4,14 @@ from sqlalchemy.future import select
 
 from app.models.clients import BrandSetting
 from app.models.reviews import AgentMemory
-from app.agents.a01.schemas import ContextPacket
-
-async def build_context_packet(session: AsyncSession, client_id: uuid.UUID) -> ContextPacket:
+async def build_context_packet(session: AsyncSession, client_id: uuid.UUID):
     """
     Builds the MVP context packet containing:
-    1. The current Brand Settings (voice, tone, style, etc.)
+    1. The current Brand Settings (voice, tone, style, posting_frequency, etc.)
     2. Episodic Memory (recent AgentMemory rows for this client)
     """
+    from app.agents.a01.schemas import ContextPacket
+
     # 1. Fetch Brand Settings
     stmt_settings = select(BrandSetting).where(
         BrandSetting.client_id == client_id,
@@ -31,6 +31,7 @@ async def build_context_packet(session: AsyncSession, client_id: uuid.UUID) -> C
             "personality_keywords": brand_setting.personality_keywords,
             "writing_style": brand_setting.writing_style,
             "sample_captions": brand_setting.sample_captions,
+            "posting_frequency": brand_setting.posting_frequency,
         }
         
     # 2. Fetch Episodic Memory (Last 5 memories + All human_feedback in last 30 days)
