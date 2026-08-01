@@ -14,10 +14,8 @@ import {
 } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/clients', icon: Users, label: 'Clients' },
-  { href: '/task-logs', icon: ScrollText, label: 'Task Logs' },
-  { href: '/onboarding', icon: UserPlus, label: 'Onboarding' },
+  { href: '/', icon: Users, label: 'Clients' },
+  { href: '/ai-costs', icon: Activity, label: 'Chi phí AI' },
 ];
 
 export default function AdminSidebar() {
@@ -89,18 +87,6 @@ export default function AdminSidebar() {
         <div className="pt-2 pb-1 px-3">
           <div className="border-t border-border" />
         </div>
-
-        {/* Content Monitor — shows under clients as contextual link */}
-        <div className="px-3 pt-1">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1.5">Per-Client Views</p>
-        </div>
-        <Link
-          href="/clients"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
-        >
-          <Activity size={14} className="text-cyan-admin" />
-          <span>Content Monitor</span>
-        </Link>
       </nav>
 
       {/* Footer */}

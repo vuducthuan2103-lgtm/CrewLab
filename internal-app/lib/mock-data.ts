@@ -33,6 +33,9 @@ export const CLIENTS: Client[] = [
     activeTaskCount: 3,
     hasError: true,
     hasPendingApproval: true,
+    platforms: ['fb', 'ig'],
+    budgetTotal: 50,
+    budgetUsed: 18.4,
   },
   {
     id: 'client-002',
@@ -44,6 +47,9 @@ export const CLIENTS: Client[] = [
     activeTaskCount: 2,
     hasError: false,
     hasPendingApproval: true,
+    platforms: ['fb'],
+    budgetTotal: 30,
+    budgetUsed: 27,
   },
   {
     id: 'client-003',
@@ -55,6 +61,9 @@ export const CLIENTS: Client[] = [
     activeTaskCount: 0,
     hasError: false,
     hasPendingApproval: false,
+    platforms: ['fb', 'ig'],
+    budgetTotal: 100,
+    budgetUsed: 0,
   },
 ];
 

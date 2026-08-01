@@ -11,15 +11,25 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/clients/page": [
+    "/onboarding/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/clients/page.js"
+      "static/chunks/app/onboarding/page.js"
     ],
-    "/clients/[clientId]/page": [
+    "/ai-costs/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/clients/[clientId]/page.js"
+      "static/chunks/app/ai-costs/page.js"
+    ],
+    "/ai-costs/[clientId]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/ai-costs/[clientId]/page.js"
+    ],
+    "/login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/login/page.js"
     ]
   }
 }

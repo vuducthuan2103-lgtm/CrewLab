@@ -1,555 +1,282 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
+import Link from 'next/link';
 import AdminLayout from '@/components/layout/AdminLayout';
 import AdminHeader from '@/components/layout/AdminHeader';
-import {
-  Building2,
-  ChevronLeft,
-  Upload,
-  X,
-  CheckCircle2,
-  Store,
-  Instagram,
-  Facebook,
-  Globe,
-  Clock,
-  Sparkles,
-  CoffeeIcon,
-  UtensilsCrossed,
-  Cake,
-  GlassWater,
-  ShoppingBag,
-  Gem,
-  Loader2,
-  ArrowRight,
-  User,
-  Phone,
-  Mail,
-  MapPin,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-// ─── Types ─────────────────────────────────────────────────────────────────
-type PlatformKey = 'facebook' | 'instagram';
-type PlanKey = 'starter' | 'growth' | 'pro';
+export default function OnboardingWizard() {
+  const router = useRouter();
+  const [step, setStep] = useState(1);
+  const totalSteps = 9;
 
-interface FormState {
-  brandName: string;
-  contactName: string;
-  phone: string;
-  email: string;
-  address: string;
-  industry: string;
-  platforms: PlatformKey[];
-  timezone: string;
-  plan: PlanKey | '';
-  logoFile: File | null;
-  logoPreview: string | null;
-  notes: string;
-}
-
-// ─── Constants ─────────────────────────────────────────────────────────────
-const INDUSTRIES = [
-  { key: 'cafe', label: 'Cà Phê', icon: CoffeeIcon },
-  { key: 'restaurant', label: 'Nhà Hàng', icon: UtensilsCrossed },
-  { key: 'pho_bun', label: 'Phở / Bún', icon: GlassWater },
-  { key: 'bakery', label: 'Bánh & Tiệm', icon: Cake },
-  { key: 'bubble_tea', label: 'Trà Sữa', icon: GlassWater },
-  { key: 'fast_food', label: 'Đồ Ăn Nhanh', icon: ShoppingBag },
-  { key: 'bar_pub', label: 'Bar / Pub', icon: GlassWater },
-  { key: 'fine_dining', label: 'Fine Dining', icon: Gem },
-];
-
-const TIMEZONES = [
-  { value: 'Asia/Ho_Chi_Minh', label: 'Hồ Chí Minh (UTC+7) — Việt Nam' },
-  { value: 'Asia/Bangkok', label: 'Bangkok (UTC+7) — Thái Lan' },
-  { value: 'Asia/Singapore', label: 'Singapore (UTC+8)' },
-  { value: 'Asia/Tokyo', label: 'Tokyo (UTC+9) — Nhật Bản' },
-  { value: 'Europe/London', label: 'London (UTC+0/+1)' },
-  { value: 'America/New_York', label: 'New York (UTC-5/-4)' },
-  { value: 'America/Los_Angeles', label: 'Los Angeles (UTC-8/-7)' },
-];
-
-const PLANS: { key: PlanKey; name: string; price: string; features: string[]; highlight?: boolean }[] = [
-  {
-    key: 'starter',
-    name: 'Starter',
-    price: '2.500.000đ',
-    features: ['3 bài đăng/tuần', '2 Platform (FB + IG)', '2 AI Agent (D01, D02)', 'Hỗ trợ email'],
-  },
-  {
-    key: 'growth',
-    name: 'Growth',
-    price: '4.500.000đ',
-    features: ['5 bài đăng/tuần', 'FB + IG + TikTok', '6 AI Agent đầy đủ', 'Asset Request flow', 'Hỗ trợ ưu tiên'],
-    highlight: true,
-  },
-  {
-    key: 'pro',
-    name: 'Pro',
-    price: '8.000.000đ',
-    features: ['Không giới hạn bài đăng', 'Tất cả platform', '6 Agent + cấu hình model riêng', 'Brand Voice nâng cao', 'Account Manager riêng'],
-  },
-];
-
-// ─── Helper Components ──────────────────────────────────────────────────────
-function SectionTitle({ number, title, description }: { number: string; title: string; description?: string }) {
-  return (
-    <div className="flex items-start gap-4 mb-6">
-      <div className="w-8 h-8 rounded-lg bg-lime-tint border border-lime-tint flex items-center justify-center flex-shrink-0">
-        <span className="text-lime-admin font-bold text-xs font-mono">{number}</span>
-      </div>
-      <div>
-        <h2 className="text-base font-bold text-foreground">{title}</h2>
-        {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
-      </div>
-    </div>
-  );
-}
-
-function FormLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
-  return (
-    <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-      {children}
-      {required && <span className="text-lime-admin ml-1">*</span>}
-    </label>
-  );
-}
-
-function InputField({
-  id,
-  value,
-  onChange,
-  placeholder,
-  type = 'text',
-  icon: Icon,
-}: {
-  id: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-  icon?: React.ElementType;
-}) {
-  return (
-    <div className="relative">
-      {Icon && (
-        <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-      )}
-      <input
-        id={id}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`w-full bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground 
-          focus-admin transition-all duration-200 py-2.5 ${Icon ? 'pl-10 pr-4' : 'px-4'}`}
-      />
-    </div>
-  );
-}
-
-// ─── Main Component ──────────────────────────────────────────────────────────
-export default function OnboardingPage() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-
-  const [form, setForm] = useState<FormState>({
-    brandName: '',
-    contactName: '',
-    phone: '',
-    email: '',
-    address: '',
-    industry: '',
-    platforms: [],
+  // Mock State for Wizard
+  const [form, setForm] = useState({
+    name: '',
+    vertical: 'Cafe & F&B',
     timezone: 'Asia/Ho_Chi_Minh',
-    plan: '',
-    logoFile: null,
-    logoPreview: null,
-    notes: '',
+    desc: '',
+    platforms: ['facebook'],
+    postsPerWeek: 6,
+    budget: 50,
   });
 
-  const update = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  const nextStep = () => setStep((s) => Math.min(s + 1, totalSteps));
+  const prevStep = () => setStep((s) => Math.max(s - 1, 1));
 
-  const togglePlatform = (p: PlatformKey) => {
-    setForm((prev) => ({
-      ...prev,
-      platforms: prev.platforms.includes(p)
-        ? prev.platforms.filter((x) => x !== p)
-        : [...prev.platforms, p],
-    }));
-  };
-
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      update('logoFile', file);
-      update('logoPreview', ev.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const removeLogo = () => {
-    update('logoFile', null);
-    update('logoPreview', null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const isValid =
-    form.brandName.trim() &&
-    form.contactName.trim() &&
-    form.phone.trim() &&
-    form.email.trim() &&
-    form.industry &&
-    form.platforms.length > 0 &&
-    form.plan;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isValid) return;
-    setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    setIsSubmitting(false);
-    setSubmitted(true);
-  };
-
-  if (submitted) {
-    return (
-      <AdminLayout>
-        <AdminHeader title="Onboard Khách Hàng Mới" />
-        <div className="max-w-md mx-auto py-16 px-4 text-center">
-          <div className="relative w-20 h-20 mx-auto mb-6">
-            <div className="absolute inset-0 rounded-full bg-lime-tint animate-ping" />
-            <div className="relative w-20 h-20 rounded-full bg-lime-tint border border-lime-tint flex items-center justify-center shadow-lime-glow">
-              <CheckCircle2 className="w-9 h-9 text-lime-admin" />
-            </div>
+  const renderProgressBar = () => (
+    <div className="flex items-center justify-between mb-8 relative">
+      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted/50 -z-10 rounded" />
+      <div 
+        className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-lime-admin -z-10 rounded transition-all duration-300"
+        style={{ width: `${((step - 1) / (totalSteps - 1)) * 100}%` }}
+      />
+      {Array.from({ length: totalSteps }).map((_, i) => {
+        const isActive = step >= i + 1;
+        return (
+          <div 
+            key={i} 
+            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 
+              ${isActive ? 'bg-lime-admin text-black border-lime-admin shadow-glow-lime-sm' : 'bg-card text-muted-foreground border-border'}`}
+          >
+            {i + 1}
           </div>
-          <h1 className="text-2xl font-extrabold text-foreground mb-2">
-            Tạo tài khoản thành công!
-          </h1>
-          <p className="text-muted-foreground text-sm mb-2">
-            <span className="text-lime-admin font-semibold">{form.brandName}</span> đã được thêm vào hệ thống CrewLab.
-          </p>
-          <p className="text-muted-foreground text-xs mb-8">
-            6 AI Agent đang được khởi tạo. Email kích hoạt sẽ gửi đến{' '}
-            <span className="text-foreground font-mono">{form.email}</span>.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => { setSubmitted(false); setForm({ brandName: '', contactName: '', phone: '', email: '', address: '', industry: '', platforms: [], timezone: 'Asia/Ho_Chi_Minh', plan: '', logoFile: null, logoPreview: null, notes: '' }); }}
-              className="px-5 py-2.5 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-all"
-            >
-              Thêm khách hàng khác
-            </button>
-            <a
-              href="/clients"
-              className="px-5 py-2.5 rounded-xl btn-lime-glow text-sm font-extrabold flex items-center gap-2 justify-center"
-            >
-              <ArrowRight className="w-4 h-4" /> Về Danh sách Clients
-            </a>
-          </div>
-        </div>
-      </AdminLayout>
-    );
-  }
+        );
+      })}
+    </div>
+  );
 
   return (
     <AdminLayout>
       <AdminHeader
-        title="Onboard Khách Hàng F&B Mới"
-        subtitle="Khởi tạo tài khoản, cấu hình platform và kích hoạt 6 AI Agents"
+        title="Onboard Client Mới"
+        subtitle="Thiết lập 9 bước để đưa client vào hệ thống"
       />
+      <div className="max-w-3xl mx-auto px-6 py-8">
+        {renderProgressBar()}
 
-      <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
-        {/* Progress steps */}
-        <div className="flex items-center gap-4 border-b border-border pb-4">
-          {[
-            { n: '01', label: 'Thông tin cơ bản' },
-            { n: '02', label: 'Platform & Timezone' },
-            { n: '03', label: 'Logo thương hiệu' },
-            { n: '04', label: 'Gói dịch vụ' },
-          ].map((s) => (
-            <div key={s.n} className="flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-md bg-muted border border-border text-lime-admin text-[10px] font-bold font-mono flex items-center justify-center">
-                {s.n}
-              </span>
-              <span className="text-[11px] text-muted-foreground hidden sm:block">{s.label}</span>
-            </div>
-          ))}
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-
-          {/* SECTION 01 */}
-          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-            <SectionTitle number="01" title="Thông tin thương hiệu" description="Tên quán, người liên hệ và địa chỉ liên lạc chính" />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <FormLabel required>Tên thương hiệu / Tên quán</FormLabel>
-                <InputField
-                  id="brandName"
-                  value={form.brandName}
-                  onChange={(v) => update('brandName', v)}
-                  placeholder="Ví dụ: Cà Phê Muối Chú Lắm, Phở Thìn Hà Nội..."
-                  icon={Store}
-                />
-              </div>
-
-              <div>
-                <FormLabel required>Tên người liên hệ</FormLabel>
-                <InputField
-                  id="contactName"
-                  value={form.contactName}
-                  onChange={(v) => update('contactName', v)}
-                  placeholder="Họ tên chủ quán hoặc người phụ trách"
-                  icon={User}
-                />
-              </div>
-
-              <div>
-                <FormLabel required>Số điện thoại</FormLabel>
-                <InputField
-                  id="phone"
-                  type="tel"
-                  value={form.phone}
-                  onChange={(v) => update('phone', v)}
-                  placeholder="0912 345 678"
-                  icon={Phone}
-                />
-              </div>
-
-              <div>
-                <FormLabel required>Email liên lạc</FormLabel>
-                <InputField
-                  id="email"
-                  type="email"
-                  value={form.email}
-                  onChange={(v) => update('email', v)}
-                  placeholder="owner@quan.vn"
-                  icon={Mail}
-                />
-              </div>
-
-              <div>
-                <FormLabel>Địa chỉ cơ sở chính</FormLabel>
-                <InputField
-                  id="address"
-                  value={form.address}
-                  onChange={(v) => update('address', v)}
-                  placeholder="Số nhà, đường, quận/huyện, thành phố"
-                  icon={MapPin}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 02 */}
-          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-            <SectionTitle number="02" title="Ngành & Platform mạng xã hội" description="Phân loại ngành hàng và các kênh mạng xã hội sẽ đăng bài" />
-
-            <div>
-              <FormLabel required>Ngành F&B</FormLabel>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-2">
-                {INDUSTRIES.map(({ key, label, icon: Icon }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => update('industry', key)}
-                    className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border text-center transition-all duration-200 cursor-pointer ${
-                      form.industry === key
-                        ? 'bg-lime-tint border-lime-admin text-lime-admin font-bold'
-                        : 'bg-muted/40 border-border text-muted-foreground hover:border-border/80'
-                    }`}
-                  >
-                    <Icon className={`w-5 h-5 ${form.industry === key ? 'text-lime-admin' : 'text-muted-foreground'}`} />
-                    <span className="text-xs font-semibold">{label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <FormLabel required>Platform đăng bài</FormLabel>
-              <div className="flex gap-3 mt-2">
-                {([
-                  { key: 'facebook' as PlatformKey, label: 'Facebook Page', icon: Facebook, color: 'text-blue-400' },
-                  { key: 'instagram' as PlatformKey, label: 'Instagram', icon: Instagram, color: 'text-pink-400' },
-                ]).map(({ key, label, icon: Icon, color }) => {
-                  const active = form.platforms.includes(key);
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => togglePlatform(key)}
-                      className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border font-semibold text-sm transition-all duration-200 cursor-pointer ${
-                        active
-                          ? 'bg-lime-tint border-lime-admin text-foreground shadow-lime-glow-sm'
-                          : 'bg-muted/40 border-border text-muted-foreground hover:border-border/80'
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 ${active ? color : 'text-muted-foreground'}`} />
-                      {label}
-                      {active && <CheckCircle2 className="w-3.5 h-3.5 text-lime-admin ml-auto" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <FormLabel>Múi giờ (Timezone)</FormLabel>
-              <div className="relative mt-1">
-                <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-                <select
-                  value={form.timezone}
-                  onChange={(e) => update('timezone', e.target.value)}
-                  className="w-full bg-card border border-border rounded-xl text-sm text-foreground focus-admin py-2.5 pl-10 pr-4 appearance-none cursor-pointer"
-                >
-                  {TIMEZONES.map((tz) => (
-                    <option key={tz.value} value={tz.value} className="bg-card">
-                      {tz.label}
-                    </option>
-                  ))}
-                </select>
-                <Globe className="absolute right-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 03 */}
-          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-            <SectionTitle number="03" title="Logo & Hình ảnh thương hiệu" description="Upload logo để AI Agent D02 nhận diện style hình ảnh" />
-
-            {form.logoPreview ? (
-              <div className="flex items-center gap-5">
-                <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-lime-admin shadow-lime-glow-sm flex-shrink-0">
-                  <img src={form.logoPreview} alt="Logo preview" className="w-full h-full object-cover" />
+        <div className="bg-card border border-border rounded-xl p-6 shadow-sm min-h-[400px] flex flex-col">
+          
+          {/* STEP 1: Thông tin cơ bản */}
+          {step === 1 && (
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-foreground mb-4">Bước 1 — Thông tin cơ bản</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Tên client *</label>
+                  <input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-muted/30 border border-border rounded-lg px-3 py-2 text-sm focus:border-lime-admin outline-none text-foreground" placeholder="VD: Bardinh Coffee" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground mb-0.5">{form.logoFile?.name}</p>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    {form.logoFile ? (form.logoFile.size / 1024).toFixed(1) + ' KB' : ''}
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-muted transition-all"
-                    >
-                      Thay logo khác
-                    </button>
-                    <button
-                      type="button"
-                      onClick={removeLogo}
-                      className="px-3 py-1.5 rounded-lg border border-red-500/20 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-all flex items-center gap-1"
-                    >
-                      <X className="w-3.5 h-3.5" /> Xoá
-                    </button>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Vertical *</label>
+                  <select value={form.vertical} onChange={e => setForm({...form, vertical: e.target.value})} className="w-full bg-muted/30 border border-border rounded-lg px-3 py-2 text-sm focus:border-lime-admin outline-none text-foreground">
+                    <option>Cafe & F&B</option>
+                    <option>Nhà Hàng</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Timezone *</label>
+                  <select value={form.timezone} onChange={e => setForm({...form, timezone: e.target.value})} className="w-full bg-muted/30 border border-border rounded-lg px-3 py-2 text-sm focus:border-lime-admin outline-none text-foreground">
+                    <option>Asia/Ho_Chi_Minh</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Mô tả ngắn (internal)</label>
+                  <textarea value={form.desc} onChange={e => setForm({...form, desc: e.target.value})} className="w-full bg-muted/30 border border-border rounded-lg px-3 py-2 text-sm focus:border-lime-admin outline-none h-20 text-foreground" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: Nền tảng */}
+          {step === 2 && (
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-foreground mb-4">Bước 2 — Nền tảng & lịch đăng bài</h2>
+              <div className="space-y-4 text-sm">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-2">Platform *</label>
+                  <div className="flex gap-4 text-foreground">
+                    <label className="flex items-center gap-2"><input type="checkbox" checked={form.platforms.includes('facebook')} onChange={() => {}} className="accent-lime-admin"/> Facebook</label>
+                    <label className="flex items-center gap-2"><input type="checkbox" checked={form.platforms.includes('instagram')} onChange={() => {}} className="accent-lime-admin"/> Instagram</label>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Số bài/tuần *</label>
+                  <input type="number" value={form.postsPerWeek} onChange={e => setForm({...form, postsPerWeek: Number(e.target.value)})} className="w-full bg-muted/30 border border-border rounded-lg px-3 py-2 text-sm focus:border-lime-admin outline-none text-foreground" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: ChromaDB */}
+          {step === 3 && (
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-foreground mb-4">Bước 3 — Khởi tạo ChromaDB</h2>
+              <p className="text-sm text-muted-foreground mb-4">Hệ thống sẽ tạo 3 collections riêng cho client này.</p>
+              <button className="bg-muted/50 border border-border px-4 py-2 text-foreground rounded-lg text-sm font-bold flex items-center gap-2 mb-4 hover:bg-muted transition-colors">
+                <RefreshCw size={14} /> Khởi tạo ChromaDB
+              </button>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> {form.name ? form.name.toLowerCase().replace(/\s+/g,'-') : 'client'}_brand — OK</div>
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> {form.name ? form.name.toLowerCase().replace(/\s+/g,'-') : 'client'}_content_history — OK</div>
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> {form.name ? form.name.toLowerCase().replace(/\s+/g,'-') : 'client'}_tmp — OK</div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: Memory Banks */}
+          {step === 4 && (
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-foreground mb-4">Bước 4 — Khởi tạo Hindsight Memory Banks</h2>
+              <button className="bg-muted/50 border border-border px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 mb-4 hover:bg-muted transition-colors text-foreground">
+                <RefreshCw size={14} /> Khởi tạo Memory Banks
+              </button>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> A01 · B01 · B02 · B03 · D01 · D02 · E01 · F01</div>
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> G01 · G02 · G03 · G04 · H01</div>
+                <div className="text-muted-foreground mt-2 font-mono text-xs">13/13 banks sẵn sàng</div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5: Upload Brand */}
+          {step === 5 && (
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-foreground mb-4">Bước 5 — Upload tài liệu brand</h2>
+              <div className="border-2 border-dashed border-border rounded-xl p-8 flex items-center justify-center text-muted-foreground text-sm cursor-pointer hover:border-lime-admin/50 transition-colors mb-4">
+                + Kéo thả file hoặc click để chọn (PDF, DOCX, TXT, MD)
+              </div>
+              <button className="bg-muted/50 border border-border px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 mb-4 hover:bg-muted transition-colors text-foreground">
+                <RefreshCw size={14} /> Ingest vào ChromaDB
+              </button>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> menu_2026.pdf — 47 chunks</div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 6: Admin User */}
+          {step === 6 && (
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-foreground mb-4">Bước 6 — Tạo Client Admin User</h2>
+              <div className="space-y-4 mb-4">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Email *</label>
+                  <input type="email" className="w-full bg-muted/30 border border-border rounded-lg px-3 py-2 text-sm focus:border-lime-admin outline-none text-foreground" defaultValue="client@example.com" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Tên hiển thị *</label>
+                  <input type="text" className="w-full bg-muted/30 border border-border rounded-lg px-3 py-2 text-sm focus:border-lime-admin outline-none text-foreground" defaultValue={form.name ? `Admin - ${form.name}` : 'Admin'} />
+                </div>
+              </div>
+              <button className="bg-muted/50 border border-border px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 mb-4 hover:bg-muted transition-colors text-foreground">
+                Tạo tài khoản
+              </button>
+              <div className="flex items-center gap-2 text-sm text-emerald-400"><CheckCircle2 size={16}/> User đã tạo · Email đặt mật khẩu đã gửi</div>
+            </div>
+          )}
+
+          {/* STEP 7: Meta */}
+          {step === 7 && (
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-foreground mb-4">Bước 7 — Kết nối Meta</h2>
+              <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 mb-4 transition-colors">
+                Kết nối tài khoản Meta
+              </button>
+              <div className="flex items-center gap-2 text-sm text-emerald-400 mb-4"><CheckCircle2 size={16}/> Đã xác thực</div>
+              <div className="space-y-2 text-sm text-foreground">
+                <p>Chọn Facebook Page: <span className="font-bold">{form.name || 'Client'} (ID: 123456789)</span></p>
+                <p>Chọn Instagram Account: <span className="font-bold">@{form.name?.replace(/\s+/g,'').toLowerCase() || 'client'} (ID: 987654321)</span></p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 8: Budget */}
+          {step === 8 && (
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-foreground mb-4">Bước 8 — LLM Provider & Budget</h2>
+              <div className="space-y-6">
+                <div className="p-4 rounded-xl border border-border bg-muted/20">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-foreground">ANTHROPIC</span>
+                    <span className="text-xs text-lime-admin font-bold bg-lime-admin/10 px-2 py-0.5 rounded border border-lime-admin/20">Bật</span>
+                  </div>
+                  <input type="password" value="sk-ant-123456" readOnly className="w-full bg-muted/50 border border-border rounded px-3 py-1.5 text-xs mb-2 outline-none text-foreground" />
+                  <div className="flex items-center gap-2 text-xs text-emerald-400"><CheckCircle2 size={14}/> Hợp lệ — Sonnet 4.6, Haiku 4.5 available</div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border bg-muted/20">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-foreground">OPENAI</span>
+                    <span className="text-xs text-lime-admin font-bold bg-lime-admin/10 px-2 py-0.5 rounded border border-lime-admin/20">Bật</span>
+                  </div>
+                  <input type="password" value="sk-123456" readOnly className="w-full bg-muted/50 border border-border rounded px-3 py-1.5 text-xs mb-2 outline-none text-foreground" />
+                  <div className="flex items-center gap-2 text-xs text-emerald-400"><CheckCircle2 size={14}/> Hợp lệ — GPT-Image-2 available</div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Ngân sách tổng/tháng *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                    <input type="number" value={form.budget} onChange={e => setForm({...form, budget: Number(e.target.value)})} className="w-full bg-muted/30 border border-border rounded-lg pl-8 pr-3 py-2 text-sm focus:border-lime-admin outline-none text-foreground" />
                   </div>
                 </div>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-border rounded-2xl p-8 flex flex-col items-center gap-3 hover:border-lime-admin hover:bg-lime-tint transition-all duration-300 cursor-pointer group"
+            </div>
+          )}
+
+          {/* STEP 9: Smoke Test */}
+          {step === 9 && (
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-foreground mb-4">Bước 9 — Đăng ký tự động & Smoke Test</h2>
+              <p className="text-sm text-muted-foreground mb-4">Các task tự động sẽ tạo: weekly_cycle (T2 06:00), reflect_job (T2 04:00)...</p>
+              
+              <button className="bg-lime-admin text-black px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 mb-4 hover:bg-lime-400 transition-colors">
+                <RefreshCw size={14} /> Kích hoạt & Chạy Smoke Test
+              </button>
+
+              <div className="space-y-2 text-sm mb-6">
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> ChromaDB collections — Accessible</div>
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> Hindsight Memory Banks — 13/13 respond</div>
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> Celery task dispatch — Test task thành công</div>
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> Meta API token — Valid</div>
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> Client Portal login — OK</div>
+                <div className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={16}/> LLM Provider — Anthropic + OpenAI test call thành công</div>
+                <div className="text-muted-foreground mt-2 font-mono text-xs">6/6 checks passed</div>
+              </div>
+
+              <div className="p-4 bg-lime-admin/10 border border-lime-admin/20 rounded-xl">
+                <h3 className="font-bold text-lime-admin text-lg mb-1">🎉 {form.name || 'Client'} đã sẵn sàng!</h3>
+                <p className="text-sm text-foreground">Cycle đầu tiên: Thứ 2 lúc 06:00</p>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between mt-8 pt-4 border-t border-border">
+            {step > 1 ? (
+              <button onClick={prevStep} className="px-4 py-2 rounded-lg text-sm font-bold border border-border bg-card hover:bg-muted/50 transition-colors flex items-center gap-2 text-foreground">
+                <ChevronLeft size={16} /> Quay lại
+              </button>
+            ) : <div />}
+            
+            {step < totalSteps ? (
+              <button 
+                onClick={nextStep}
+                disabled={step === 1 && !form.name}
+                className="px-4 py-2 rounded-lg text-sm font-bold bg-lime-admin text-black hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50"
               >
-                <div className="w-12 h-12 rounded-2xl bg-muted border border-border flex items-center justify-center group-hover:border-lime-admin transition-all">
-                  <Upload className="w-5 h-5 text-muted-foreground group-hover:text-lime-admin transition-colors" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-foreground">Kéo thả hoặc bấm để upload logo</p>
-                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG, SVG, WEBP — tối đa 5MB</p>
-                </div>
+                Lưu & Tiếp tục <ChevronRight size={16} />
+              </button>
+            ) : (
+              <button onClick={() => router.push('/')} className="px-4 py-2 rounded-lg text-sm font-bold bg-lime-admin text-black hover:opacity-90 transition-opacity flex items-center gap-2">
+                Về Client List
               </button>
             )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/svg+xml,image/webp"
-              className="hidden"
-              onChange={handleLogoChange}
-            />
           </div>
 
-          {/* SECTION 04 */}
-          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-            <SectionTitle number="04" title="Gói dịch vụ" description="Chọn gói phù hợp với quy mô khách hàng" />
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {PLANS.map((plan) => {
-                const active = form.plan === plan.key;
-                return (
-                  <button
-                    key={plan.key}
-                    type="button"
-                    onClick={() => update('plan', plan.key)}
-                    className={`relative text-left p-5 rounded-2xl border transition-all duration-200 cursor-pointer ${
-                      active
-                        ? 'bg-lime-tint border-lime-admin shadow-lime-glow-sm'
-                        : 'bg-muted/20 border-border hover:border-border/80'
-                    }`}
-                  >
-                    {plan.highlight && (
-                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-lime-admin text-black text-[10px] font-extrabold tracking-wide whitespace-nowrap">
-                        ✦ PHỔ BIẾN NHẤT
-                      </span>
-                    )}
-                    <div className="flex items-center justify-between mb-3">
-                      <span className={`text-sm font-extrabold ${active ? 'text-lime-admin' : 'text-foreground'}`}>
-                        {plan.name}
-                      </span>
-                      {active && <CheckCircle2 className="w-4 h-4 text-lime-admin" />}
-                    </div>
-                    <p className="text-lg font-extrabold text-foreground mb-0.5">{plan.price}</p>
-                    <p className="text-[10px] text-muted-foreground mb-4">/ tháng</p>
-                    <ul className="space-y-1.5">
-                      {plan.features.map((f) => (
-                        <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Submit */}
-          <div className="flex items-center justify-end gap-3 pt-4">
-            <button
-              type="submit"
-              disabled={!isValid || isSubmitting}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-extrabold transition-all duration-200 ${
-                isValid && !isSubmitting
-                  ? 'btn-lime-glow cursor-pointer'
-                  : 'bg-muted text-muted-foreground cursor-not-allowed'
-              }`}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Đang tạo tài khoản...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  Tạo tài khoản & Khởi động AI
-                </>
-              )}
-            </button>
-          </div>
-
-        </form>
+        </div>
       </div>
     </AdminLayout>
   );
