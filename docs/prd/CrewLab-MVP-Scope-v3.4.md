@@ -1,5 +1,10 @@
 # CrewLab — MVP Scope Cuối Cùng (v3.4) — 6 Agent (5 Content Agent + A01 Orchestrator)
 
+> **Bản lịch sử — không dùng làm build target.** File này đã được thay thế bởi
+> `CrewLab-MVP-Scope-v3.5.md`. Các mô tả cũ về nút `Chạy lại`, wake reason
+> `manual` hoặc khởi chạy workflow thủ công đã bị hủy theo Decision 0010 và
+> Spec 0014.
+
 **Thay thế v3.3** | 19/07/2026 (cập nhật) | Dựa trên lựa chọn tính năng: **AI lọc chất lượng = CÓ | Đăng bài = tay | Học từ feedback = có (không đọc số liệu Meta)**
 
 **Changelog v3 → v3.1:** (1) Chốt model tier E01 = Standard (khớp PRD v3.2, không còn để ngỏ Fast/Standard). (2) Bổ sung state `asset\_blocked` vào FSM mục 3, theo AC-WF-21 gốc PRD (asset\_request hết hạn → escalate, không tự dùng ảnh AI thay thế). (3) Mục 5 cập nhật: ngưỡng pass/fail E01 đã đồng bộ trong PRD v3.2, chỉ còn chờ ký xác nhận cuối.

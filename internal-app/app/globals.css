@@ -1,0 +1,258 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Mode — Admin (Zinc/White base) */
+    --background: 0 0% 98%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 72 100% 45%;
+    --primary-foreground: 240 10% 3.9%;
+
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 192 91% 36%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 72 100% 45%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Dark Obsidian Theme (#09090B) — Admin variant with Cyan accent */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 6% 8%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 6% 8%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Primary: CrewLab Electric Lime */
+    --primary: 72 100% 50%;
+    --primary-foreground: 240 10% 3.9%;
+
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    /* Accent: Cyan for admin technical feel */
+    --accent: 192 91% 36%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 72 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
+  }
+}
+
+/* ─── Admin Brand Utilities ─────────────────────────── */
+
+/* Lime brand — primary CTA / branding */
+.text-lime-admin {
+  color: #a3b300;
+  font-weight: 600;
+}
+.dark .text-lime-admin {
+  color: #D4FF00;
+  font-weight: inherit;
+}
+
+.bg-lime-admin {
+  background-color: #D4FF00;
+  color: #09090B;
+}
+
+.border-lime-admin {
+  border-color: #a3b300;
+}
+.dark .border-lime-admin {
+  border-color: #D4FF00;
+}
+
+/* Cyan accent — admin technical elements */
+.text-cyan-admin {
+  color: #0891b2;
+}
+.dark .text-cyan-admin {
+  color: #22d3ee;
+}
+
+.bg-cyan-admin {
+  background-color: #0891b2;
+  color: #ffffff;
+}
+.dark .bg-cyan-admin {
+  background-color: rgba(34, 211, 238, 0.15);
+  color: #22d3ee;
+}
+
+.border-cyan-admin {
+  border-color: #0891b2;
+}
+.dark .border-cyan-admin {
+  border-color: #22d3ee;
+}
+
+/* ─── Accent BG tints (opacity variants) ──────────── */
+.bg-lime-tint {
+  background-color: rgba(163, 179, 0, 0.10);
+}
+.dark .bg-lime-tint {
+  background-color: rgba(212, 255, 0, 0.10);
+}
+
+.bg-lime-tint-15 {
+  background-color: rgba(163, 179, 0, 0.15);
+}
+.dark .bg-lime-tint-15 {
+  background-color: rgba(212, 255, 0, 0.15);
+}
+
+.bg-cyan-tint {
+  background-color: rgba(8, 145, 178, 0.10);
+}
+.dark .bg-cyan-tint {
+  background-color: rgba(34, 211, 238, 0.10);
+}
+
+/* Border tints */
+.border-lime-tint {
+  border-color: rgba(163, 179, 0, 0.30);
+}
+.dark .border-lime-tint {
+  border-color: rgba(212, 255, 0, 0.30);
+}
+
+.border-cyan-tint {
+  border-color: rgba(8, 145, 178, 0.30);
+}
+.dark .border-cyan-tint {
+  border-color: rgba(34, 211, 238, 0.30);
+}
+
+/* ─── Button styles ───────────────────────────────── */
+.btn-lime-glow {
+  background-color: #D4FF00;
+  color: #09090B;
+  box-shadow: 0 0 20px rgba(212, 255, 0, 0.35);
+  transition: all 0.2s ease-in-out;
+  font-weight: 700;
+}
+.btn-lime-glow:hover {
+  background-color: #E5FF55;
+  box-shadow: 0 0 30px rgba(212, 255, 0, 0.55);
+  transform: translateY(-1px);
+}
+.btn-lime-glow:active {
+  transform: scale(0.98);
+}
+
+.btn-outline-admin {
+  background-color: transparent;
+  color: #a3b300;
+  border: 1px solid rgba(163, 179, 0, 0.30);
+  transition: all 0.2s ease-in-out;
+}
+.dark .btn-outline-admin {
+  color: #D4FF00;
+  border-color: rgba(212, 255, 0, 0.30);
+}
+.btn-outline-admin:hover {
+  background-color: rgba(163, 179, 0, 0.10);
+}
+.dark .btn-outline-admin:hover {
+  background-color: rgba(212, 255, 0, 0.10);
+}
+
+/* ─── Shadow / Glow ───────────────────────────────── */
+.shadow-lime-glow {
+  box-shadow: 0 0 20px rgba(212, 255, 0, 0.15);
+}
+.shadow-lime-glow-sm {
+  box-shadow: 0 0 12px rgba(212, 255, 0, 0.1);
+}
+.shadow-cyan-glow {
+  box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
+}
+
+/* ─── Terminal (always dark regardless of theme) ──── */
+.terminal {
+  background-color: #0a0a0c;
+  border: 1px solid #1a1a2e;
+  border-radius: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #a1a1aa;
+}
+.terminal-header {
+  border-bottom: 1px solid #1a1a2e;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+}
+.terminal-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ─── Focus ring ──────────────────────────────────── */
+.focus-admin:focus {
+  outline: none;
+  border-color: rgba(212, 255, 0, 0.6);
+  box-shadow: 0 0 0 2px rgba(212, 255, 0, 0.15);
+}
+
+/* ─── Scrollbar ───────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(161, 161, 170, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(161, 161, 170, 0.4);
+}

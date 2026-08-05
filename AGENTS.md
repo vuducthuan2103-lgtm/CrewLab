@@ -4,13 +4,13 @@
 
 ## What this project is
 
-CrewLab is a multi-agent marketing automation platform for Vietnamese F&B SMEs. Full vision and long-term architecture live in `docs/prd/PRD-Master-v3.2.md`. **That document is reference material, not the current build target.**
+CrewLab is a multi-agent marketing automation platform for Vietnamese F&B SMEs. Full vision and long-term architecture live in `docs/prd/PRD-CrewLab.md`. **That document is reference material, not the current build target.**
 
 ## Active build target (read this before writing any code)
 
-Phase 1 is scoped to `docs/prd/MVP-Scope-v3.md`:
+Phase 1 is scoped to `docs/prd/CrewLab-MVP-Scope-v3.5.md`:
 
-- **5 agents only**: B02 (Content Pillar), B03 (Content Plan), D01 (Caption Writer), D02 (Image Design), E01 (Evaluator).
+- **6 agents**: A01 (Orchestrator), B02 (Content Pillar), B03 (Content Plan), D01 (Caption Writer), D02 (Image Design), E01 (Evaluator).
 - **No** ChromaDB — brand voice comes from a short form stored directly in Postgres, no semantic search.
 - **No** Hindsight — episodic memory is a plain Postgres table `agent_memory(agent_code, client_id, task_type, input_summary, output_summary, human_feedback, created_at)`.
 - **No** Docling/Chonkie ingest pipeline — no long-document upload/RAG.
@@ -18,7 +18,7 @@ Phase 1 is scoped to `docs/prd/MVP-Scope-v3.md`:
 - **No** G01-G04 analytics agents.
 - Full 5-state-minus retry FSM: see MVP-Scope §3 (`planned → ... → evaluating → eval_failed ⟲ → pending_content_approval → approved_ready_to_post → posted`).
 
-**Hard rule:** if a task, spec, or chat message references anything that only exists in PRD-Master (Hindsight, ChromaDB, F01, G01-G04, B01 IMC Planner, Meta OAuth, Telegram bot, campaign/event branching), **stop and ask the human to confirm scope** before implementing it. Do not build the bigger version "because the PRD describes it" — the PRD describes two different scopes and only MVP-Scope is currently authorized.
+**Hard rule:** if a task, spec, or chat message references anything that only exists in PRD-CrewLab full vision (Hindsight, ChromaDB, F01, G01-G04, B01 IMC Planner, Meta OAuth, Telegram bot, campaign/event branching, Pixel Office/virtual office), **stop and ask the human to confirm scope** before implementing it. Do not build the bigger version "because the PRD describes it" — the PRD describes two different scopes and only MVP-Scope is currently authorized.
 
 ## Team
 
@@ -32,8 +32,8 @@ Two non-technical founders building this with Antigravity as the primary impleme
 
 1. `specs/<NNNN>-<name>/spec.md` for the task currently being worked on — most specific, wins.
 2. `docs/decisions/*.md` — recorded decisions that override or clarify the PRD.
-3. `docs/prd/MVP-Scope-v3.md` — current scope.
-4. `docs/prd/PRD-Master-v3.2.md` — long-term vision, background only.
+3. `docs/prd/CrewLab-MVP-Scope-v3.5.md` — current scope.
+4. `docs/prd/PRD-CrewLab.md` — long-term vision, background only.
 
 If these conflict, use this order and flag the conflict to the human instead of silently picking one.
 
@@ -54,19 +54,42 @@ If these conflict, use this order and flag the conflict to the human instead of 
 - Frontend: Next.js — separate `portal/` (client-facing) and `internal-app/` (agency admin) folders in this monorepo
 - Deploy: backend → Hetzner VPS via Coolify; frontends → Vercel (root directory set per app)
 - LLM: per client config, see MVP-Scope for defaults — do not hardcode a single provider
+- LLM abstraction: `litellm` (pip install, MIT) — all agents call `call_llm()` in `backend/app/core/llm.py`, never import provider SDKs directly. See `docs/decisions/0004-litellm-abstraction.md`.
+- **API key & provider management (Phase 1):** Agency Admin quản lý provider và API key **theo từng client** trong Internal App. Khi onboarding, mỗi client chọn tối đa 2 provider; client chỉ được đổi model/tier trong Portal, không được đổi provider hay xem/sửa API key. Key được lưu an toàn, chỉ hiển thị dạng che, và không bao giờ trả về Portal. Xem `docs/decisions/0007-per-client-provider-api-key-phase-1.md` và spec `0010-provider-key-management`.
 
 ## Commands
 
-<!-- Fill these in once the project is scaffolded, keep this section current -->
 - Dev server (backend):
-- Dev server (portal):
-- Dev server (internal-app):
+- Dev server (portal): `cd portal && npm run dev` (runs on http://localhost:3000)
+- Dev server (internal-app): `cd internal-app && npm run dev` (runs on http://localhost:3001)
 - Run migrations:
 - Run tests:
-- Lint:
+- Lint (portal): `cd portal && npm run lint`
+- Lint (internal-app): `cd internal-app && npm run lint`
+
+## Codebase Knowledge Graph (codebase-memory-mcp)
+
+Dự án này sử dụng `codebase-memory-mcp` để duy trì kiến thức dạng đồ thị (Knowledge Graph).
+**BẮT BUỘC** ưu tiên sử dụng các công cụ MCP Graph thay vì `grep`/`glob`/đọc file thủ công khi tìm kiếm và phân tích code:
+
+1. `search_graph`: Tìm hàm, class, route, biến theo pattern.
+2. `trace_path`: Truy vết luồng gọi hàm (inbound/outbound call stack).
+3. `get_code_snippet`: Đọc chính xác mã nguồn của hàm/class thay vì xem toàn bộ file.
+4. `query_graph`: Truy vấn Cypher nâng cao cho cấu trúc phức tạp.
+5. `get_architecture`: Xem bức tranh tổng quan kiến trúc và các module seams.
+
+*Chỉ dùng `grep_search` khi:* Tìm chuỗi văn bản hằng số (string literals), log message, file cấu hình (yaml, json, .env) hoặc file không phải source code.
 
 ## Reference
 
 - Glossary of PRD-specific terms (FSM, HITL, Gate, Cycle, RAG, etc.): `docs/glossary.md`
 - Architecture decisions log: `docs/decisions/`
 - Full spec history: `specs/`
+
+## Frontend UI standard
+
+- `portal/` and `internal-app/` use shadcn/ui as the default component system.
+- New UI must use shadcn primitives from `components/ui` or components generated through the shadcn CLI/MCP. Do not introduce ad-hoc replacements for standard primitives such as Button, Dialog, DropdownMenu, Tabs, Form, or Table.
+- Keep each app's `components.json`, Tailwind CSS variables, path aliases, and `cn()` utility compatible with shadcn/ui. Use Lucide icons consistently.
+- Existing custom components may be migrated incrementally when touched; do not add another component library without an explicit architecture decision.
+
