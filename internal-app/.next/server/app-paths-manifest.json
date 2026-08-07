@@ -1,7 +1,1 @@
-{
-  "/page": "app/page.js",
-  "/onboarding/page": "app/onboarding/page.js",
-  "/ai-costs/[clientId]/page": "app/ai-costs/[clientId]/page.js",
-  "/login/page": "app/login/page.js",
-  "/ai-costs/page": "app/ai-costs/page.js"
-}
+{}
