@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Database, Sun, Moon, Search } from 'lucide-react';
-import { useAdmin } from '@/lib/store';
+import { Database, Search } from 'lucide-react';
 
 interface AdminHeaderProps {
   title: string;
@@ -10,8 +9,6 @@ interface AdminHeaderProps {
 }
 
 export default function AdminHeader({ title, subtitle }: AdminHeaderProps) {
-  const { isDark, toggleTheme } = useAdmin();
-
   return (
     <header className="sticky top-0 z-30 w-full border-b border-border bg-card/90 backdrop-blur-md px-6 py-3.5 flex items-center justify-between transition-colors">
       <div>
@@ -35,15 +32,6 @@ export default function AdminHeader({ title, subtitle }: AdminHeaderProps) {
           <Database size={13} className="text-cyan-admin" />
           <span>Postgres ✓</span>
         </div>
-
-        {/* Theme Toggle */}
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-xl bg-muted/50 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-          title={isDark ? 'Light Mode' : 'Dark Mode'}
-        >
-          {isDark ? <Sun size={15} className="text-yellow-400" /> : <Moon size={15} />}
-        </button>
       </div>
     </header>
   );

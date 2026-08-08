@@ -3,8 +3,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface AdminState {
-  isDark: boolean;
-  toggleTheme: () => void;
   selectedClientId: string | null;
   setSelectedClientId: (id: string | null) => void;
   isAuthenticated: boolean;
@@ -15,21 +13,8 @@ interface AdminState {
 const AdminContext = createContext<AdminState | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: ReactNode }) {
-  const [isDark, setIsDark] = useState(true);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  const toggleTheme = () => {
-    const nextDark = !isDark;
-    setIsDark(nextDark);
-    if (typeof document !== 'undefined') {
-      if (nextDark) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    }
-  };
 
   const login = () => setIsAuthenticated(true);
   const logout = () => setIsAuthenticated(false);
@@ -37,8 +22,6 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   return (
     <AdminContext.Provider
       value={{
-        isDark,
-        toggleTheme,
         selectedClientId,
         setSelectedClientId,
         isAuthenticated,

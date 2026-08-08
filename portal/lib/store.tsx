@@ -26,7 +26,6 @@ interface PortalState {
   clientName: string;
   portalUserEmail: string;
   weekApproved: boolean;
-  isDark: boolean;
   isLoading: boolean;
   error: PortalLoadError | null;
   assetsStatus: PortalLoadStatus;
@@ -36,7 +35,6 @@ interface PortalState {
 }
 
 interface PortalActions {
-  toggleTheme: () => void;
   markNotificationRead: (id: string) => void;
   unreadCount: number;
   approveContent: (id: string, editedCaption?: string, editedPublishTime?: Date) => Promise<void>;
@@ -158,7 +156,6 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   const [portalUserEmail, setPortalUserEmail] = useState('');
   const [cycleId, setCycleId] = useState<string | null>(null);
   const [weekApproved, setWeekApproved] = useState(false);
-  const [isDark, setIsDark] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<PortalLoadError | null>(null);
   const [assetsStatus, setAssetsStatus] = useState<PortalLoadStatus>('idle');
@@ -302,14 +299,6 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [clearTenantData, refreshData]);
 
-  const toggleTheme = useCallback(() => {
-    setIsDark((previous) => {
-      const next = !previous;
-      document.documentElement.classList.toggle('dark', next);
-      return next;
-    });
-  }, []);
-
   const markNotificationRead = useCallback((id: string) => {
     setNotifications((previous) => previous.map((notification) => notification.id === id ? { ...notification, read: true } : notification));
   }, []);
@@ -380,8 +369,8 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
 
   const value: PortalState & PortalActions = {
     tasks, contentItems, pillars, notifications, mediaAssets, assetRequests, brandVoice, agentModelConfigs, eligibleModels, clientName, portalUserEmail, weekApproved,
-    isDark, isLoading, error, assetsStatus, assetsError, settingsStatus, settingsError,
-    toggleTheme, markNotificationRead, unreadCount: notifications.filter((n) => !n.read).length,
+    isLoading, error, assetsStatus, assetsError, settingsStatus, settingsError,
+    markNotificationRead, unreadCount: notifications.filter((n) => !n.read).length,
     approveContent, rejectContent, markAsPosted, updatePillarPercentage, confirmPillars, resetPillarsToAI, approveWeek,
     updateBrandVoice, updateAgentModel, updateAgentBudget, submitAssets, uploadAsset, refreshData, loadAssets, loadSettings,
   };

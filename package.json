@@ -1,5 +1,11 @@
 {
+  "scripts": {
+    "design:lint": "designmd lint --format json DESIGN.md",
+    "design:tokens": "node scripts/sync-design-tokens.mjs",
+    "design:check": "npm run design:lint && node scripts/sync-design-tokens.mjs --check"
+  },
   "devDependencies": {
+    "@google/design.md": "^0.4.0",
     "shadcn": "^4.16.1"
   }
 }
