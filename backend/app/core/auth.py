@@ -17,10 +17,17 @@ IDEMPOTENCY_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
 class AuthContext:
-    def __init__(self, user_id: UUID, client_id: Optional[UUID], role: str):
+    def __init__(
+        self,
+        user_id: UUID,
+        client_id: Optional[UUID],
+        role: str,
+        email: Optional[str] = None,
+    ):
         self.user_id = user_id
         self.client_id = client_id
         self.role = role
+        self.email = email
 
 
 def _create_auth_client():
@@ -52,6 +59,7 @@ async def get_auth_context(
             user_id=UUID(user_id_str),
             client_id=UUID(client_id_str) if client_id_str else None,
             role=business_role,
+            email=getattr(user, "email", None),
         )
     except HTTPException:
         raise

@@ -1,15 +1,15 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   AgentModelConfig, AppNotification, AssetRequest, BrandVoiceConfig, ContentItem, ContentPillar, EligibleModel,
-  MediaAsset, RejectionReason, TaskCard,
+  MediaAsset, PortalLoadError, PortalLoadStatus, RejectionReason, TaskCard,
 } from './types';
 import {
   apiApproveContent, apiApproveWeek, apiConfirmPillars, apiFetchAssetRequests,
-  apiFetchAssets, apiFetchContentItems, apiFetchPillars, apiFetchSettings, apiFetchTaskLogs,
+  apiFetchAssets, apiFetchBootstrap, apiFetchSettings,
   apiMarkAsPosted, apiRejectContent, apiSubmitAssetRequest, apiUpdateAgentBudget,
-  apiUpdateAgentModel, apiUpdateBrandVoice, apiUploadAsset,
+  apiUpdateAgentModel, apiUpdateBrandVoice, apiUploadAsset, toPortalLoadError,
 } from './api';
 import { supabase } from './supabase';
 
@@ -28,7 +28,11 @@ interface PortalState {
   weekApproved: boolean;
   isDark: boolean;
   isLoading: boolean;
-  error: string | null;
+  error: PortalLoadError | null;
+  assetsStatus: PortalLoadStatus;
+  assetsError: PortalLoadError | null;
+  settingsStatus: PortalLoadStatus;
+  settingsError: PortalLoadError | null;
 }
 
 interface PortalActions {
@@ -48,6 +52,8 @@ interface PortalActions {
   submitAssets: (requestId: string, assetUrls: string[]) => Promise<void>;
   uploadAsset: (file: File) => Promise<void>;
   refreshData: () => Promise<void>;
+  loadAssets: (force?: boolean) => Promise<void>;
+  loadSettings: (force?: boolean) => Promise<void>;
 }
 
 const EMPTY_BRAND_VOICE: BrandVoiceConfig = {
@@ -61,6 +67,79 @@ function currentWeekNumber() {
   const date = new Date();
   const firstDay = new Date(date.getFullYear(), 0, 1);
   return Math.ceil((((date.getTime() - firstDay.getTime()) / 86400000) + firstDay.getDay() + 1) / 7);
+}
+
+function mapContentItems(items: any[]): ContentItem[] {
+  return (items || []).map((item: any) => ({
+    id: item.id,
+    title: item.topic,
+    platform: item.platform === 'both' ? 'both' : item.platform === 'instagram' ? 'ig' : 'fb',
+    caption: item.client_edited_caption || item.caption || '',
+    imageUrl: item.image_url || null,
+    publishTime: item.scheduled_date ? new Date(item.scheduled_date) : new Date(item.created_at),
+    state: item.status,
+    pillarId: item.pillar_id || 'general',
+    weekNumber: currentWeekNumber(),
+    needsRealPhoto: item.status === 'waiting_asset',
+    assetRequestId: null,
+  }));
+}
+
+function mapTaskLogs(logs: any[]): TaskCard[] {
+  return (logs || []).map((log: any) => ({
+    id: log.id,
+    title: `[${log.agent_code}] ${log.task_type}`,
+    assigneeType: 'agent',
+    assigneeCode: log.agent_code,
+    desk: log.agent_code === 'A01' || log.agent_code?.startsWith('B') ? 'strategy' : log.agent_code?.startsWith('D') ? 'creative' : 'qa',
+    column: log.status === 'completed' || log.status === 'success' ? 'done' : log.status === 'failed' ? 'todo' : 'in_progress',
+    linkedContentItemId: log.content_item_id || null,
+    retryCount: 0,
+    hasError: log.status === 'failed',
+    errorMessage: log.status === 'failed' ? log.wake_reason : undefined,
+    slaDeadline: null,
+    createdAt: new Date(log.created_at),
+    startedAt: new Date(log.created_at),
+    completedAt: log.status === 'completed' || log.status === 'success' ? new Date(log.created_at) : null,
+  }));
+}
+
+function mapPillars(pillars: any[]): ContentPillar[] {
+  return (pillars || []).map((pillar: any) => ({
+    id: pillar.id,
+    label: pillar.name,
+    emoji: '',
+    description: pillar.description || '',
+    percentage: pillar.weight,
+    fbRatio: 50,
+    igRatio: 50,
+    angles: [],
+  }));
+}
+
+function mapAssetRequests(requests: any[]): AssetRequest[] {
+  return (requests || []).map((request: any) => ({
+    id: request.id,
+    contentItemId: request.content_item_id,
+    shotList: Array.isArray(request.shot_list) ? request.shot_list : [],
+    deadline: request.expires_at ? new Date(request.expires_at) : new Date(),
+    exampleImageUrl: null,
+    status: request.status === 'fulfilled' ? 'submitted' : request.status,
+    submittedAssetIds: [],
+  }));
+}
+
+function mapAssets(assets: any[]): MediaAsset[] {
+  return (assets || []).map((asset: any) => ({
+    id: asset.id,
+    url: asset.url,
+    thumbnailUrl: asset.url,
+    source: asset.source || 'pending_review',
+    tags: asset.tags || [],
+    uploadedAt: new Date(asset.created_at),
+    usedInItems: [],
+    assetRequestId: asset.asset_request_id || null,
+  }));
 }
 
 const PortalContext = createContext<(PortalState & PortalActions) | null>(null);
@@ -81,86 +160,138 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   const [weekApproved, setWeekApproved] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PortalLoadError | null>(null);
+  const [assetsStatus, setAssetsStatus] = useState<PortalLoadStatus>('idle');
+  const [assetsError, setAssetsError] = useState<PortalLoadError | null>(null);
+  const [settingsStatus, setSettingsStatus] = useState<PortalLoadStatus>('idle');
+  const [settingsError, setSettingsError] = useState<PortalLoadError | null>(null);
+  const assetsStatusRef = useRef<PortalLoadStatus>('idle');
+  const settingsStatusRef = useRef<PortalLoadStatus>('idle');
+  const lastUserIdRef = useRef<string | null>(null);
+  const tenantGenerationRef = useRef(0);
+
+  const clearTenantData = useCallback(() => {
+    setClientName('');
+    setTasks([]);
+    setContentItems([]);
+    setPillars([]);
+    setNotifications([]);
+    setMediaAssets([]);
+    setAssetRequests([]);
+    setBrandVoice(EMPTY_BRAND_VOICE);
+    setAgentModelConfigs([]);
+    setEligibleModels([]);
+    setCycleId(null);
+    setWeekApproved(false);
+    setIsLoading(false);
+    setError(null);
+    setAssetsError(null);
+    setSettingsError(null);
+    assetsStatusRef.current = 'idle';
+    settingsStatusRef.current = 'idle';
+    setAssetsStatus('idle');
+    setSettingsStatus('idle');
+  }, []);
 
   const refreshData = useCallback(async () => {
+    const generation = tenantGenerationRef.current;
     setIsLoading(true);
     setError(null);
     try {
-      const results = await Promise.allSettled([
-        apiFetchContentItems(), apiFetchTaskLogs(), apiFetchPillars(), apiFetchAssetRequests(), apiFetchAssets(), apiFetchSettings(),
-      ]);
-      const labels = ['nội dung', 'nhật ký công việc', 'content pillar', 'yêu cầu tài sản', 'thư viện tài sản', 'thiết lập client'];
-      const failures = results
-        .map((result, index) => result.status === 'rejected' ? labels[index] : null)
-        .filter(Boolean);
-      const valueAt = <T,>(index: number, fallback: T): T =>
-        results[index].status === 'fulfilled' ? results[index].value as T : fallback;
+      const bootstrap = await apiFetchBootstrap();
+      if (generation !== tenantGenerationRef.current) return;
+      const board = bootstrap.work_board;
+      setClientName(bootstrap.client.brand_name);
+      if (bootstrap.viewer.email) setPortalUserEmail(bootstrap.viewer.email);
+      setContentItems(mapContentItems(board.content_items));
+      setTasks(mapTaskLogs(board.task_logs));
+      setPillars(mapPillars(board.pillars));
+      setCycleId(board.schedule.cycle_id);
+      setWeekApproved(board.schedule.phase === 'content_production');
+    } catch (cause) {
+      if (generation !== tenantGenerationRef.current) return;
+      setError(toPortalLoadError(cause, 'bootstrap', 'Không tải được dữ liệu công việc.'));
+    } finally {
+      if (generation === tenantGenerationRef.current) setIsLoading(false);
+    }
+  }, []);
 
-      const items = valueAt<any[]>(0, []);
-      const logs = valueAt<any[]>(1, []);
-      const serverPillars = valueAt<any[]>(2, []);
-      const requests = valueAt<any[]>(3, []);
-      const assets = valueAt<any[]>(4, []);
-      const settings = valueAt<any>(5, null);
-      setContentItems((items || []).map((item: any) => ({
-        id: item.id, title: item.topic, platform: item.platform === 'both' ? 'both' : item.platform === 'instagram' ? 'ig' : 'fb',
-        caption: item.client_edited_caption || item.caption || '', imageUrl: item.image_url || null,
-        publishTime: item.scheduled_date ? new Date(item.scheduled_date) : new Date(item.created_at), state: item.status,
-        pillarId: item.pillar_id || 'general', weekNumber: currentWeekNumber(), needsRealPhoto: item.status === 'waiting_asset', assetRequestId: null,
-      })));
-      setTasks((logs || []).map((log: any) => ({
-        id: log.id, title: `[${log.agent_code}] ${log.task_type}`, assigneeType: 'agent', assigneeCode: log.agent_code,
-        desk: log.agent_code === 'A01' || log.agent_code?.startsWith('B') ? 'strategy' : log.agent_code?.startsWith('D') ? 'creative' : 'qa',
-        column: log.status === 'completed' || log.status === 'success' ? 'done' : log.status === 'failed' ? 'todo' : 'in_progress',
-        linkedContentItemId: log.content_item_id || null, retryCount: 0, hasError: log.status === 'failed',
-        errorMessage: log.status === 'failed' ? log.wake_reason : undefined, slaDeadline: null,
-        createdAt: new Date(log.created_at), startedAt: new Date(log.created_at), completedAt: log.status === 'completed' || log.status === 'success' ? new Date(log.created_at) : null,
-      })));
-      setPillars((serverPillars || []).map((pillar: any) => ({
-        id: pillar.id, label: pillar.name, emoji: '', description: pillar.description || '', percentage: pillar.weight,
-        fbRatio: 50, igRatio: 50, angles: [],
-      })));
-      setCycleId((serverPillars || [])[0]?.cycle_id || settings?.schedule?.cycle_id || null);
-      setWeekApproved(settings?.schedule?.phase === 'content_production');
-      setAssetRequests((requests || []).map((request: any) => ({
-        id: request.id, contentItemId: request.content_item_id, shotList: Array.isArray(request.shot_list) ? request.shot_list : [],
-        deadline: request.expires_at ? new Date(request.expires_at) : new Date(), exampleImageUrl: null,
-        status: request.status === 'fulfilled' ? 'submitted' : request.status, submittedAssetIds: [],
-      })));
-      setMediaAssets((assets || []).map((asset: any) => ({
-        id: asset.id, url: asset.url, thumbnailUrl: asset.url, source: asset.source || 'pending_review', tags: asset.tags || [],
-        uploadedAt: new Date(asset.created_at), usedInItems: [], assetRequestId: asset.asset_request_id || null,
-      })));
+  const loadAssets = useCallback(async (force = false) => {
+    if (assetsStatusRef.current === 'loading') return;
+    if (!force && assetsStatusRef.current !== 'idle') return;
+    const generation = tenantGenerationRef.current;
+    assetsStatusRef.current = 'loading';
+    setAssetsStatus('loading');
+    setAssetsError(null);
+    try {
+      const [requests, assets] = await Promise.all([
+        apiFetchAssetRequests(),
+        apiFetchAssets(),
+      ]);
+      if (generation !== tenantGenerationRef.current) return;
+      setAssetRequests(mapAssetRequests(requests));
+      setMediaAssets(mapAssets(assets));
+      assetsStatusRef.current = 'ready';
+      setAssetsStatus('ready');
+    } catch (cause) {
+      if (generation !== tenantGenerationRef.current) return;
+      assetsStatusRef.current = 'error';
+      setAssetsStatus('error');
+      setAssetsError(toPortalLoadError(cause, 'assets', 'Không tải được thư viện ảnh.'));
+    }
+  }, []);
+
+  const loadSettings = useCallback(async (force = false) => {
+    if (settingsStatusRef.current === 'loading') return;
+    if (!force && settingsStatusRef.current !== 'idle') return;
+    const generation = tenantGenerationRef.current;
+    settingsStatusRef.current = 'loading';
+    setSettingsStatus('loading');
+    setSettingsError(null);
+    try {
+      const settings = await apiFetchSettings();
+      if (generation !== tenantGenerationRef.current) return;
       const serverBrand = settings?.brand_voice || {};
       setClientName(settings?.client?.brand_name || '');
-      setBrandVoice((current) => ({ ...current, facebookTone: serverBrand.tone || '', personalityKeywords: serverBrand.personality_keywords || [], forbiddenWords: serverBrand.avoid_phrases || [], sentenceStyle: serverBrand.writing_style || '' }));
-      setAgentModelConfigs((settings?.agent_configs || []).map((cfg: any) => ({ agentCode: cfg.agent_code, selectedModel: cfg.model, tier: cfg.tier, budgetUSD: cfg.budget_usd_month, isActive: cfg.is_active })));
+      setBrandVoice((current) => ({
+        ...current,
+        facebookTone: serverBrand.tone || '',
+        personalityKeywords: serverBrand.personality_keywords || [],
+        forbiddenWords: serverBrand.avoid_phrases || [],
+        sentenceStyle: serverBrand.writing_style || '',
+      }));
+      setAgentModelConfigs((settings?.agent_configs || []).map((cfg: any) => ({
+        agentCode: cfg.agent_code,
+        selectedModel: cfg.model,
+        tier: cfg.tier,
+        budgetUSD: cfg.budget_usd_month,
+        isActive: cfg.is_active,
+      })));
       setEligibleModels(settings?.eligible_models || []);
-      if (failures.length) {
-        setError(`Chưa tải được ${failures.join(', ')}. Các phần còn lại vẫn có thể sử dụng; hãy thử tải lại.`);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load staging data');
-    } finally {
-      setIsLoading(false);
+      settingsStatusRef.current = 'ready';
+      setSettingsStatus('ready');
+    } catch (cause) {
+      if (generation !== tenantGenerationRef.current) return;
+      settingsStatusRef.current = 'error';
+      setSettingsStatus('error');
+      setSettingsError(toPortalLoadError(cause, 'settings', 'Không tải được cấu hình client.'));
     }
   }, []);
 
   useEffect(() => {
-    let lastAccessToken: string | null = null;
-    const syncSession = (session: { access_token?: string; user: { email?: string | null } } | null) => {
+    const syncSession = (session: { user: { id: string; email?: string | null } } | null) => {
       if (!session) {
-        lastAccessToken = null;
+        tenantGenerationRef.current += 1;
+        lastUserIdRef.current = null;
         setPortalUserEmail('');
-        setClientName('');
-        setAgentModelConfigs([]);
-        setEligibleModels([]);
+        clearTenantData();
         return;
       }
-      if (session.access_token && session.access_token === lastAccessToken) return;
-      lastAccessToken = session.access_token || null;
       setPortalUserEmail(session.user.email || '');
+      if (session.user.id === lastUserIdRef.current) return;
+      tenantGenerationRef.current += 1;
+      lastUserIdRef.current = session.user.id;
+      clearTenantData();
       void refreshData();
     };
 
@@ -169,7 +300,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       syncSession(session);
     });
     return () => subscription.unsubscribe();
-  }, [refreshData]);
+  }, [clearTenantData, refreshData]);
 
   const toggleTheme = useCallback(() => {
     setIsDark((previous) => {
@@ -218,8 +349,8 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   const submitAssets = useCallback(async (requestId: string, assetUrls: string[]) => {
     await apiSubmitAssetRequest(requestId, assetUrls);
     setAssetRequests((previous) => previous.map((request) => request.id === requestId ? { ...request, status: 'submitted' } : request));
-    await refreshData();
-  }, [refreshData]);
+    await Promise.all([loadAssets(true), refreshData()]);
+  }, [loadAssets, refreshData]);
 
   const uploadAsset = useCallback(async (file: File) => {
     const asset = await apiUploadAsset(file);
@@ -228,8 +359,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       tags: asset.tags || [], uploadedAt: new Date(asset.created_at), usedInItems: [],
       assetRequestId: asset.asset_request_id || null,
     }, ...previous]);
-    await refreshData();
-  }, [refreshData]);
+  }, []);
 
   const updateBrandVoice = useCallback(async (config: BrandVoiceConfig) => {
     await apiUpdateBrandVoice(config);
@@ -250,9 +380,10 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
 
   const value: PortalState & PortalActions = {
     tasks, contentItems, pillars, notifications, mediaAssets, assetRequests, brandVoice, agentModelConfigs, eligibleModels, clientName, portalUserEmail, weekApproved,
-    isDark, isLoading, error, toggleTheme, markNotificationRead, unreadCount: notifications.filter((n) => !n.read).length,
+    isDark, isLoading, error, assetsStatus, assetsError, settingsStatus, settingsError,
+    toggleTheme, markNotificationRead, unreadCount: notifications.filter((n) => !n.read).length,
     approveContent, rejectContent, markAsPosted, updatePillarPercentage, confirmPillars, resetPillarsToAI, approveWeek,
-    updateBrandVoice, updateAgentModel, updateAgentBudget, submitAssets, uploadAsset, refreshData,
+    updateBrandVoice, updateAgentModel, updateAgentBudget, submitAssets, uploadAsset, refreshData, loadAssets, loadSettings,
   };
   return <PortalContext.Provider value={value}>{children}</PortalContext.Provider>;
 }

@@ -1,8 +1,10 @@
+import uuid
+
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
 from app.core.db import engine
-from app.main import database_connection_refused_handler, settings
+from app.main import app, database_connection_refused_handler, settings
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -37,3 +39,38 @@ def test_session_database_pool_is_bounded_for_api_and_workers():
 
     assert engine.pool.size() == settings.DB_POOL_SIZE
     assert engine.pool._max_overflow == settings.DB_MAX_OVERFLOW
+
+
+def test_every_response_has_a_server_request_id():
+    response = TestClient(app).get("/health")
+
+    assert response.status_code == 200
+    assert uuid.UUID(response.headers["x-request-id"])
+
+
+def test_readiness_reports_database_ready(monkeypatch):
+    async def database_ready():
+        return True
+
+    monkeypatch.setattr("app.main._database_is_ready", database_ready, raising=False)
+    response = TestClient(app).get("/readyz")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ready",
+        "dependencies": {"database": "ready"},
+    }
+
+
+def test_readiness_reports_database_unavailable(monkeypatch):
+    async def database_unavailable():
+        return False
+
+    monkeypatch.setattr("app.main._database_is_ready", database_unavailable, raising=False)
+    response = TestClient(app).get("/readyz")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready",
+        "dependencies": {"database": "unavailable"},
+    }

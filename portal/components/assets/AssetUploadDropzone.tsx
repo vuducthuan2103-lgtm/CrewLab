@@ -51,8 +51,9 @@ export default function AssetUploadDropzone({ requestId, onSubmit }: AssetUpload
     setError(null);
     void (async () => {
       try {
-        const uploaded = [];
-        for (const pending of pendingFiles) uploaded.push(await apiUploadAsset(pending.file, requestId));
+        const uploaded = await Promise.all(
+          pendingFiles.map((pending) => apiUploadAsset(pending.file, requestId)),
+        );
         await submitAssets(requestId, uploaded.map((asset) => asset.id));
         setSubmitted(true);
         if (onSubmit) onSubmit();

@@ -3,8 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import MediaLibraryGrid from '@/components/assets/MediaLibraryGrid';
+import { Button } from '@/components/ui/Button';
 import { usePortal } from '@/lib/store';
-import { Settings, Mic2, ImageIcon, Bot, Plug2, Save, CheckCircle2, Plus, X, ChevronDown } from 'lucide-react';
+import { shortSupportReference } from '@/lib/api';
+import { Settings, Mic2, ImageIcon, Bot, Plug2, Save, CheckCircle2, Plus, X, ChevronDown, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 
 // ─── Tab 1: Brand Voice (6 Structured Sections) ──────────────────────────────
 function BrandVoiceForm() {
@@ -755,7 +757,27 @@ const SETTINGS_TABS = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('brand_voice');
-  const { clientName, isLoading, error } = usePortal();
+  const {
+    clientName,
+    settingsStatus,
+    settingsError,
+    assetsStatus,
+    assetsError,
+    loadSettings,
+    loadAssets,
+  } = usePortal();
+
+  useEffect(() => {
+    void loadSettings();
+  }, [loadSettings]);
+
+  useEffect(() => {
+    if (activeTab === 'media') void loadAssets();
+  }, [activeTab, loadAssets]);
+
+  const activeStatus = activeTab === 'media' ? assetsStatus : settingsStatus;
+  const activeError = activeTab === 'media' ? assetsError : settingsError;
+  const retryActiveTab = () => activeTab === 'media' ? loadAssets(true) : loadSettings(true);
 
   return (
     <PortalLayout>
@@ -787,17 +809,39 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {isLoading && <p className="mb-4 text-xs text-muted-foreground">Đang tải cấu hình từ CrewLab…</p>}
-      {error && (
-        <p className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
-          Không tải được cấu hình Portal: {error}
+      {activeStatus === 'loading' && (
+        <p className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 size={14} className="animate-spin" />
+          {activeTab === 'media' ? 'Đang tải thư viện ảnh…' : 'Đang tải cấu hình từ CrewLab…'}
         </p>
       )}
+      {activeError && (
+        <div role="alert" className="mb-4 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
+          <AlertCircle size={17} className="shrink-0" />
+          <span className="flex-1">
+            <span className="block font-medium">
+              {activeTab === 'media' ? 'Không tải được thư viện ảnh' : 'Không tải được cấu hình client'}
+            </span>
+            <span className="block text-xs">{activeError.message}</span>
+            {activeError.supportReference && (
+              <span className="mt-1 block text-[10px] opacity-75">
+                Mã hỗ trợ: {shortSupportReference(activeError.supportReference)}
+              </span>
+            )}
+          </span>
+          {activeError.retryable && (
+            <Button variant="secondary" size="sm" onClick={() => void retryActiveTab()}>
+              <RefreshCw size={13} />
+              Thử lại
+            </Button>
+          )}
+        </div>
+      )}
 
-      {activeTab === 'brand_voice' && <BrandVoiceForm />}
-      {activeTab === 'media' && <MediaLibraryGrid />}
-      {activeTab === 'model' && <ModelBudgetConfig />}
-      {activeTab === 'integration' && <MetaIntegrationTab />}
+      {activeStatus === 'ready' && activeTab === 'brand_voice' && <BrandVoiceForm />}
+      {activeStatus === 'ready' && activeTab === 'media' && <MediaLibraryGrid />}
+      {activeStatus === 'ready' && activeTab === 'model' && <ModelBudgetConfig />}
+      {activeStatus === 'ready' && activeTab === 'integration' && <MetaIntegrationTab />}
     </PortalLayout>
   );
 }

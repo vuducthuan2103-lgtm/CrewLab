@@ -5,6 +5,7 @@ import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { usePortal } from '@/lib/store';
+import { shortSupportReference } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -19,11 +20,21 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           {error && (
             <div role="alert" className="mb-4 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
               <AlertCircle size={17} className="shrink-0" />
-              <span className="flex-1">Không tải được dữ liệu Portal: {error}</span>
-              <Button variant="secondary" size="sm" onClick={() => void refreshData()}>
-                <RefreshCw size={13} />
-                Thử lại
-              </Button>
+              <span className="flex-1">
+                <span className="block font-medium">Không tải được bảng công việc</span>
+                <span className="block text-xs opacity-90">{error.message}</span>
+                {error.supportReference && (
+                  <span className="mt-1 block text-[10px] opacity-75">
+                    Mã hỗ trợ: {shortSupportReference(error.supportReference)}
+                  </span>
+                )}
+              </span>
+              {error.retryable && (
+                <Button variant="secondary" size="sm" onClick={() => void refreshData()}>
+                  <RefreshCw size={13} />
+                  Thử lại
+                </Button>
+              )}
             </div>
           )}
           {isLoading && !error && (
@@ -32,7 +43,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               Đang đồng bộ dữ liệu Portal
             </div>
           )}
-          {children}
+          {!isLoading && !error && children}
         </div>
       </main>
     </div>
