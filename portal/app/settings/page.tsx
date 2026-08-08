@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import MediaLibraryGrid from '@/components/assets/MediaLibraryGrid';
 import { usePortal } from '@/lib/store';
@@ -11,6 +11,7 @@ function BrandVoiceForm() {
   const { brandVoice, updateBrandVoice } = usePortal();
   const [form, setForm] = useState({ ...brandVoice });
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<'foundation' | 'tone' | 'dos_donts' | 'mechanics' | 'variations' | 'references'>('foundation');
 
   // Input helpers for lists
@@ -20,10 +21,25 @@ function BrandVoiceForm() {
   const [newBenchmark, setNewBenchmark] = useState('');
   const [newRefLink, setNewRefLink] = useState('');
 
-  const handleSave = () => {
-    updateBrandVoice(form);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSave = async () => {
+    setSaveError(null);
+    const personalityKeywords = form.personalityKeywords
+      .map((keyword) => keyword.trim())
+      .filter(Boolean);
+
+    if (!personalityKeywords.length) {
+      setActiveSubTab('tone');
+      setSaveError('Vui lòng thêm ít nhất một tính từ mô tả giọng thương hiệu ở mục 2. Tone & Personality trước khi lưu.');
+      return;
+    }
+
+    try {
+      await updateBrandVoice({ ...form, personalityKeywords });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Unable to save settings');
+    }
   };
 
   const subTabs = [
@@ -523,6 +539,7 @@ function BrandVoiceForm() {
       )}
 
       {/* Global Save Button */}
+      {saveError && <p role="alert" className="text-xs text-red-400">{saveError}</p>}
       <div className="flex items-center justify-between pt-2 border-t border-border">
         <p className="text-xs text-muted-foreground">Lưu cấu hình Brand Voice để các Agent (B02, D01, D02, E01) đồng bộ áp dụng.</p>
         <button
@@ -539,28 +556,64 @@ function BrandVoiceForm() {
 
 
 // ─── Tab 3: Model & Budget ────────────────────────────────────────────────────
-const MODEL_OPTIONS = [
-  { value: 'gpt-4o', label: 'GPT-4o', tier: 'power', provider: 'OpenAI' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o mini', tier: 'standard', provider: 'OpenAI' },
-  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', tier: 'power', provider: 'Google' },
-  { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet', tier: 'standard', provider: 'Anthropic' },
-  { value: 'dall-e-3', label: 'DALL-E 3', tier: 'standard', provider: 'OpenAI (Image)' },
-];
-
 const AGENT_NAMES: Record<string, string> = {
   A01: '🧠 A01 Orchestrator', B02: '🧭 B02 Content Pillar', B03: '📅 B03 Content Plan',
   D01: '✍️ D01 Caption Writer', D02: '🎨 D02 Image Designer', E01: '✅ E01 Evaluator',
 };
 
 function ModelBudgetConfig() {
-  const { agentModelConfigs, updateAgentModel, updateAgentBudget } = usePortal();
+  const { agentModelConfigs, eligibleModels, updateAgentModel, updateAgentBudget } = usePortal();
+  const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>({});
+  const [savingBudgetFor, setSavingBudgetFor] = useState<string | null>(null);
+  const [budgetError, setBudgetError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setBudgetDrafts((current) => {
+      const next = { ...current };
+      agentModelConfigs.forEach((config) => {
+        if (next[config.agentCode] === undefined) {
+          next[config.agentCode] = String(config.budgetUSD);
+        }
+      });
+      return next;
+    });
+  }, [agentModelConfigs]);
+
+  const saveBudget = async (agentCode: string) => {
+    const budget = Number(budgetDrafts[agentCode]);
+    if (!Number.isFinite(budget) || budget <= 0 || budget > 10000) {
+      setBudgetError('Ngân sách phải lớn hơn 0 và không quá 10.000 USD/tháng.');
+      return;
+    }
+    setSavingBudgetFor(agentCode);
+    setBudgetError(null);
+    try {
+      await updateAgentBudget(agentCode, budget);
+    } catch (error) {
+      setBudgetError(error instanceof Error ? error.message : 'Không lưu được ngân sách.');
+    } finally {
+      setSavingBudgetFor(null);
+    }
+  };
 
   return (
     <div className="max-w-2xl">
       <p className="text-xs text-muted-foreground mb-4">Thay đổi sẽ có hiệu lực từ task tiếp theo, không ảnh hưởng task đang chạy.</p>
       <div className="space-y-3">
-        {agentModelConfigs.map((cfg) => (
+        {budgetError && (
+          <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+            {budgetError}
+          </p>
+        )}
+        {agentModelConfigs.map((cfg) => {
+          const options = eligibleModels.filter((model) => model.eligible_agents.includes(cfg.agentCode));
+          return (
           <div key={cfg.agentCode} className="p-4 border border-border rounded-xl bg-background">
+            {cfg.isActive === false && (
+              <p className="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+                Provider cũ đã bị tắt. Chọn một model hợp lệ để agent hoạt động lại.
+              </p>
+            )}
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-sm">
@@ -576,13 +629,16 @@ function ModelBudgetConfig() {
                     id={`model-select-${cfg.agentCode}`}
                     value={cfg.selectedModel}
                     onChange={(e) => {
-                      const m = MODEL_OPTIONS.find((o) => o.value === e.target.value);
-                      updateAgentModel(cfg.agentCode, e.target.value, m?.tier || 'standard');
+                      const m = options.find((option) => option.id === e.target.value);
+                      if (m) updateAgentModel(cfg.agentCode, m.id, m.tier);
                     }}
                     className="appearance-none pl-3 pr-7 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary cursor-pointer"
                   >
-                    {MODEL_OPTIONS.map((m) => (
-                      <option key={m.value} value={m.value}>{m.label} ({m.provider})</option>
+                    {!options.some((model) => model.id === cfg.selectedModel) && (
+                      <option value={cfg.selectedModel} disabled>Model hiện tại không còn hợp lệ</option>
+                    )}
+                    {options.map((model) => (
+                      <option key={model.id} value={model.id}>{model.label}</option>
                     ))}
                   </select>
                   <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -603,18 +659,36 @@ function ModelBudgetConfig() {
                   <input
                     type="number"
                     id={`budget-${cfg.agentCode}`}
-                    value={cfg.budgetUSD}
-                    onChange={(e) => updateAgentBudget(cfg.agentCode, Number(e.target.value))}
+                    value={budgetDrafts[cfg.agentCode] ?? String(cfg.budgetUSD)}
+                    onChange={(event) =>
+                      setBudgetDrafts((current) => ({ ...current, [cfg.agentCode]: event.target.value }))
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void saveBudget(cfg.agentCode);
+                      }
+                    }}
                     className="w-12 text-xs text-foreground bg-transparent focus:outline-none text-center"
-                    min={1}
-                    max={100}
+                    min={0.01}
+                    max={10000}
+                    step={1}
                   />
                   <span className="text-[10px] text-muted-foreground">/tháng</span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void saveBudget(cfg.agentCode)}
+                  disabled={savingBudgetFor === cfg.agentCode}
+                  className="rounded-lg border border-lime-brand/40 px-2.5 py-1.5 text-[11px] font-semibold text-lime-brand transition-colors hover:bg-lime-brand/10 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {savingBudgetFor === cfg.agentCode ? 'Đang lưu…' : 'Lưu'}
+                </button>
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="mt-4 p-3 border border-border rounded-xl bg-muted/20 flex items-center gap-2">
@@ -681,6 +755,7 @@ const SETTINGS_TABS = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('brand_voice');
+  const { clientName, isLoading, error } = usePortal();
 
   return (
     <PortalLayout>
@@ -690,7 +765,7 @@ export default function SettingsPage() {
         </div>
         <div>
           <h1 className="text-lg font-bold text-foreground">Cài đặt thương hiệu</h1>
-          <p className="text-xs text-muted-foreground">Bardinh Coffee</p>
+          <p className="text-xs text-muted-foreground">{clientName || 'Đang tải thông tin client…'}</p>
         </div>
       </div>
 
@@ -711,6 +786,13 @@ export default function SettingsPage() {
           </button>
         ))}
       </div>
+
+      {isLoading && <p className="mb-4 text-xs text-muted-foreground">Đang tải cấu hình từ CrewLab…</p>}
+      {error && (
+        <p className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+          Không tải được cấu hình Portal: {error}
+        </p>
+      )}
 
       {activeTab === 'brand_voice' && <BrandVoiceForm />}
       {activeTab === 'media' && <MediaLibraryGrid />}

@@ -10,10 +10,14 @@ import {
   Settings,
   ImageIcon,
   LogOut,
+  Bot,
 } from 'lucide-react';
+import { signOut } from '@/lib/supabase';
+import { usePortal } from '@/lib/store';
 
 const NAV_ITEMS = [
   { href: '/', icon: LayoutDashboard, label: 'Công việc' },
+  { href: '/a01-chat', icon: Bot, label: 'Trò chuyện A01' },
   { href: '/content-hub', icon: BookOpen, label: 'Kế hoạch' },
   { href: '/assets', icon: ImageIcon, label: 'Thư viện ảnh' },
   { href: '/reports', icon: BarChart3, label: 'Báo cáo' },
@@ -23,14 +27,15 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { clientName, portalUserEmail } = usePortal();
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('crewlab_auth');
+  const handleLogout = async () => {
+    await signOut();
     router.push('/login');
   };
 
@@ -50,8 +55,8 @@ export default function Sidebar() {
       <div className="px-4 py-3 border-b border-border">
         <div className="rounded-lg bg-muted/50 px-3 py-2">
           <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Quán đang xem</p>
-          <p className="text-xs font-semibold text-foreground mt-0.5 truncate">Bardinh Coffee</p>
-          <p className="text-[10px] text-muted-foreground">Tuần 25 • 16–22/06</p>
+          <p className="text-xs font-semibold text-foreground mt-0.5 truncate">{clientName || 'Đang tải client…'}</p>
+          <p className="text-[10px] text-muted-foreground">Dữ liệu tài khoản của bạn</p>
         </div>
       </div>
 
@@ -81,11 +86,11 @@ export default function Sidebar() {
       <div className="px-4 py-4 border-t border-border space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-foreground">
-            B
+            {(clientName || portalUserEmail || '?').slice(0, 1).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-foreground truncate">Bardinh Admin</p>
-            <p className="text-[10px] text-muted-foreground truncate">admin@bardinh.vn</p>
+            <p className="text-xs font-medium text-foreground truncate">{clientName || 'Portal Admin'}</p>
+            <p className="text-[10px] text-muted-foreground truncate">{portalUserEmail || 'Đang tải…'}</p>
           </div>
         </div>
         <button

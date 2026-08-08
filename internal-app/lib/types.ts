@@ -85,7 +85,7 @@ export interface TaskLogEntry {
   latencyMs: number;
   status: 'success' | 'failed' | 'running';
   evalScore: number | null;
-  wakeReason: 'scheduled' | 'task_assigned' | 'manual' | 'retry';
+  wakeReason: 'scheduled' | 'task_assigned' | 'retry';
   contentItemId: string | null;
   contentItemTitle: string | null;
   createdAt: Date;

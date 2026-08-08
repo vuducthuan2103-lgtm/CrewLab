@@ -13,6 +13,7 @@ export type FSMState =
   | 'eval_failed'
   | 'pending_content_approval'
   | 'approved_ready_to_post'
+  | 'rejected'
   | 'posted';
 
 // ─── Agents ─────────────────────────────────────────────────────────────────
@@ -185,6 +186,25 @@ export interface AgentModelConfig {
   selectedModel: string;
   tier: ModelTier;
   budgetUSD: number; // per month
+  isActive?: boolean;
+}
+
+export interface A01ChatMessage {
+  id: string;
+  user_message: string;
+  assistant_message: string;
+  action: 'answer' | 'create_content';
+  content_item_id: string | null;
+  dispatch_status: 'not_needed' | 'queued' | 'pending';
+  created_at: string;
+}
+
+export interface EligibleModel {
+  id: string;
+  label: string;
+  tier: ModelTier;
+  capabilities: string[];
+  eligible_agents: string[];
 }
 
 // ─── Content Plan (Calendar) ─────────────────────────────────────────────────
@@ -219,5 +239,6 @@ export const FSM_STATE_LABELS: Record<FSMState, string> = {
   eval_failed: 'Thẩm định lại',
   pending_content_approval: 'Chờ bạn duyệt',
   approved_ready_to_post: 'Đã duyệt — Chờ đăng',
+  rejected: 'Đã từ chối',
   posted: 'Đã đăng',
 };

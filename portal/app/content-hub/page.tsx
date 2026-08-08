@@ -3,17 +3,15 @@
 import React from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import PortalLayout from '@/components/layout/PortalLayout';
-import CampaignPlaceholder from '@/components/content-hub/CampaignPlaceholder';
 import PillarSlider from '@/components/content-hub/PillarSlider';
 import ContentCalendar from '@/components/content-hub/ContentCalendar';
 import ContentPlanTable from '@/components/content-hub/ContentPlanTable';
-import { Megaphone, Columns3, CalendarDays, BookOpen, TableProperties } from 'lucide-react';
+import { Columns3, CalendarDays, BookOpen, TableProperties } from 'lucide-react';
 import { Suspense } from 'react';
 
-type Tab = 'campaign' | 'pillar' | 'calendar' | 'plan-table';
+type Tab = 'pillar' | 'calendar' | 'plan-table';
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: 'campaign', label: 'Campaign', icon: <Megaphone size={13} /> },
   { key: 'pillar', label: 'Trụ nội dung', icon: <Columns3 size={13} /> },
   { key: 'calendar', label: 'Lịch nội dung', icon: <CalendarDays size={13} /> },
   { key: 'plan-table', label: 'Bảng kế hoạch', icon: <TableProperties size={13} /> },
@@ -61,7 +59,6 @@ function ContentHubInner() {
       </div>
 
       {/* Tab content */}
-      {tab === 'campaign' && <CampaignPlaceholder />}
       {tab === 'pillar' && <PillarSlider />}
       {tab === 'calendar' && <ContentCalendar />}
       {tab === 'plan-table' && <ContentPlanTable />}

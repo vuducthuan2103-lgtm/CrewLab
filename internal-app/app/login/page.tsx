@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Eye, EyeOff } from 'lucide-react';
+import { signInWithPassword } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,16 +18,14 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    // Mock auth — accept admin@crewlab.vn with any password
-    await new Promise(r => setTimeout(r, 800));
-
-    if (email === 'admin@crewlab.vn') {
-      localStorage.setItem('crewlab_admin_auth', 'true');
+    try {
+      await signInWithPassword(email, password);
       router.push('/');
-    } else {
-      setError('Email không hợp lệ. Dùng admin@crewlab.vn để đăng nhập.');
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : 'Không thể đăng nhập');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -116,12 +115,9 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Hint */}
-          <div className="mt-4 pt-4 border-t border-zinc-800/50">
-            <p className="text-[10px] text-zinc-600 text-center font-mono">
-              Demo: admin@crewlab.vn / bất kỳ mật khẩu
-            </p>
-          </div>
+          <p className="mt-4 pt-4 border-t border-zinc-800/50 text-center text-[10px] text-zinc-600 font-mono">
+            Chỉ tài khoản có quyền Agency Admin mới đăng nhập được
+          </p>
         </div>
 
         {/* Footer */}

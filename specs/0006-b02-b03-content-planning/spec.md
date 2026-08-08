@@ -2,6 +2,8 @@
 
 **Ngày tạo:** 2026-08-01 | **Trạng thái:** Draft
 
+> **Scope note (2026-08-03):** Các giả định về API key chung qua biến môi trường trong spec này đã được thay thế bởi Decision 0007 và Spec 0010. Các yêu cầu B02/B03 khác vẫn giữ nguyên; việc quản lý provider/credential theo từng client sẽ được triển khai theo Spec 0010.
+
 ---
 
 ## 0. Tóm tắt thay đổi so với bản spec cũ

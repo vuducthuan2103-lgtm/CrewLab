@@ -74,6 +74,66 @@ CREATE TABLE IF NOT EXISTS workflow_cycles (
 
 CREATE INDEX IF NOT EXISTS ix_workflow_cycles_client_id ON workflow_cycles (client_id);
 
+CREATE TABLE IF NOT EXISTS client_llm_configs (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL,
+    agent_code VARCHAR NOT NULL,
+    provider VARCHAR NOT NULL DEFAULT 'openai',
+    model VARCHAR NOT NULL DEFAULT 'gpt-4o',
+    tier VARCHAR NOT NULL DEFAULT 'standard',
+    budget_usd NUMERIC(10, 2),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (id),
+    FOREIGN KEY(client_id) REFERENCES clients (id) ON DELETE CASCADE,
+    CONSTRAINT uq_client_llm_configs_client_agent UNIQUE (client_id, agent_code)
+);
+
+CREATE INDEX IF NOT EXISTS ix_client_llm_configs_client_id ON client_llm_configs (client_id);
+
+CREATE TABLE IF NOT EXISTS client_provider_credentials (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL,
+    provider VARCHAR(32) NOT NULL,
+    encrypted_api_key TEXT NOT NULL,
+    key_hint VARCHAR(8) NOT NULL,
+    is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    validation_status VARCHAR(16) NOT NULL DEFAULT 'untested',
+    last_tested_at TIMESTAMP WITH TIME ZONE,
+    last_test_error VARCHAR(200),
+    created_by UUID NOT NULL,
+    updated_by UUID NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (id),
+    FOREIGN KEY(client_id) REFERENCES clients (id) ON DELETE CASCADE,
+    CONSTRAINT uq_client_provider_credentials_client_provider UNIQUE (client_id, provider),
+    CONSTRAINT ck_client_provider_credentials_provider CHECK (provider IN ('openai', 'anthropic', 'google')),
+    CONSTRAINT ck_client_provider_credentials_validation_status CHECK (validation_status IN ('untested', 'valid', 'invalid'))
+);
+
+CREATE INDEX IF NOT EXISTS ix_client_provider_credentials_client_id ON client_provider_credentials (client_id);
+CREATE INDEX IF NOT EXISTS ix_client_provider_credentials_enabled_client
+    ON client_provider_credentials (client_id) WHERE is_enabled = TRUE;
+
+CREATE TABLE IF NOT EXISTS client_portal_admins (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL,
+    auth_user_id UUID NOT NULL,
+    email VARCHAR(320) NOT NULL,
+    created_by UUID NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (id),
+    FOREIGN KEY(client_id) REFERENCES clients (id) ON DELETE CASCADE,
+    CONSTRAINT uq_client_portal_admins_client_id UNIQUE (client_id),
+    CONSTRAINT uq_client_portal_admins_auth_user_id UNIQUE (auth_user_id),
+    CONSTRAINT uq_client_portal_admins_email UNIQUE (email)
+);
+
+CREATE INDEX IF NOT EXISTS ix_client_portal_admins_client_id ON client_portal_admins (client_id);
+CREATE INDEX IF NOT EXISTS ix_client_portal_admins_auth_user_id ON client_portal_admins (auth_user_id);
+
 CREATE TABLE IF NOT EXISTS content_pillars (
 	id UUID NOT NULL, 
 	client_id UUID NOT NULL, 
@@ -123,6 +183,20 @@ CREATE INDEX IF NOT EXISTS ix_content_items_client_id ON content_items (client_i
 CREATE INDEX IF NOT EXISTS ix_content_items_cycle_id ON content_items (cycle_id);
 CREATE INDEX IF NOT EXISTS ix_content_items_pillar_id ON content_items (pillar_id);
 CREATE INDEX IF NOT EXISTS ix_content_items_status ON content_items (status);
+
+CREATE TABLE IF NOT EXISTS content_item_state_logs (
+    id UUID NOT NULL,
+    content_item_id UUID NOT NULL,
+    agent_code VARCHAR,
+    previous_state VARCHAR,
+    new_state VARCHAR NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (id),
+    FOREIGN KEY(content_item_id) REFERENCES content_items (id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_content_item_state_logs_content_item_id ON content_item_state_logs (content_item_id);
 
 CREATE TABLE IF NOT EXISTS asset_requests (
 	id UUID NOT NULL, 
@@ -248,6 +322,25 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS ix_audit_log_client_id ON audit_log (client_id);
 CREATE INDEX IF NOT EXISTS ix_audit_log_user_id ON audit_log (user_id);
 
+CREATE TABLE IF NOT EXISTS content_item_eval_attempts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    content_item_id UUID NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+    attempt_number INTEGER NOT NULL,
+    caption_score DOUBLE PRECISION,
+    visual_score DOUBLE PRECISION,
+    caption_passed BOOLEAN,
+    visual_passed BOOLEAN,
+    overall_passed BOOLEAN NOT NULL DEFAULT FALSE,
+    failed_criteria JSONB,
+    fix_instructions_caption TEXT,
+    fix_instructions_visual TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_eval_attempts_client ON content_item_eval_attempts (client_id);
+CREATE INDEX IF NOT EXISTS idx_eval_attempts_item ON content_item_eval_attempts (content_item_id);
+CREATE INDEX IF NOT EXISTS idx_eval_attempts_item_num ON content_item_eval_attempts (content_item_id, attempt_number);
+
 
 -- --- ENABLE ROW LEVEL SECURITY (RLS) --- 
 
@@ -258,11 +351,15 @@ BEGIN
     FOR t IN SELECT unnest(ARRAY[
         'clients', 'brand_settings', 'brand_settings_history', 'workflow_cycles',
         'content_pillars', 'content_items', 'brand_assets', 'asset_requests',
-        'hitl_reviews', 'agent_memory', 'task_logs', 'audit_log'
+        'hitl_reviews', 'agent_memory', 'task_logs', 'audit_log', 'client_llm_configs', 'client_provider_credentials', 'client_portal_admins',
+        'content_item_state_logs', 'content_item_eval_attempts'
     ]) LOOP
         EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);
     END LOOP;
 END $$;
+
+ALTER TABLE client_provider_credentials FORCE ROW LEVEL SECURITY;
+ALTER TABLE client_portal_admins FORCE ROW LEVEL SECURITY;
 
 -- 1. Agency Admin Policies (Full Access for all tables)
 DO $$
@@ -272,14 +369,14 @@ BEGIN
     FOR t IN SELECT unnest(ARRAY[
         'clients', 'brand_settings', 'brand_settings_history', 'workflow_cycles',
         'content_pillars', 'content_items', 'brand_assets', 'asset_requests',
-        'hitl_reviews', 'agent_memory', 'task_logs', 'audit_log'
+        'hitl_reviews', 'agent_memory', 'task_logs', 'audit_log', 'client_llm_configs', 'client_provider_credentials', 'client_portal_admins',
+        'content_item_state_logs', 'content_item_eval_attempts'
     ]) LOOP
         EXECUTE format('DROP POLICY IF EXISTS %I ON %I;', 'Agency Admin has full access to ' || t, t);
         EXECUTE format('
-            CREATE POLICY %I ON %I FOR ALL USING (
-                (auth.jwt() ->> ''role'')::text = ''agency_admin'' OR 
-                (auth.jwt() -> ''user_metadata'' ->> ''role'')::text = ''agency_admin''
-            );
+            CREATE POLICY %I ON %I FOR ALL TO authenticated
+            USING ((auth.jwt() -> ''app_metadata'' ->> ''role'')::text = ''agency_admin'')
+            WITH CHECK ((auth.jwt() -> ''app_metadata'' ->> ''role'')::text = ''agency_admin'');
         ', 'Agency Admin has full access to ' || t, t);
     END LOOP;
 END $$;
@@ -292,20 +389,20 @@ BEGIN
     FOR t IN SELECT unnest(ARRAY[
         'clients', 'brand_settings', 'brand_settings_history', 'workflow_cycles',
         'content_pillars', 'content_items', 'brand_assets', 'asset_requests',
-        'agent_memory', 'task_logs'
+        'agent_memory', 'task_logs', 'client_llm_configs', 'content_item_eval_attempts'
     ]) LOOP
         EXECUTE format('DROP POLICY IF EXISTS %I ON %I;', 'Clients can only access their own ' || t, t);
         IF t = 'clients' THEN
             EXECUTE format('
-                CREATE POLICY %I ON %I FOR ALL 
-                USING (id::text = (auth.jwt() ->> ''client_id'')::text)
-                WITH CHECK (id::text = (auth.jwt() ->> ''client_id'')::text);
+                CREATE POLICY %I ON %I FOR ALL TO authenticated
+                USING (id::text = (auth.jwt() -> ''app_metadata'' ->> ''client_id'')::text)
+                WITH CHECK (id::text = (auth.jwt() -> ''app_metadata'' ->> ''client_id'')::text);
             ', 'Clients can only access their own ' || t, t);
         ELSE
             EXECUTE format('
-                CREATE POLICY %I ON %I FOR ALL 
-                USING (client_id::text = (auth.jwt() ->> ''client_id'')::text)
-                WITH CHECK (client_id::text = (auth.jwt() ->> ''client_id'')::text);
+                CREATE POLICY %I ON %I FOR ALL TO authenticated
+                USING (client_id::text = (auth.jwt() -> ''app_metadata'' ->> ''client_id'')::text)
+                WITH CHECK (client_id::text = (auth.jwt() -> ''app_metadata'' ->> ''client_id'')::text);
             ', 'Clients can only access their own ' || t, t);
         END IF;
     END LOOP;
@@ -317,10 +414,10 @@ DROP POLICY IF EXISTS "Clients can insert their own hitl_reviews" ON hitl_review
 DROP POLICY IF EXISTS "Clients can only access their own hitl_reviews" ON hitl_reviews;
 
 CREATE POLICY "Clients can view their own hitl_reviews" ON hitl_reviews
-    FOR SELECT USING (client_id::text = (auth.jwt() ->> 'client_id')::text);
+    FOR SELECT TO authenticated USING (client_id::text = (auth.jwt() -> 'app_metadata' ->> 'client_id')::text);
 
 CREATE POLICY "Clients can insert their own hitl_reviews" ON hitl_reviews
-    FOR INSERT WITH CHECK (client_id::text = (auth.jwt() ->> 'client_id')::text);
+    FOR INSERT TO authenticated WITH CHECK (client_id::text = (auth.jwt() -> 'app_metadata' ->> 'client_id')::text);
 
 
 DROP POLICY IF EXISTS "Clients can view their own audit_log" ON audit_log;
@@ -328,7 +425,18 @@ DROP POLICY IF EXISTS "Clients can insert their own audit_log" ON audit_log;
 DROP POLICY IF EXISTS "Clients can only access their own audit_log" ON audit_log;
 
 CREATE POLICY "Clients can view their own audit_log" ON audit_log
-    FOR SELECT USING (client_id::text = (auth.jwt() ->> 'client_id')::text);
+    FOR SELECT TO authenticated USING (client_id::text = (auth.jwt() -> 'app_metadata' ->> 'client_id')::text);
 
 CREATE POLICY "Clients can insert their own audit_log" ON audit_log
-    FOR INSERT WITH CHECK (client_id::text = (auth.jwt() ->> 'client_id')::text);
+    FOR INSERT TO authenticated WITH CHECK (client_id::text = (auth.jwt() -> 'app_metadata' ->> 'client_id')::text);
+
+DROP POLICY IF EXISTS "Clients can view their own content item state logs" ON content_item_state_logs;
+CREATE POLICY "Clients can view their own content item state logs" ON content_item_state_logs
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM content_items
+            WHERE content_items.id = content_item_state_logs.content_item_id
+              AND content_items.client_id::text = (auth.jwt() -> 'app_metadata' ->> 'client_id')::text
+        )
+    );

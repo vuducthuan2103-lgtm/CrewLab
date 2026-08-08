@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { usePortal } from '@/lib/store';
+import { apiUploadAsset } from '@/lib/api';
 import { Upload, X, FileImage, CheckCircle2, Camera, StickyNote } from 'lucide-react';
 
 interface AssetUploadDropzoneProps {
@@ -20,6 +21,8 @@ export default function AssetUploadDropzone({ requestId, onSubmit }: AssetUpload
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [dragging, setDragging] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const request = assetRequests.find((r) => r.id === requestId);
@@ -43,9 +46,22 @@ export default function AssetUploadDropzone({ requestId, onSubmit }: AssetUpload
   };
 
   const handleSubmit = () => {
-    submitAssets(requestId, pendingFiles.map((f) => f.preview));
-    setSubmitted(true);
-    if (onSubmit) onSubmit();
+    if (!pendingFiles.length || uploading) return;
+    setUploading(true);
+    setError(null);
+    void (async () => {
+      try {
+        const uploaded = [];
+        for (const pending of pendingFiles) uploaded.push(await apiUploadAsset(pending.file, requestId));
+        await submitAssets(requestId, uploaded.map((asset) => asset.id));
+        setSubmitted(true);
+        if (onSubmit) onSubmit();
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'Không thể gửi ảnh');
+      } finally {
+        setUploading(false);
+      }
+    })();
   };
 
   if (!request) return null;
@@ -154,10 +170,11 @@ export default function AssetUploadDropzone({ requestId, onSubmit }: AssetUpload
       )}
 
       {/* Submit */}
+      {error && <p className="mb-3 text-xs text-red-400">{error}</p>}
       <button
         id="submit-assets-btn"
         onClick={handleSubmit}
-        disabled={pendingFiles.length === 0}
+        disabled={pendingFiles.length === 0 || uploading}
         className={`w-full py-2.5 rounded-lg text-sm font-bold transition-all ${
           pendingFiles.length > 0
             ? 'btn-lime-glow'

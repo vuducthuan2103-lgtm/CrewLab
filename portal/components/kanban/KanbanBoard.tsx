@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { usePortal } from '@/lib/store';
 import { TaskCard as TaskCardType, TeamDesk, KanbanColumn } from '@/lib/types';
 import Swimlane from './Swimlane';
-import CreateBriefModal from '@/components/brief/CreateBriefModal';
-import { Filter, ChevronLeft, ChevronRight, LayoutDashboard, Plus, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutDashboard, MessageSquareText } from 'lucide-react';
 
 const DESKS: { desk: TeamDesk; label: string; emoji: string }[] = [
   { desk: 'strategy', label: 'STRATEGY DESK', emoji: '🧭' },
@@ -20,7 +20,6 @@ type FilterType = 'all' | 'pending_approval' | 'human_only' | 'has_error';
 export default function KanbanBoard() {
   const { tasks } = usePortal();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const [isBriefModalOpen, setIsBriefModalOpen] = useState(false);
 
   const totalReview = tasks.filter((t) => t.column === 'review').length;
 
@@ -44,9 +43,6 @@ export default function KanbanBoard() {
 
   return (
     <div>
-      {/* Create Brief Modal */}
-      <CreateBriefModal isOpen={isBriefModalOpen} onClose={() => setIsBriefModalOpen(false)} />
-
       {/* Page Title + Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
@@ -69,15 +65,13 @@ export default function KanbanBoard() {
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
-          {/* Quick Create Brief CTA */}
-          <button
-            id="create-brief-btn"
-            onClick={() => setIsBriefModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-lime-brand text-black font-bold text-xs rounded-lg shadow-sm hover:opacity-90 transition-all"
+          <Link
+            href="/a01-chat"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-lime-brand px-4 text-xs font-bold text-white shadow-accent-glow transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-black"
           >
-            <Plus size={13} /> Tạo Brief Mới
-          </button>
-
+            <MessageSquareText size={15} />
+            Trò chuyện với A01
+          </Link>
           {/* Filter toggle */}
           <div className="flex items-center gap-1 border border-border rounded-lg p-1 bg-muted/30">
             {[

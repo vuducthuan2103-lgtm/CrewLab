@@ -6,12 +6,17 @@ import os
 import re
 import unittest
 from pathlib import Path
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 # Import all SQLAlchemy models
 from app.models.clients import Client, BrandSetting, BrandSettingHistory
-from app.models.content import WorkflowCycle, ContentPillar, ContentItem
+from app.models.content import WorkflowCycle, ContentPillar, ContentItem, ContentItemStateLog, ContentItemEvalAttempt
+from app.models.llm_config import ClientLLMConfig
+from app.models.provider_credentials import ClientProviderCredential
+from app.models.portal_accounts import ClientPortalAdmin
 from app.models.assets import BrandAsset, AssetRequest
 from app.models.reviews import HitlReview, AgentMemory
 from app.models.system import TaskLog, AuditLog
@@ -21,17 +26,18 @@ FULL_DEPLOY_SQL = PROJECT_ROOT / "full_deploy.sql"
 ALEMBIC_VERSIONS_DIR = PROJECT_ROOT / "alembic" / "versions"
 
 MODELS = [
-    Client, BrandSetting, BrandSettingHistory,
-    WorkflowCycle, ContentPillar, ContentItem,
+    Client, BrandSetting, BrandSettingHistory, ClientPortalAdmin,
+    WorkflowCycle, ContentPillar, ContentItem, ContentItemStateLog, ClientLLMConfig, ClientProviderCredential,
     BrandAsset, AssetRequest, HitlReview, AgentMemory,
-    TaskLog, AuditLog
+    TaskLog, AuditLog, ContentItemEvalAttempt
 ]
 
 EXPECTED_TABLE_NAMES = {
     "clients", "brand_settings", "brand_settings_history",
     "workflow_cycles", "content_pillars", "content_items",
     "brand_assets", "asset_requests", "hitl_reviews", "agent_memory",
-    "task_logs", "audit_log"
+    "task_logs", "audit_log", "client_llm_configs", "content_item_state_logs",
+    "content_item_eval_attempts", "client_provider_credentials", "client_portal_admins"
 }
 
 
@@ -46,6 +52,13 @@ class TestMigrationAndSchemaStructure(unittest.TestCase):
             "DEFECT P0 [DB-MIG-001]: No migration revision files found in backend/alembic/versions/"
         )
 
+    def test_DB_MIG_000_revision_graph_has_one_head(self):
+        """Migration graph must be traversable and converge on the current head."""
+        config = Config(str(PROJECT_ROOT / "alembic.ini"))
+        script = ScriptDirectory.from_config(config)
+        self.assertEqual(script.get_heads(), ["0012"])
+        self.assertIsNotNone(script.get_revision("0006"))
+
     def test_DB_MIG_002_migration_idempotency_sql(self):
         """DB-MIG-002 (P0): DDL should be idempotent (CREATE TABLE IF NOT EXISTS or controlled Alembic)"""
         sql_content = FULL_DEPLOY_SQL.read_text(encoding="utf-8")
@@ -57,7 +70,7 @@ class TestMigrationAndSchemaStructure(unittest.TestCase):
         )
 
     def test_DB_MIG_005_schema_inventory_12_tables(self):
-        """DB-MIG-005 (P0): All 12 tables in MVP scope must exist in models & DDL"""
+        """DB-MIG-005 (P0): All MVP tables must exist in models and DDL"""
         model_table_names = {model.__tablename__ for model in MODELS}
         self.assertEqual(
             model_table_names, EXPECTED_TABLE_NAMES,
@@ -271,7 +284,7 @@ class TestAuditLogAndRLS(unittest.TestCase):
     """Section 9: DB-RLS-001 to DB-RLS-010"""
 
     def test_DB_RLS_001_rls_enabled_on_all_tables(self):
-        """DB-RLS-001 (P0): Row Level Security must be ENABLED on all 12 tables"""
+        """DB-RLS-001 (P0): Row Level Security must be enabled on all tenant tables"""
         sql_content = FULL_DEPLOY_SQL.read_text(encoding="utf-8")
         enabled_rls_tables = set(re.findall(r"ALTER\ TABLE\ (\w+)\ ENABLE\ ROW\ LEVEL\ SECURITY", sql_content, re.IGNORECASE))
         if not enabled_rls_tables and "ENABLE ROW LEVEL SECURITY" in sql_content:

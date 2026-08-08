@@ -4,6 +4,8 @@ from .assets import BrandAsset, AssetRequest
 from .reviews import HitlReview, AgentMemory
 from .system import TaskLog, AuditLog
 from .llm_config import ClientLLMConfig
+from .provider_credentials import ClientProviderCredential
+from .portal_accounts import ClientPortalAdmin
 
 __all__ = [
     "Client", "BrandSetting", "BrandSettingHistory",
@@ -11,6 +13,7 @@ __all__ = [
     "BrandAsset", "AssetRequest",
     "HitlReview", "AgentMemory",
     "TaskLog", "AuditLog",
-    "ClientLLMConfig",
+    "ClientLLMConfig", "ClientProviderCredential",
+    "ClientPortalAdmin",
 ]
 

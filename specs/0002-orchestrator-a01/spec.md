@@ -20,12 +20,14 @@ Mục đích của Spec này là triển khai A01 tuân thủ giới hạn của
   - `eval_failed` (còn lượt retry) -> dispatch D01 hoặc D02 theo bảng retry-routing
   - `eval_failed` (hard fail / hết lượt) -> Set `rejected` + `notify_agency_admin`
   - `content_gate_approved` -> Set `approved_ready_to_post` (không dispatch — đăng tay)
+  - `a01_chat_task_created` -> A01 dispatch D01 cho content item được nhận qua Portal chat
 
 ### 2. Wake Reason
 - `scheduled` — dispatch theo `beat_weekly`
 - `task_assigned` — dispatch task cụ thể
-- `manual` — Agency Admin bấm nút "Chạy lại"
 - `retry` — Celery tự retry sau lỗi hạ tầng (không tăng `eval_retry_count`)
+
+> **Amendment Spec 0014 / Decision 0010:** Phase 1 không có manual retry. Giao việc cho A01 qua chat dùng `task_assigned`; Direct Assign nghĩa là bỏ qua A01 và vẫn defer.
 
 ### 3. Business Rules (MVP)
 1. **Precheck:** Chỉ check `clients.is_active` (bỏ quota 12 agent cho MVP).

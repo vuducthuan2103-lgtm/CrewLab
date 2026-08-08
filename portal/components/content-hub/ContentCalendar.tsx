@@ -7,7 +7,13 @@ import ContentApprovalModal from '@/components/approval/ContentApprovalModal';
 import { ChevronLeft, ChevronRight, CheckSquare, AlertTriangle, Calendar } from 'lucide-react';
 
 const WEEK_DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-const WEEK_DATES = [16, 17, 18, 19, 20, 21, 22];
+const weekStart = new Date();
+weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+const WEEK_DATES = Array.from({ length: 7 }, (_, index) => {
+  const date = new Date(weekStart);
+  date.setDate(weekStart.getDate() + index);
+  return date.getDate();
+});
 
 function StateDot({ state }: { state: ContentItem['state'] }) {
   if (state === 'posted') return <span className="text-[8px] text-blue-400">●</span>;
@@ -29,7 +35,7 @@ function DayCell({
   items: ContentItem[];
   onItemClick: (item: ContentItem) => void;
 }) {
-  const isToday = date === 17; // mock "today" = 17/06
+  const isToday = date === new Date().getDate();
 
   return (
     <div className={`border-r border-border last:border-r-0 p-2 min-h-[120px] ${isToday ? 'bg-accent-tint' : ''}`}>
@@ -130,7 +136,7 @@ export default function ContentCalendar() {
           {/* Week nav */}
           <div className="flex items-center gap-1 border border-border rounded-lg px-2 py-1.5">
             <button className="text-muted-foreground hover:text-foreground p-0.5"><ChevronLeft size={13} /></button>
-            <span className="text-xs font-semibold text-foreground px-1">Tuần 25 · 16–22/06</span>
+            <span className="text-xs font-semibold text-foreground px-1">Tuần hiện tại</span>
             <button className="text-muted-foreground hover:text-foreground p-0.5"><ChevronRight size={13} /></button>
           </div>
 

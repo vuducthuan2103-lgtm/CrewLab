@@ -6,7 +6,6 @@ from enum import Enum
 class WakeReason(str, Enum):
     scheduled = "scheduled"
     task_assigned = "task_assigned"
-    manual = "manual"
     retry = "retry"
 
 class A01PrecheckResult(BaseModel):

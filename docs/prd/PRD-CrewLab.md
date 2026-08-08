@@ -9,6 +9,7 @@
 |  | 1.0 | Trường, Thuận | Khởi tạo PRD |
 |  | 1.1 | Trường, Thuận | **Hạ tầng (Tầng 4 Part A0):** bỏ đề xuất Railway/Render, quay lại chốt Hetzner VPS (nâng cấp CAX21 → CAX31) đúng theo quyết định gốc ở Tầng 1, có thêm lớp Coolify/Dokploy để giữ trải nghiệm deploy kiểu PaaS. **Số lượng agent (Tầng 2):** chốt **12 agent chính thức**, đưa E01 Evaluator vào Agent Registry chính thức thay vì để lửng "không tính vào 11 agent". *(Phát hiện thêm khi sửa: Tầng 3 Part B — B8 Client Config Self-Service — đã sẵn nói "12 agent chính" ở 2 chỗ trong bản v3.0, mâu thuẫn ngược với Tầng 2 nói 11\. Việc chốt 12 cũng giải quyết luôn chỗ lệch này.)* **RAG rule cho G04 (Tầng 2):** viết lại "Rule RAG" để phản ánh đúng thực tế Tool Registry — G04 được đọc episodic memory/performance patterns nhưng vẫn không được đọc brand RAG. **Queue name (Tầng 2 A01 example):** sửa ví dụ `"queue": "content_queue"` → đúng 1 trong 4 queue chính thức của Tầng 1 C4. |
 | 25/7/2026 | 1.2 | Thuận | Sửa lại Tầng 4, bổ sung mô tả thiết kế giao diện |
+| 05/08/2026 | 1.3 amendment | Trường | Phase 1 bỏ workflow-test và manual retry/reopen; thay `Tạo Brief Mới` bằng chat giao việc cho A01. Làm rõ Direct Assign T20 chỉ là giao thẳng agent con, bỏ qua A01. Xem Decision 0010 và MVP Scope v3.5. |
 
 ## 
 
@@ -3386,12 +3387,12 @@ Giữ đúng rule v1.0: đây là duyệt **kế hoạch tổng**, không duyệ
 
 ## 7.5.3.6. Direct Assign Task UI (T20)
 
-*(Giữ nguyên business logic v1.0, truy cập nhanh từ nút nổi "⚡ Giao việc nhanh" hoặc từ Pixel Office khi click vào bàn Creative.)*
+**Định nghĩa chuẩn:** Direct Assign là client chọn và giao việc thẳng cho một agent con, bỏ qua luồng gọi A01. Trò chuyện hoặc giao việc cho A01 không phải Direct Assign.
 
-- 2 chế độ: Qua Orchestrator (mô tả tự nhiên, A01 tự route) / Giao thẳng agent cụ thể (MVP: D01 hoặc D02).  
-- Form: chọn chế độ → (nếu giao thẳng) chọn agent → brief tự do → chọn content item tham chiếu (tùy chọn).  
-- **Business rule bắt buộc:** dù giao thẳng D02 hay qua Orchestrator, E01 luôn chấm điểm visual trước khi trả kết quả (AC-T3-15) — không có đường tắt bỏ qua Evaluator.  
+- T20 chỉ có chế độ chọn agent cụ thể → brief tự do → chọn content item tham chiếu (tùy chọn).  
+- **Business rule bắt buộc:** dù giao thẳng D02, E01 luôn chấm điểm visual trước khi trả kết quả (AC-T3-15) — không có đường tắt bỏ qua Evaluator.  
 - Không tạo cycle mới (AC-T3-14), kết quả trả về ngay trong session.
+- T20 defer khỏi Phase 1. Phase 1 có màn hình chat nhiều lượt với A01; A01 tự làm rõ yêu cầu và điều phối agent con theo workflow chuẩn.
 
 ---
 
@@ -3787,7 +3788,7 @@ Cần test thật với Meta Graph API để xác nhận support per-post hay ch
 
 Quyết định giảm scope Phase 1 xuống 5 agent **không đi ngược nguyên tắc "No manual fallback rule"** ở 7.7 — ngược lại, nó tuân thủ đúng tinh thần đó: thay vì giả vờ tự động hoá những phần chưa đủ chắc chắn (publish, phân tích), CrewLab chủ động **giảm lời hứa** ở Phase 1 (chỉ hứa đăng tay, không hứa auto-publish), rồi mở rộng lời hứa dần qua Phase 3 (auto-publish), Phase 4 (analytics \+ learning loop đầy đủ đúng KR1 gốc), Phase 5 (RAG/strategy layer đầy đủ). Full 12-agent stack như mô tả ở Section 7 chỉ thật sự đạt được khi hoàn thành Phase 5\.
 
-**Phase 1 — MVP / Pilot (hiện tại):** Scope thật là **5 agent** (B02, B03, D01, D02, E01) \+ đăng tay \+ FSM/retry loop \+ Client Portal cơ bản (ẩn điểm E01) \+ Internal App cơ bản, theo `CrewLab-MVP-Scope.md`. Pilot 1 client (Bardinh Coffee), platform Facebook \+ Instagram, chạy trên 1 VPS (Hetzner CAX31). Đây là bước đầu của lộ trình đi tới full vision ở Section 7, không phải bản build đầy đủ ngay từ đầu.
+**Phase 1 — MVP / Pilot (hiện tại):** Scope thật là **6 agent** (A01, B02, B03, D01, D02, E01) \+ đăng tay \+ FSM/retry tự động \+ Client Portal có chat giao việc cho A01 và các gate duyệt \+ Internal App debug read-only, theo `CrewLab-MVP-Scope-v3.5.md`. Không có Direct Assign bỏ qua A01, workflow-test, manual retry hoặc reopen. Pilot 1 client (Bardinh Coffee), platform Facebook \+ Instagram, chạy trên 1 VPS (Hetzner CAX31). Đây là bước đầu của lộ trình đi tới full vision ở Section 7, không phải bản build đầy đủ ngay từ đầu.
 
 **Phase 2 → Phase 7 — Mở rộng theo từng bước:** Xem chi tiết đầy đủ 7 phase (xây gì / cải thiện gì / vận hành gì / tiêu chí pass mỗi phase) tại `CrewLab-Phase-Roadmap.md`. Tóm tắt trình tự: Phase 2 (vận hành pilot dài hạn, tinh chỉnh, không xây mới) → Phase 3 (Meta auto-publish, F01) → Phase 4 (Analytics loop G01-G04, đạt KR1 đầy đủ đúng như định nghĩa gốc ở Section 4\) → Phase 5 (Strategy layer B01 \+ RAG thật, ChromaDB/Hindsight khôi phục) → Phase 6 (scale nhiều client) → Phase 7 (đa dạng ngành, tuỳ chọn kinh doanh, không có AC kỹ thuật cứng). Nguyên tắc xuyên suốt: mỗi phase chỉ mở khi phase trước đạt Tiêu chí Pass của nó — không nhảy cóc, đúng nguyên tắc "validate trước khi scale" đã nêu ở Assumptions (7.7). Ngưỡng hạ tầng cần theo dõi khi scale (đã có sẵn trong 7.6 Technology): Supabase free tier đủ cho 1–10 client; ChromaDB local đủ dùng đến khoảng 300 client trước khi cần managed service.
 

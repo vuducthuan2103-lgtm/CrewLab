@@ -1,26 +1,18 @@
--- Script này được chạy trên Supabase SQL Editor (không qua Alembic backend) 
--- để thiết lập storage bucket cho CrewLab.
+-- Idempotent setup for the MVP Media Library.
+-- Run in Supabase SQL Editor. The legacy `brand_assets` bucket is intentionally untouched.
 
--- 1. Create the bucket
-insert into storage.buckets
-  (id, name, public)
-values
-  ('crewlab-assets', 'crewlab-assets', true);
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'brand-assets', 'brand-assets', false, 52428800,
+  array['image/jpeg','image/png','image/webp']::text[]
+)
+on conflict (id) do update set
+  public = false,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
--- 2. Setup RLS Policies cho phép public read
-CREATE POLICY "Public Access" 
-ON storage.objects FOR SELECT 
-USING ( bucket_id = 'crewlab-assets' );
-
--- 3. Cho phép upload (Tạm thời cho phép mọi người insert cho mục đích MVP - Cần thêm Auth rule sau này)
-CREATE POLICY "Anon/Auth Upload Access" 
-ON storage.objects FOR INSERT 
-WITH CHECK ( bucket_id = 'crewlab-assets' );
-
-CREATE POLICY "Anon/Auth Update Access" 
-ON storage.objects FOR UPDATE 
-USING ( bucket_id = 'crewlab-assets' );
-
-CREATE POLICY "Anon/Auth Delete Access" 
-ON storage.objects FOR DELETE 
-USING ( bucket_id = 'crewlab-assets' );
+drop policy if exists "CrewLab service role manages brand-assets" on storage.objects;
+create policy "CrewLab service role manages brand-assets"
+on storage.objects for all to service_role
+using (bucket_id = 'brand-assets')
+with check (bucket_id = 'brand-assets');

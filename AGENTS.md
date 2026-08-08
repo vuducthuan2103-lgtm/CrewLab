@@ -55,7 +55,7 @@ If these conflict, use this order and flag the conflict to the human instead of 
 - Deploy: backend → Hetzner VPS via Coolify; frontends → Vercel (root directory set per app)
 - LLM: per client config, see MVP-Scope for defaults — do not hardcode a single provider
 - LLM abstraction: `litellm` (pip install, MIT) — all agents call `call_llm()` in `backend/app/core/llm.py`, never import provider SDKs directly. See `docs/decisions/0004-litellm-abstraction.md`.
-- **API key management (Phase 1):** Dùng chung 1 bộ API key toàn Agency (không per-client). Model cụ thể per-agent lấy từ `client_llm_configs`, nhưng key lấy theo provider qua env var cố định (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`). **Đây là quyết định tạm cho Phase 1 (1 client).** Phase 6 (multi-client) sẽ cần vault/secret manager per-client — đừng tưởng nhầm đây là thiết kế cuối cùng.
+- **API key & provider management (Phase 1):** Agency Admin quản lý provider và API key **theo từng client** trong Internal App. Khi onboarding, mỗi client chọn tối đa 2 provider; client chỉ được đổi model/tier trong Portal, không được đổi provider hay xem/sửa API key. Key được lưu an toàn, chỉ hiển thị dạng che, và không bao giờ trả về Portal. Xem `docs/decisions/0007-per-client-provider-api-key-phase-1.md` và spec `0010-provider-key-management`.
 
 ## Commands
 
@@ -67,8 +67,29 @@ If these conflict, use this order and flag the conflict to the human instead of 
 - Lint (portal): `cd portal && npm run lint`
 - Lint (internal-app): `cd internal-app && npm run lint`
 
+## Codebase Knowledge Graph (codebase-memory-mcp)
+
+Dự án này sử dụng `codebase-memory-mcp` để duy trì kiến thức dạng đồ thị (Knowledge Graph).
+**BẮT BUỘC** ưu tiên sử dụng các công cụ MCP Graph thay vì `grep`/`glob`/đọc file thủ công khi tìm kiếm và phân tích code:
+
+1. `search_graph`: Tìm hàm, class, route, biến theo pattern.
+2. `trace_path`: Truy vết luồng gọi hàm (inbound/outbound call stack).
+3. `get_code_snippet`: Đọc chính xác mã nguồn của hàm/class thay vì xem toàn bộ file.
+4. `query_graph`: Truy vấn Cypher nâng cao cho cấu trúc phức tạp.
+5. `get_architecture`: Xem bức tranh tổng quan kiến trúc và các module seams.
+
+*Chỉ dùng `grep_search` khi:* Tìm chuỗi văn bản hằng số (string literals), log message, file cấu hình (yaml, json, .env) hoặc file không phải source code.
+
 ## Reference
 
 - Glossary of PRD-specific terms (FSM, HITL, Gate, Cycle, RAG, etc.): `docs/glossary.md`
 - Architecture decisions log: `docs/decisions/`
 - Full spec history: `specs/`
+
+## Frontend UI standard
+
+- `portal/` and `internal-app/` use shadcn/ui as the default component system.
+- New UI must use shadcn primitives from `components/ui` or components generated through the shadcn CLI/MCP. Do not introduce ad-hoc replacements for standard primitives such as Button, Dialog, DropdownMenu, Tabs, Form, or Table.
+- Keep each app's `components.json`, Tailwind CSS variables, path aliases, and `cn()` utility compatible with shadcn/ui. Use Lucide icons consistently.
+- Existing custom components may be migrated incrementally when touched; do not add another component library without an explicit architecture decision.
+

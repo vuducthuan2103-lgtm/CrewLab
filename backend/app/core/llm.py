@@ -4,8 +4,8 @@ LLM abstraction layer — all agents call call_llm(), never import provider SDKs
 Uses litellm (pip install litellm, MIT license) as the routing layer.
 See docs/decisions/0004-litellm-abstraction.md for rationale.
 
-Phase 1: API keys resolved via PROVIDER_ENV_MAP (1 set of keys for entire agency).
-Phase 6+: will need per-client secret management — see AGENTS.md.
+Spec 0010: provider credentials are resolved per client from encrypted database
+rows. Environment provider keys are intentionally not used as a fallback.
 """
 import os
 import time
@@ -19,18 +19,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.models.llm_config import ClientLLMConfig
+from app.models.provider_credentials import ClientProviderCredential
 from app.models.system import TaskLog
 from app.core.db import settings, utcnow
+from app.core.credentials import get_credential_cipher, sanitize_provider_error
+from app.core.model_catalog import chat_model_for
 
 logger = logging.getLogger(__name__)
-
-# --- Provider → Env Var mapping (Phase 1: agency-wide keys) ---
-PROVIDER_ENV_MAP = {
-    "openai": "OPENAI_API_KEY",
-    "anthropic": "ANTHROPIC_API_KEY",
-    "google": "GOOGLE_API_KEY",
-}
-
 
 class LLMResponse(BaseModel):
     """Standardized response from any LLM provider."""
@@ -42,24 +37,29 @@ class LLMResponse(BaseModel):
     provider: str
 
 
-def _get_api_key(provider: str) -> str:
-    """Resolve API key from environment variable based on provider name."""
-    env_var = PROVIDER_ENV_MAP.get(provider)
-    if not env_var:
-        raise ValueError(f"Unknown provider '{provider}'. Known: {list(PROVIDER_ENV_MAP.keys())}")
-    key = os.environ.get(env_var, "")
-    if not key:
-        raise ValueError(f"Environment variable '{env_var}' not set for provider '{provider}'")
-    return key
+class LLMConfigurationError(RuntimeError):
+    """Raised when a client has no usable model/credential configuration."""
 
 
 def _mock_llm_response(
     agent_code: str,
     messages: list[dict],
     response_format: Optional[Type[BaseModel]] = None,
+    mock_key: Optional[str] = None,
 ) -> LLMResponse:
-    """Return a hardcoded mock response for testing without API keys."""
+    """Return a hardcoded mock response for testing without API keys.
+    
+    mock_key overrides agent_code for lookup — allows same agent (e.g. D02)
+    to have multiple distinct mock responses (D02_tags, D02_select).
+    """
     mock_responses = {
+        "A01": json.dumps({
+            "reply": "Mình đã nhận yêu cầu và sẽ chuyển bài này vào quy trình sáng tạo.",
+            "action": "create_content",
+            "task_title": "Bài đăng mới theo yêu cầu từ chat A01",
+            "task_details": "Tạo nội dung theo yêu cầu người dùng trong cuộc trò chuyện.",
+            "platform": "facebook_instagram",
+        }),
         "B02": json.dumps({
             "pillars": [
                 {"name": "Product Spotlight", "description": "Giới thiệu sản phẩm đặc trưng", "weight": 40, "angles": ["Hương vị đặc trưng", "Ảnh flat lay"]},
@@ -76,9 +76,66 @@ def _mock_llm_response(
                 {"topic": "Cách pha pour-over tại nhà", "platform": "facebook", "pillar_name": "Behind the Scenes", "scheduled_date": "2026-08-08", "scheduled_time": "09:00"},
             ]
         }),
+        "D01": json.dumps({
+            "caption": (
+                "☀️ Cold Brew mùa hè — Giải nhiệt theo cách của bạn!\n\n"
+                "Mùa hè nóng bức cần một thức uống đủ mát, đủ ngon, đủ chill. "
+                "Cold Brew BarĐỉnh được ngâm lạnh 12 giờ — đậm đà, mượt mà, không cần đường.\n\n"
+                "Ghé BarĐỉnh hôm nay, order ngay Cold Brew yêu thích của bạn! 🦹\n\n"
+                "#ColdBrew #BarDinh #CafeSaigon #GiaiNhiet #CafeMuaHe"
+            ),
+            "image_brief": {
+                "description": "Ly Cold Brew trên nền gỗ sáng, ánh nắng tự nhiên chiếu qua cửa sổ tạo bóng đổ nhẹ",
+                "mood": "Tươi mát, tự nhiên, summer vibes",
+                "suggested_tags": ["cold brew", "cà phê", "flat lay", "mùa hè", "ly đá"],
+                "composition_notes": "Ảnh dọc 4:5, close-up ly từ góc 45 độ, xung quanh vài viên đá và lá bạc hà",
+                "avoid": ["ảnh mờ", "nền tối", "góc chụp nghiêng nhiều"]
+            }
+        }),
+        "D02_tags": json.dumps({
+            "enhanced_tags": ["cold brew", "cà phê đá", "flat lay", "summer drink", "coffee shop", "nước uống", "sản phẩm"],
+            "search_priority": ["cold brew", "flat lay", "cà phê", "sản phẩm"]
+        }),
+        "D02_select": json.dumps({
+            "selected_asset_id": "b1000001-0000-0000-0000-000000000001",
+            "reason": "Ảnh flat lay ly sản phẩm có ánh sáng tự nhiên, khớp với brief về summer vibes"
+        }),
+        "E01": json.dumps({
+            "caption_eval": {
+                "score": 8.5,
+                "passed": True,
+                "failed_criteria": [],
+                "fix_instructions": ""
+            },
+            "visual_eval": {
+                "score": 4.2,
+                "passed": True,
+                "failed_criteria": [],
+                "fix_instructions": ""
+            },
+            "overall_passed": True,
+            "evaluation_reasoning": "Caption phản ánh đúng brand voice Bardinh Coffee, CTA rõ ràng. Ảnh sản phẩm có ánh sáng tốt và bố cục phù hợp."
+        }),
+        "E01_fail": json.dumps({
+            "caption_eval": {
+                "score": 5.5,
+                "passed": False,
+                "failed_criteria": ["brand_voice", "platform_fit"],
+                "fix_instructions": "Giọng văn quá sáo rỗng, thiếu từ ngữ đặc trưng thương hiệu. Thiếu hashtag phù hợp cho Facebook."
+            },
+            "visual_eval": {
+                "score": 2.5,
+                "passed": False,
+                "failed_criteria": ["mobile_readability", "visual_asset_fit"],
+                "fix_instructions": "Ảnh bị rối bố cục, góc chụp không làm nổi bật ly Cold Brew như mô tả trong Image Brief."
+            },
+            "overall_passed": False,
+            "evaluation_reasoning": "Caption chưa đúng brand voice. Ảnh chưa bám sát brief và khó nhìn trên di động."
+        }),
     }
 
-    content = mock_responses.get(agent_code, '{"result": "mock response"}')
+    key = mock_key or agent_code
+    content = mock_responses.get(key, '{"result": "mock response"}')
     return LLMResponse(
         content=content,
         model_used="mock-model",
@@ -99,6 +156,7 @@ async def call_llm(
     max_tokens: int = 4096,
     wake_reason: str = "task_assigned",
     content_item_id: Optional[uuid.UUID] = None,
+    mock_key: Optional[str] = None,
 ) -> LLMResponse:
     """
     Central LLM call function. All agents use this — never import provider SDKs directly.
@@ -113,6 +171,8 @@ async def call_llm(
         max_tokens: Max output tokens
         wake_reason: For task_logs observability
         content_item_id: Optional, for task_logs linking
+        mock_key: Override key for mock lookup (e.g. "D02_tags", "D02_select").
+                  Default=None uses agent_code. Only used in CREWLAB_LLM_MOCK=true mode.
     
     Returns:
         LLMResponse with content, usage stats, and provider info
@@ -120,60 +180,110 @@ async def call_llm(
 
     # --- Mock mode ---
     if os.environ.get("CREWLAB_LLM_MOCK", "").lower() in ("true", "1", "yes"):
-        logger.info(f"[LLM MOCK] agent={agent_code} client={client_id}")
-        response = _mock_llm_response(agent_code, messages, response_format)
+        logger.info(f"[LLM MOCK] agent={agent_code} mock_key={mock_key or agent_code} client={client_id}")
+        response = _mock_llm_response(agent_code, messages, response_format, mock_key=mock_key)
         if session:
             await _log_task(session, client_id, agent_code, response, wake_reason, content_item_id)
         return response
 
-    # --- Real mode: read config from DB ---
-    provider = "openai"
-    model = "gpt-4o"
-
-    if session:
-        stmt = select(ClientLLMConfig).where(
+    # --- Real mode: resolve both model and credential inside the tenant. ---
+    if session is None:
+        raise LLMConfigurationError(
+            "Real LLM calls require a database session for per-client credential routing"
+        )
+    config = await session.scalar(
+        select(ClientLLMConfig).where(
             ClientLLMConfig.client_id == client_id,
             ClientLLMConfig.agent_code == agent_code,
-            ClientLLMConfig.is_active == True,
+            ClientLLMConfig.is_active.is_(True),
         )
-        result = await session.execute(stmt)
-        config = result.scalar_one_or_none()
-
-        if config:
-            provider = config.provider
-            model = config.model
-        else:
-            logger.warning(
-                f"No LLM config for client={client_id} agent={agent_code}, using defaults"
-            )
-
-    # Resolve API key
-    api_key = _get_api_key(provider)
+    )
+    if config is None:
+        raise LLMConfigurationError(
+            f"No active LLM configuration for client={client_id} agent={agent_code}"
+        )
+    provider = config.provider
+    model = config.model
+    credential = await session.scalar(
+        select(ClientProviderCredential).where(
+            ClientProviderCredential.client_id == client_id,
+            ClientProviderCredential.provider == provider,
+            ClientProviderCredential.is_enabled.is_(True),
+            ClientProviderCredential.validation_status == "valid",
+        )
+    )
+    if credential is None:
+        raise LLMConfigurationError(
+            f"Provider '{provider}' is not enabled with a valid credential for this client"
+        )
+    api_key = get_credential_cipher().decrypt(credential.encrypted_api_key)
 
     # --- Call via litellm ---
     import litellm
 
     # litellm uses "provider/model" format for routing
-    litellm_model = f"{provider}/{model}" if provider != "openai" else model
+    provider_call_model = chat_model_for(model)
+    litellm_model = (
+        f"{provider}/{provider_call_model}" if provider != "openai" else provider_call_model
+    )
 
     start_ms = int(time.time() * 1000)
     try:
+        request_messages = list(messages)
+        completion_kwargs = {
+            "model": litellm_model,
+            "messages": request_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "api_key": api_key,
+        }
+        if response_format is not None:
+            if provider == "deepseek":
+                # DeepSeek supports JSON object mode, but not the JSON Schema
+                # response_format that LiteLLM derives from a Pydantic class.
+                # Give the model the schema in the prompt and validate the
+                # returned JSON below before any workflow code can use it.
+                schema = json.dumps(
+                    response_format.model_json_schema(),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                request_messages.insert(
+                    0,
+                    {
+                        "role": "system",
+                        "content": (
+                            "Return only one valid JSON object matching this JSON schema. "
+                            f"Do not add markdown or prose outside the JSON object: {schema}"
+                        ),
+                    },
+                )
+                completion_kwargs["response_format"] = {"type": "json_object"}
+            else:
+                completion_kwargs["response_format"] = response_format
+
         litellm_response = await litellm.acompletion(
-            model=litellm_model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            api_key=api_key,
+            **completion_kwargs,
         )
     except Exception as e:
-        logger.error(f"LLM call failed: agent={agent_code} model={model} error={e}")
+        safe_error = sanitize_provider_error(str(e), api_key)
+        logger.error(
+            "LLM call failed: agent=%s model=%s error=%s",
+            agent_code,
+            model,
+            safe_error,
+        )
         raise
 
     end_ms = int(time.time() * 1000)
 
+    content = litellm_response.choices[0].message.content or ""
+    if response_format is not None:
+        content = response_format.model_validate_json(content).model_dump_json()
+
     response = LLMResponse(
-        content=litellm_response.choices[0].message.content or "",
-        model_used=model,
+        content=content,
+        model_used=provider_call_model,
         tokens_in=litellm_response.usage.prompt_tokens if litellm_response.usage else 0,
         tokens_out=litellm_response.usage.completion_tokens if litellm_response.usage else 0,
         latency_ms=end_ms - start_ms,
