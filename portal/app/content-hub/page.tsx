@@ -6,15 +6,15 @@ import PortalLayout from '@/components/layout/PortalLayout';
 import PillarSlider from '@/components/content-hub/PillarSlider';
 import ContentCalendar from '@/components/content-hub/ContentCalendar';
 import ContentPlanTable from '@/components/content-hub/ContentPlanTable';
-import { Columns3, CalendarDays, BookOpen, TableProperties } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { Suspense } from 'react';
 
 type Tab = 'pillar' | 'calendar' | 'plan-table';
 
-const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: 'pillar', label: 'Trụ nội dung', icon: <Columns3 size={13} /> },
-  { key: 'calendar', label: 'Lịch nội dung', icon: <CalendarDays size={13} /> },
-  { key: 'plan-table', label: 'Bảng kế hoạch', icon: <TableProperties size={13} /> },
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'pillar', label: 'Trụ nội dung' },
+  { key: 'calendar', label: 'Lịch nội dung' },
+  { key: 'plan-table', label: 'Bảng kế hoạch' },
 ];
 
 function ContentHubInner() {
@@ -41,7 +41,7 @@ function ContentHubInner() {
 
       {/* Tabs */}
       <div className="flex gap-0.5 mb-6 border-b border-border">
-        {TABS.map(({ key, label, icon }) => (
+        {TABS.map(({ key, label }) => (
           <button
             key={key}
             id={`content-hub-tab-${key}`}
@@ -52,7 +52,6 @@ function ContentHubInner() {
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {icon}
             {label}
           </button>
         ))}

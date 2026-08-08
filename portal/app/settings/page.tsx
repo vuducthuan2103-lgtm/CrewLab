@@ -43,12 +43,12 @@ function BrandVoiceForm() {
   };
 
   const subTabs = [
-    { id: 'foundation', label: '1. Brand Foundation', icon: '🏢' },
-    { id: 'tone', label: '2. Tone & Personality', icon: '🎭' },
-    { id: 'dos_donts', label: "3. Do's & Don'ts", icon: '🛑' },
-    { id: 'mechanics', label: '4. Language Mechanics', icon: '✍️' },
-    { id: 'variations', label: '5. Context Variations', icon: '🔀' },
-    { id: 'references', label: '6. Reference Examples', icon: '📚' },
+    { id: 'foundation', label: '1. Brand Foundation' },
+    { id: 'tone', label: '2. Tone & Personality' },
+    { id: 'dos_donts', label: "3. Do's & Don'ts" },
+    { id: 'mechanics', label: '4. Language Mechanics' },
+    { id: 'variations', label: '5. Context Variations' },
+    { id: 'references', label: '6. Reference Examples' },
   ];
 
   return (
@@ -65,7 +65,6 @@ function BrandVoiceForm() {
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             }`}
           >
-            <span>{tab.icon}</span>
             <span>{tab.label}</span>
           </button>
         ))}
@@ -75,7 +74,7 @@ function BrandVoiceForm() {
       {activeSubTab === 'foundation' && (
         <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-            🏢 1. Brand Foundation (Nền tảng thương hiệu)
+            1. Brand Foundation (Nền tảng thương hiệu)
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -136,7 +135,7 @@ function BrandVoiceForm() {
       {activeSubTab === 'tone' && (
         <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-            🎭 2. Tone & Personality (Giọng điệu & Tính cách)
+            2. Tone & Personality (Giọng điệu & Tính cách)
           </h3>
           <div>
             <label className="block text-xs font-semibold text-muted-foreground mb-1">3-5 Tính từ mô tả giọng thương hiệu</label>
@@ -215,12 +214,12 @@ function BrandVoiceForm() {
       {activeSubTab === 'dos_donts' && (
         <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-            {"🛑 3. Do's & Don'ts (Quy tắc & Ví dụ)"}
+            {"3. Do's & Don'ts (Quy tắc & Ví dụ)"}
           </h3>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-1">✅ Ví dụ câu viết ĐÚNG tone</label>
+              <label className="block text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-1">Ví dụ câu viết ĐÚNG tone</label>
               <textarea
                 rows={4}
                 value={form.goodCaptionExample || ''}
@@ -230,7 +229,7 @@ function BrandVoiceForm() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-red-600 dark:text-red-400 mb-1">❌ Ví dụ câu viết SAI tone (Tránh)</label>
+              <label className="block text-xs font-semibold text-red-600 dark:text-red-400 mb-1">Ví dụ câu viết SAI tone (Tránh)</label>
               <textarea
                 rows={4}
                 value={form.badCaptionExample || ''}
@@ -242,7 +241,7 @@ function BrandVoiceForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-red-600 dark:text-red-400 mb-1">🚫 Từ ngữ CẤM DÙNG (Forbidden words)</label>
+            <label className="block text-xs font-semibold text-red-600 dark:text-red-400 mb-1">Từ ngữ CẤM DÙNG (Forbidden words)</label>
             <div className="flex flex-wrap gap-2 mb-2">
               {(form.forbiddenWords || []).map((w, i) => (
                 <span key={i} className="flex items-center gap-1.5 bg-red-500/10 text-red-600 dark:text-red-400 text-xs px-3 py-1 rounded-full border border-red-500/20 font-medium">
@@ -282,7 +281,7 @@ function BrandVoiceForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-lime-brand mb-1">✨ Từ ngữ đặc trưng NÊN DÙNG (Signature words)</label>
+            <label className="block text-xs font-semibold text-lime-brand mb-1">Từ ngữ đặc trưng NÊN DÙNG (Signature words)</label>
             <div className="flex flex-wrap gap-2 mb-2">
               {(form.signatureWords || []).map((w, i) => (
                 <span key={i} className="flex items-center gap-1.5 bg-primary/10 text-lime-brand text-xs px-3 py-1 rounded-full border border-primary/30 font-medium">
@@ -327,7 +326,7 @@ function BrandVoiceForm() {
       {activeSubTab === 'mechanics' && (
         <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-            ✍️ 4. Language Mechanics (Quy tắc xưng hô & hành văn)
+            4. Language Mechanics (Quy tắc xưng hô & hành văn)
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -359,10 +358,10 @@ function BrandVoiceForm() {
               onChange={(e) => setForm((f) => ({ ...f, emojiUsage: e.target.value as any }))}
               className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
             >
-              <option value="none">🚫 Không dùng emoji</option>
-              <option value="minimal">🔹 Tối thiểu (1-2 emoji điểm xuyết)</option>
-              <option value="moderate">✨ Vừa phải (3-5 emoji đúng vị trí)</option>
-              <option value="heavy">🔥 Nhiều (Sinh động, bắt mắt)</option>
+              <option value="none">Không dùng emoji</option>
+              <option value="minimal">Tối thiểu (1-2 emoji điểm xuyết)</option>
+              <option value="moderate">Vừa phải (3-5 emoji đúng vị trí)</option>
+              <option value="heavy">Nhiều (Sinh động, bắt mắt)</option>
             </select>
           </div>
 
@@ -394,13 +393,13 @@ function BrandVoiceForm() {
       {activeSubTab === 'variations' && (
         <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-            🔀 5. Context Variations (Biến thể theo kênh & tình huống)
+            5. Context Variations (Biến thể theo kênh & tình huống)
           </h3>
           <p className="text-xs text-muted-foreground">Tùy chỉnh tông giọng linh hoạt cho AI khi phát hành nội dung trên từng nền tảng hoặc tình huống cụ thể.</p>
 
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">🟦 Facebook Tone</label>
+              <label className="block text-xs font-semibold text-foreground mb-1">Facebook Tone</label>
               <input
                 type="text"
                 value={form.facebookTone || ''}
@@ -410,7 +409,7 @@ function BrandVoiceForm() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">💬 Zalo Tone</label>
+              <label className="block text-xs font-semibold text-foreground mb-1">Zalo Tone</label>
               <input
                 type="text"
                 value={form.zaloTone || ''}
@@ -420,7 +419,7 @@ function BrandVoiceForm() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">🌐 Website / Blog Tone</label>
+              <label className="block text-xs font-semibold text-foreground mb-1">Website / Blog Tone</label>
               <input
                 type="text"
                 value={form.websiteTone || ''}
@@ -430,7 +429,7 @@ function BrandVoiceForm() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">📣 Quảng cáo / Khuyến mãi Tone</label>
+              <label className="block text-xs font-semibold text-foreground mb-1">Quảng cáo / Khuyến mãi Tone</label>
               <input
                 type="text"
                 value={form.promotionalTone || ''}
@@ -440,7 +439,7 @@ function BrandVoiceForm() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">🙏 Xử lý khiếu nại / CSKH Tone</label>
+              <label className="block text-xs font-semibold text-foreground mb-1">Xử lý khiếu nại / CSKH Tone</label>
               <input
                 type="text"
                 value={form.customerServiceTone || ''}
@@ -457,7 +456,7 @@ function BrandVoiceForm() {
       {activeSubTab === 'references' && (
         <div className="space-y-4 bg-card border border-border rounded-xl p-5 shadow-sm">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-            📚 6. Reference Examples (Content mẫu & Benchmark)
+            6. Reference Examples (Content mẫu & Benchmark)
           </h3>
           <div>
             <label className="block text-xs font-semibold text-muted-foreground mb-1">Caption mẫu chuẩn benchmark (Dành cho AI học tập)</label>
