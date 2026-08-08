@@ -1,41 +1,35 @@
-from typing import List, Optional
-import logging
+"""Retry routing for the eight approved E01 evaluation criteria."""
+from collections.abc import Sequence
 
-logger = logging.getLogger(__name__)
 
-# Categories of failures
 CAPTION_CRITERIA = {
-    "brand_voice", "tone", "caption_length", "grammar", 
-    "missing_cta", "format_issue", "policy_violation"
+    "brand_voice",
+    "content_accuracy",
+    "platform_fit",
+    "pillar_relevance",
+    "originality",
 }
-
 VISUAL_CRITERIA = {
-    "visual_asset_fit", "text_on_image", "visual_quality", 
-    "aspect_ratio", "poor_contrast"
+    "visual_asset_fit",
+    "image_design_quality",
+    "mobile_readability",
 }
 
-def determine_retry_route(failed_criteria: List[str]) -> str:
-    """
-    Determine which agent to route to based on the failed criteria from E01.
-    Returns:
-        "D01" for caption issues.
-        "D02" for visual issues.
+
+def determine_retry_route(failed_criteria: Sequence[str]) -> str:
+    """Return D01 for caption failures and D02 for visual-only failures.
+
+    Invalid criteria are a data-integrity error and must not be silently routed.
     """
     if not failed_criteria:
-        logger.warning("Empty failed_criteria provided for retry routing. Defaulting to D01.")
+        raise ValueError("failed_criteria must contain at least one standard E01 criterion")
+
+    unknown_criteria = set(failed_criteria) - CAPTION_CRITERIA - VISUAL_CRITERIA
+    if unknown_criteria:
+        raise ValueError(f"Unknown E01 failed criteria: {sorted(unknown_criteria)}")
+
+    if any(criterion in CAPTION_CRITERIA for criterion in failed_criteria):
         return "D01"
-        
-    has_caption_issue = any(c in CAPTION_CRITERIA for c in failed_criteria)
-    has_visual_issue = any(c in VISUAL_CRITERIA for c in failed_criteria)
-    
-    # If there are caption issues, always route to D01 first.
-    # The workflow will naturally flow D01 -> D02 -> E01.
-    if has_caption_issue:
-        return "D01"
-        
-    if has_visual_issue:
+    if any(criterion in VISUAL_CRITERIA for criterion in failed_criteria):
         return "D02"
-        
-    # If criteria is unknown, default to D01 as a safe fallback
-    logger.warning(f"Unknown failed criteria: {failed_criteria}. Defaulting to D01.")
-    return "D01"
+    raise ValueError("failed_criteria did not identify a retry target")

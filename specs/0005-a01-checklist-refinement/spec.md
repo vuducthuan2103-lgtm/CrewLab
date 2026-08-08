@@ -41,7 +41,7 @@ Khai báo 5 Deferred Triggers (Chỉ để placeholder, không wire logic):
 ### 2.5. Business Rules Compliance
 - **Rule 3 (Concurrent Cycle)**: Precheck chỉ block cycle mới nếu cycle hiện tại CÒN ĐANG ở giai đoạn sản xuất (VD: `planned`, `writing`, `designing`, `evaluating`, `pending_content_approval`). Nếu đã qua `approved_ready_to_post` hoặc `posted` thì cho phép tạo cycle mới.
 - **Rule 6 (Read-Only State)**: A01 chỉ đọc state để dispatch, KHÔNG ghi đè state thay agent (ngoại trừ các trigger hệ thống như `asset_request_expired` ép về `asset_blocked`).
-- **Wake Reason Enum**: Chuẩn hoá `wake_reason` = `[scheduled, task_assigned, manual, retry]`.
+- **Wake Reason Enum**: Chuẩn hoá `wake_reason` = `[scheduled, task_assigned, retry]`. Giá trị `manual` bị loại khỏi Phase 1 theo Spec 0014 / Decision 0010.
 
 ## 3. Tiêu Chí Chấp Nhận (Acceptance Criteria)
 | ID | Tiêu Chí |

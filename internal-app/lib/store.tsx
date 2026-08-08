@@ -17,7 +17,7 @@ const AdminContext = createContext<AdminState | undefined>(undefined);
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [isDark, setIsDark] = useState(true);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const toggleTheme = () => {
     const nextDark = !isDark;

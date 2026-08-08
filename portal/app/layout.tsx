@@ -3,7 +3,7 @@ import './globals.css';
 import { PortalProvider } from '@/lib/store';
 
 export const metadata: Metadata = {
-  title: 'CrewLab Portal — Bardinh Coffee',
+  title: 'CrewLab Portal',
   description: 'Nền tảng quản lý nội dung AI dành cho F&B SME Việt Nam. Duyệt bài, theo dõi pipeline AI và quản lý thương hiệu của bạn.',
 };
 

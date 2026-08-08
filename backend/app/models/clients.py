@@ -27,6 +27,7 @@ class Client(Base):
     items = relationship("ContentItem", back_populates="client")
     assets = relationship("BrandAsset", back_populates="client")
     asset_requests = relationship("AssetRequest", back_populates="client")
+    portal_admin = relationship("ClientPortalAdmin", uselist=False)
 
 class BrandSetting(Base):
     __tablename__ = "brand_settings"
@@ -45,6 +46,7 @@ class BrandSetting(Base):
     sample_captions = Column(JSONB, nullable=True)
     logo_url = Column(String, nullable=True)
     posting_frequency = Column(JSONB, nullable=True)  # {"facebook": 3, "instagram": 2} — bài/tuần per platform
+    allow_ai_images = Column(Boolean, default=False, nullable=False)  # D02: cho phép tạo ảnh AI nếu không có ảnh thật
     
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)

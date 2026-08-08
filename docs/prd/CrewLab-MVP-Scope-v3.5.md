@@ -1,6 +1,6 @@
 # CrewLab — MVP Scope Cuối Cùng (v3.5) — 6 Agent (5 Content Agent + A01 Orchestrator)
 
-**Thay thế v3.4** | 25/07/2026 (cập nhật) | Dựa trên lựa chọn tính năng: **AI lọc chất lượng = CÓ | Đăng bài = tay | Học từ feedback = có (không đọc số liệu Meta)**
+**Thay thế v3.4** | 25/07/2026 (cập nhật) | **Scope amendment 03/08/2026** | Dựa trên lựa chọn tính năng: **AI lọc chất lượng = CÓ | Đăng bài = tay | Học từ feedback = có (không đọc số liệu Meta)**
 
 **Changelog v3 → v3.1:** (1) Chốt model tier E01 = Standard (khớp PRD v3.2, không còn để ngỏ Fast/Standard). (2) Bổ sung state `asset\_blocked` vào FSM mục 3, theo AC-WF-21 gốc PRD (asset\_request hết hạn → escalate, không tự dùng ảnh AI thay thế). (3) Mục 5 cập nhật: ngưỡng pass/fail E01 đã đồng bộ trong PRD v3.2, chỉ còn chờ ký xác nhận cuối.
 
@@ -11,6 +11,10 @@
 **Changelog v3.3 → v3.4 (bỏ chia sprint, thêm tiêu chí định lượng, ghi chú diễn giải scope):** (1) **Mục 6 viết lại hoàn toàn** — bỏ hẳn "Sprint 0 → Sprint 4" với số tuần ước lượng. Lý do: team không quản lý bằng sprint, nên số tuần áng chừng trước khi code tạo cảm giác chắc chắn giả; đồng thời chữ "Phase" ở mục này (2a/2b/2c) trùng tên nhưng khác nghĩa hoàn toàn với "PHASE 1-7" ở `CrewLab-Phase-Roadmap.md`, dễ gây nhầm khi đọc cả 2 file; và bảng sprint cũ cộng ra 8.0-8.5 nhưng dòng tổng kết lại ghi 8.5-9.5 — lệch không giải thích được. Thay bằng **trình tự build phụ thuộc** (cái sau cần cái trước), không gắn số tuần/sprint nào — thời gian thật sẽ lộ ra khi bắt tay code, không đoán trước. (2) Bỏ câu hỏi 5 ở mục 7 (đồng ý mức tăng sprint) vì không còn số sprint để hỏi. (3) Thêm mục 1e — ghi chú diễn giải kết quả pilot khi MVP không build State Architecture Layer (RAG/Hindsight/ingest) đầy đủ. (4) Manual posting cho Bardinh Coffee (quán nhà Trường) không phải vấn đề minh bạch khách hàng ở giai đoạn này — ghi chú chi tiết + mốc cần xử lý lại đặt ở `CrewLab-Phase-Roadmap.md` Phase 1 (nơi mô tả "đăng tay"), không lặp lại ở đây.
 
 **Changelog v3.4 → v3.5 (viết lại hoàn toàn Tầng 4 — Client Portal chi tiết cho 6 agent):** (1) **Tầng 4 viết lại hoàn toàn** — từ 7 dòng gạch đầu dòng sơ sài thành mô tả đầy đủ Client Portal MVP, đồng bộ với PRD-CrewLab v1.2 §7.5.3 nhưng chỉ giữ tính năng liên quan 6 agent MVP. (2) Thêm **Kanban Dashboard** (3 swimlane: Strategy/Creative/QA — bỏ Analytics), **Content Hub** (3 tab: Campaign placeholder + Pillar & Angle + Content Plan Calendar), **Content Approval Gate 2** (modal duyệt bài reuse từ Kanban lẫn Calendar), **Asset Request flow** (chỉ qua Portal, không Telegram), **Settings** (4 tab: Brand Voice, Thư viện ảnh, Model & Ngân sách, Tích hợp chỉ Meta status), **Notification Center** MVP. (3) **Bỏ Pixel Office / virtual office** — không build gì liên quan. (4) **Bỏ Direct Assign (T20)** khỏi Client Portal — đã defer ở mục 4. (5) **Bỏ Telegram bot/pairing** — giữ nguyên quyết định cũ. (6) **Bỏ Analytics Gate (Gate 3)** nội dung — mục Báo cáo trên sidebar chỉ hiện placeholder "Sắp ra mắt". (7) Giữ nút **"Đánh dấu đã đăng"** (quan trọng vì MVP đăng tay — PRD gốc không có vì có F01 auto-publish). (8) Cập nhật dòng #6 trong trình tự build mục 6 cho khớp scope Tầng 4 mới. (9) Thêm ghi chú endpoint `GET /api/v1/tasks/board` cần thiết cho Kanban, và yêu cầu mobile-first cho Content Approval + Asset Upload.
+
+**Scope amendment 03/08/2026:** Quản lý provider và API key theo từng client được đưa vào Phase 1. Agency Admin chọn tối đa 2 provider/client khi onboarding và quản lý key qua Internal App; Portal chỉ cho client chọn model/tier từ provider đã bật. Decision 0007 và Spec 0010 ghi nhận chi tiết và thay thế giả định API key chung của Phase 1.
+
+**Scope amendment 05/08/2026:** Bỏ nút `Chạy workflow test` và mọi nút `Chạy lại`/reopen thủ công khỏi Internal App. Portal thay form `Tạo Brief Mới` bằng màn hình chat nhiều lượt với A01 để hỏi, làm rõ và giao việc. Đây không phải Direct Assign T20: Direct Assign là bỏ qua A01 để giao thẳng cho một agent con. Khi A01 nhận một việc đủ rõ mà chưa có cycle active, backend được tạo cycle hiện tại nội bộ rồi A01 dispatch D01 bằng `task_assigned`; người dùng không có nút khởi chạy cycle. Xem Decision 0010 và Spec 0014.
 
 \---
 
@@ -49,21 +53,21 @@
 |`d01\_complete` *(mới — PRD gốc gộp D01→D02 làm 1 bước tuần tự, MVP tách trigger riêng cho dễ test)*|D02|✅ Active|
 |`d02\_complete` (visual\_ready)|E01|✅ Active|
 |`asset\_submitted`|D02 lại (không phải D01 — caption không đổi)|✅ Active|
-|`asset\_request\_expired` *(mới, xem mục 3)*|Set `asset\_blocked` + `notify\_agency\_admin`|✅ Active|
+|`asset\_request\_expired` *(mới, xem mục 3)*|Set `asset\_blocked` + ghi `task\_logs` (không push notification ở MVP)|✅ Active|
 |`eval\_failed` (còn lượt retry)|D01 hoặc D02 theo bảng retry-routing dưới|✅ Active|
-|`eval\_failed` (hard fail / hết lượt)|Set `rejected` + `notify\_agency\_admin`|✅ Active|
+|`eval\_failed` (hard fail / hết lượt)|Set `rejected` + ghi `task\_logs` (không push notification ở MVP)|✅ Active|
 |`content\_gate\_approved`|Set `approved\_ready\_to\_post` (không dispatch — đăng tay)|✅ Active|
+|`a01\_chat\_task\_created`|A01 dispatch D01 cho item được nhận qua hội thoại Portal|✅ Active|
 |`campaign\_created` / `campaign\_ended`|B01 / cleanup|⏸ Phase 5|
 |`publish\_due`|F01|⏸ Phase 3|
 |`analytics\_due`|G01|⏸ Phase 4|
 |`recommendation\_done`|P01 đầy đủ|⏸ Phase 4|
-|`direct\_assign`|Forward tới agent (T20)|⏸ Phase 5 (T20 đã defer ở mục 4)|
+|`direct\_assign`|Bỏ qua A01, forward thẳng tới agent con (T20)|⏸ Phase 5 (T20 đã defer ở mục 4)|
 
-**`wake\_reason` truyền xuống agent task (giữ nguyên 4 giá trị PRD gốc, cả 4 đều dùng ngay ở MVP):**
+**`wake\_reason` truyền xuống agent task (3 giá trị dùng trong MVP):**
 
 * `scheduled` — dispatch theo `beat\_weekly`
 * `task\_assigned` — dispatch task cụ thể (đa số trigger ở trên)
-* `manual` — Agency Admin bấm nút "Chạy lại" trên Internal App cho 1 content item (xem mục 2 Tầng 4)
 * `retry` — Celery tự retry sau lỗi hạ tầng — **KHÔNG tăng `eval\_retry\_count`** (business rule 5 dưới)
 
 **Business Rules:**
@@ -99,7 +103,7 @@
 
 **LLM Calls:** dùng tier Power.
 
-**Failure Behavior:** Dispatch fail → retry 2 lần → ghi `task\_logs` (mục 1d) + Telegram/notify Agency Admin. MVP chưa có DLQ replay UI (dời Phase 3 theo Roadmap) — Agency Admin xử lý bằng nút "Chạy lại" thủ công (`wake\_reason='manual'`), không phải requeue tự động.
+**Failure Behavior:** Dispatch fail → Celery tự retry tối đa 2 lần với `wake\_reason='retry'` → ghi `task\_logs` (mục 1d) để Agency Admin chẩn đoán. Phase 1 không có DLQ replay UI, nút chạy lại hoặc reopen thủ công; cơ chế recovery nâng cao dời Phase 3 theo Roadmap.
 
 \---
 
@@ -197,13 +201,14 @@ Cách làm này tránh đầu tư RAG/Hindsight theo lịch trình mặc định
 
 ### Tầng 4 — Client Portal + Internal App (viết lại hoàn toàn, v3.5)
 
-**Cắt so với PRD đầy đủ:** Không có Part E (Meta Graph API) — không OAuth, không webhook, không chờ Meta duyệt app. Không Pixel Office / virtual office. Không Direct Assign (T20, đã defer ở mục 4). Không Telegram bot / Telegram pairing. Không Analytics Gate (Gate 3) nội dung.
+**Cắt so với PRD đầy đủ:** Không có Part E (Meta Graph API) — không OAuth, không webhook, không chờ Meta duyệt app. Không Pixel Office / virtual office. Không Direct Assign T20, nghĩa là không giao thẳng agent con và bỏ qua A01 (đã defer ở mục 4). Chat và giao việc cho chính A01 vẫn thuộc MVP. Không Telegram bot / Telegram pairing. Không Analytics Gate (Gate 3) nội dung.
 
 #### 2a. Client Portal — Information Architecture MVP
 
 ```
 ┌─────────────────────────────────────────────┐
 │  📋 Bảng công việc (Kanban Dashboard)  ← màn hình chính sau login │
+│  💬 Trò chuyện A01 (hỏi, làm rõ, giao việc) │
 │  📁 Content Hub                              │
 │      ├─ Tab: Campaign (placeholder "Sắp ra mắt")  │
 │      ├─ Tab: Pillar & Angle                  │
@@ -219,7 +224,16 @@ Cách làm này tránh đầu tư RAG/Hindsight theo lịch trình mặc định
 └─────────────────────────────────────────────┘
 ```
 
-Sidebar/bottom-tab (mobile) chỉ hiện 5 mục chính: **Công việc** (Kanban), **Content** (Content Hub), **Báo cáo** (placeholder), **Thông báo**, **Cài đặt** — Asset Request truy cập qua notification/CTA từ Kanban, không chiếm chỗ cố định trên sidebar.
+Sidebar hiển thị **Công việc**, **Trò chuyện A01**, **Content**, **Báo cáo**, **Thông báo**, **Cài đặt**. Asset Request truy cập qua notification/CTA từ Kanban, không chiếm chỗ cố định trên sidebar.
+
+#### 2a.1. Trò chuyện và giao việc cho A01
+
+* Thay hoàn toàn nút/form `Tạo Brief Mới` bằng một màn hình chat nhiều lượt tương tự ChatGPT.
+* Client có thể hỏi, trao đổi ý tưởng và giao một yêu cầu nội dung cho A01. A01 hỏi lại nếu yêu cầu chưa đủ chủ đề, mục tiêu hoặc kênh đăng.
+* Lịch sử hội thoại được lưu tenant-scoped trong bảng Postgres `agent\_memory`; không thêm schema và không dùng Hindsight/ChromaDB.
+* Khi A01 xác định yêu cầu đủ rõ, A01 tạo một `content\_item` trạng thái `planned`, gắn cycle active. Nếu chưa có cycle active, backend tự tạo cycle hiện tại ở `content\_production`; không lộ nút start/test cycle trên UI.
+* Portal chỉ gửi message cho A01. A01 phát trigger `a01\_chat\_task\_created` và dispatch D01 với `wake\_reason='task\_assigned'`; Portal không chọn hoặc gọi agent con.
+* UI bắt buộc có loading, empty, success và inline error state; lỗi API không được bật runtime overlay của Next.js.
 
 #### 2b. Kanban Dashboard MVP — Bảng quản lý Task cho 6 agent
 
@@ -387,7 +401,7 @@ Actions:
 * **Approve with edit** — sửa caption/giờ đăng → save → approve. Nếu sửa caption: lưu `client_edited_caption`, P01-lite ghi feedback cho D01
 * **Reject with reason** — dropdown taxonomy: `tone_wrong`, `info_incorrect`, `visual_poor`, `wrong_asset`, `off_brand`, `bad_timing`, `other` + text feedback tự do. Route retry qua A01 (mục 1a)
 
-Nút Approve chỉ enabled khi caption và giờ đăng ở trạng thái saved. Sau approve, lock cho Client Admin; chỉ Agency Admin reopen được.
+Nút Approve chỉ enabled khi caption và giờ đăng ở trạng thái saved. Sau approve, item bị lock trong Phase 1; không có action reopen thủ công.
 
 **Yêu cầu mobile-first:** Modal duyệt bài và Asset Upload (2f) phải responsive mobile-first — SME xem điện thoại nhiều hơn desktop.
 
@@ -428,7 +442,8 @@ Nút Approve chỉ enabled khi caption và giờ đăng ở trạng thái saved.
 
 **Tab 3 — Model & Ngân sách:**
 * Dropdown model theo agent — **chỉ hiện 6 agent MVP** (A01, B02, B03, D01, D02, E01), nhóm theo provider, gắn nhãn tier Fast/Standard/Power
-* Chỉ hiện model thuộc provider Agency Admin đã enable + cấu hình key
+* Client **chỉ đổi model/tier và ngân sách**; không có control đổi provider hay API key trên Portal
+* Chỉ hiện model thuộc tối đa 2 provider đã được Agency Admin chọn lúc onboarding và enable + cấu hình key riêng cho client đó qua Internal App
 * Budget cap input per agent (USD/tháng), hiệu lực ≤ 5 phút
 * D02 có dropdown riêng cho image model
 
@@ -458,8 +473,8 @@ Các màn hình giữ slot trên sidebar nhưng nội dung chỉ hiện thông b
 * Onboarding client cơ bản
 * Xem content item theo trạng thái
 * **Màn `task_logs`** (mục 1d, filter theo content\_item\_id/agent\_code)
-* **Nút "Chạy lại"** cho 1 content item (gọi A01 với `wake_reason='manual'`, tự dispatch đúng agent theo state hiện tại)
-* Không cần DLQ phức tạp / replay UI (dời Phase 3 theo Roadmap)
+* Debug view chỉ đọc; không có nút `Chạy workflow test`, `Chạy lại` hoặc reopen content item
+* Không có DLQ phức tạp / replay UI (dời Phase 3 theo Roadmap)
 
 #### 2k. Bảng tổng hợp — Tính năng bỏ/defer so với PRD đầy đủ
 
@@ -467,7 +482,7 @@ Các màn hình giữ slot trên sidebar nhưng nội dung chỉ hiện thông b
 |-|-|
 |Pixel Office (§7.5.3.1)|Virtual office concept — không build|
 |Analytics swimlane + Gate 3 (§7.5.3.4)|G01-G04 chưa build|
-|Direct Assign T20 (§7.5.3.6)|Defer — đã ghi ở mục 4|
+|Direct Assign T20 (§7.5.3.6)|Defer việc bỏ qua A01 để giao thẳng agent con; chat/giao việc cho A01 vẫn có ở 2a.1|
 |Card task F01 trên Kanban|F01 chưa build, đăng tay|
 |Tab Campaign nội dung trong Content Hub|B01 IMC chưa build (chỉ Mode B)|
 |Tab Lịch đăng bài trong Settings|Đăng tay, không cần config schedule auto|
@@ -486,10 +501,9 @@ planned
   → caption\_generating          (D01)
   → visual\_matching
   → waiting\_asset                 (thiếu ảnh thật → tạo asset\_request, chờ chủ quán nộp ảnh)
-  → asset\_blocked                 (MỚI — chỉ khi asset\_request hết hạn trong lúc waiting\_asset: escalate
-                                    Agency Admin, KHÔNG tự dùng ảnh AI/fallback, KHÔNG tự reject —
-                                    Agency Admin xử lý tay rồi mới đưa item quay lại visual\_matching
-                                    hoặc reject thủ công — theo AC-WF-21 gốc PRD)
+  → asset\_blocked                 (MỚI — chỉ khi asset\_request hết hạn trong lúc waiting\_asset: ghi task\_logs + state\_log,
+                                    hiện trên Internal App, KHÔNG push notification, KHÔNG tự dùng ảnh AI/fallback,
+                                    KHÔNG tự reject; Phase 1 giữ item để chẩn đoán, không có nút retry/reopen thủ công)
   → visual\_generating              (D02 — chạy khi asset đã có, dù đến từ waiting\_asset bình thường
                                     hay từ asset\_blocked đã được Agency Admin resolve)
   → evaluating                      (E01 chấm điểm)
@@ -538,7 +552,7 @@ planned
 |3|A01 Orchestrator (agent thứ 6 — trigger routing, retry-routing table, DispatchInstruction, idempotency, mục 1a)|5 agent nội dung cần A01 dispatch tới mới chạy được — viết trước để có khung test|
 |4|Context Packet MVP + P01-lite + Observability tối giản (mục 1b/1c/1d)|Mọi agent nội dung đều gọi `build\_context\_packet\_mvp()` và ghi `task\_logs` — cần có trước khi 5 agent nội dung chạy|
 |5|5 agent nội dung (B02/B03/D01/D02/E01) + FSM/state transitions + retry loop E01|Phần lõi tạo ra output thật — việc lớn nhất, làm sau khi khung dispatch/context đã sẵn|
-|6|Portal (Kanban Dashboard 3 swimlane + Content Hub 3 tab + Content Approval Gate 2 + Asset Request + Settings 4 tab + Notification Center + nút "Đánh dấu đã đăng" + placeholder pages) + Internal App (`task\_logs` + nút Chạy lại)|Cần có agent chạy ra output thật rồi mới build UI để duyệt nó — scope Tầng 4 chi tiết xem mục 2a–2k|
+|6|Portal (Kanban Dashboard 3 swimlane + chat A01 + Content Hub 3 tab + Content Approval Gate 2 + Asset Request + Settings 4 tab + Notification Center + nút "Đánh dấu đã đăng" + placeholder pages) + Internal App (`task\_logs` read-only)|Cần có agent chạy ra output thật rồi mới build UI để duyệt và giao việc — scope Tầng 4 chi tiết xem mục 2a–2k|
 |7|Hardening nhẹ + pilot thật tại Bardinh Coffee (đăng tay)|Bước cuối, sau khi mọi phần trên đã chạy được|
 
 Không ước lượng thời gian cho từng dòng trong tài liệu này. Nếu cần một con số tổng để lên kế hoạch (vd báo với ai đó ngoài team), khuyến nghị chạy thật dòng 1-4 trước rồi mới tự ước lượng phần còn lại dựa trên tốc độ thật đã quan sát được, thay vì đoán trước khi có dữ liệu — sprint estimate lần đầu chưa chạy thật gần như luôn lạc quan, nhất là khi code cùng AI coding assistant (rework/debug thường tốn thời gian hơn dự đoán).

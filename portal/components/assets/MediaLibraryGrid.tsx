@@ -1,11 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { usePortal } from '@/lib/store';
 import { MediaAsset, AssetSource } from '@/lib/types';
-import { X, Tag, Info, Trash2, Search } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { X, Tag, Info, Trash2, Search, Upload, Loader2 } from 'lucide-react';
 
 type FilterTab = 'all' | 'ai_generated' | 'real_photo' | 'pending_review';
+
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 const FILTER_TABS: { key: FilterTab; label: string }[] = [
   { key: 'all', label: 'Tất cả' },
@@ -85,10 +89,13 @@ function AssetDetailPanel({ asset, onClose }: { asset: MediaAsset; onClose: () =
 }
 
 export default function MediaLibraryGrid() {
-  const { mediaAssets } = usePortal();
+  const { mediaAssets, uploadAsset } = usePortal();
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [search, setSearch] = useState('');
   const [selectedAsset, setSelectedAsset] = useState<MediaAsset | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = mediaAssets.filter((a) => {
     const matchFilter = activeFilter === 'all' || a.source === activeFilter;
@@ -103,6 +110,33 @@ export default function MediaLibraryGrid() {
     real_photo: mediaAssets.filter((a) => a.source === 'real_photo').length,
     ai_generated: mediaAssets.filter((a) => a.source === 'ai_generated').length,
     pending_review: mediaAssets.filter((a) => a.source === 'pending_review').length,
+  };
+
+  const handleUploadFiles = (files: FileList | null) => {
+    if (!files?.length || uploading) return;
+    const selectedFiles = Array.from(files);
+    const invalidType = selectedFiles.find((file) => !ACCEPTED_IMAGE_TYPES.includes(file.type));
+    if (invalidType) {
+      setUploadError('Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP.');
+      return;
+    }
+    const tooLarge = selectedFiles.find((file) => file.size > MAX_UPLOAD_BYTES);
+    if (tooLarge) {
+      setUploadError('Mỗi ảnh tối đa 50 MB.');
+      return;
+    }
+
+    setUploading(true);
+    setUploadError(null);
+    void (async () => {
+      try {
+        for (const file of selectedFiles) await uploadAsset(file);
+      } catch (cause) {
+        setUploadError(cause instanceof Error ? cause.message : 'Không thể tải ảnh lên.');
+      } finally {
+        setUploading(false);
+      }
+    })();
   };
 
   return (
@@ -141,7 +175,30 @@ export default function MediaLibraryGrid() {
             className="w-full pl-8 pr-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
           />
         </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(event) => {
+            handleUploadFiles(event.target.files);
+            event.target.value = '';
+          }}
+        />
+        <Button
+          id="media-library-upload-btn"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="ml-auto"
+        >
+          {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+          {uploading ? 'Đang tải...' : 'Tải ảnh lên'}
+        </Button>
       </div>
+      {uploadError && <p className="mb-4 text-xs text-red-400">{uploadError}</p>}
 
       {/* Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">

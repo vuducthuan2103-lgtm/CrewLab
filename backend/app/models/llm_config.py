@@ -21,7 +21,7 @@ class ClientLLMConfig(Base):
         index=True,
     )
     agent_code = Column(String, nullable=False)  # A01, B02, B03, D01, D02, E01
-    provider = Column(String, nullable=False, default="openai")  # openai, anthropic, google
+    provider = Column(String, nullable=False, default="openai")  # openai, anthropic, google, deepseek
     model = Column(String, nullable=False, default="gpt-4o")
     tier = Column(String, nullable=False, default="standard")  # fast, standard, power
     budget_usd = Column(Numeric(10, 2), nullable=True)

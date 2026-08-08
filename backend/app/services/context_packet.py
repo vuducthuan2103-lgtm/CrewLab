@@ -32,6 +32,7 @@ async def build_context_packet(session: AsyncSession, client_id: uuid.UUID):
             "writing_style": brand_setting.writing_style,
             "sample_captions": brand_setting.sample_captions,
             "posting_frequency": brand_setting.posting_frequency,
+            "allow_ai_images": getattr(brand_setting, "allow_ai_images", False),
         }
         
     # 2. Fetch Episodic Memory (Last 5 memories + All human_feedback in last 30 days)

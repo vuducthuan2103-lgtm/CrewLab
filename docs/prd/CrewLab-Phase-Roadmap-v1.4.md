@@ -1,6 +1,6 @@
 # CrewLab — Phase Roadmap Toàn Dự Án
 
-**v1.4** | 25/07/2026 (cập nhật) | Đọc cùng: [PRD-CrewLab.md](file:///d:/CrewLab/docs/prd/PRD-CrewLab.md) (full vision), [MVP-Scope-v3.5.md](file:///d:/CrewLab/docs/prd/CrewLab-MVP-Scope-v3.5.md) (điểm khởi đầu thật + trình tự build Phase 1)
+**v1.5** | 03/08/2026 (cập nhật) | Đọc cùng: [PRD-CrewLab.md](file:///d:/CrewLab/docs/prd/PRD-CrewLab.md) (full vision), [MVP-Scope-v3.5.md](file:///d:/CrewLab/docs/prd/CrewLab-MVP-Scope-v3.5.md) (điểm khởi đầu thật + trình tự build Phase 1)
 
 **Changelog v1 → v1.1:** (1) Bổ sung số liệu đề xuất cho các ô \[X] ở Tiêu chí Pass Phase 2 — đánh dấu 🔶 vì cần Trường xác nhận, chưa phải số chốt cuối. (2) Dời "Dead Letter Queue thật" từ Phase 6 → Phase 3 (lý do: automation nền không người canh xuất hiện từ Phase 3, không phải Phase 6). (3) Thêm mốc bắt đầu nộp Meta App Review song song từ Phase 2. (4) Thêm công thức định lượng cho nhánh rẽ Phase 2→Phase 6. Không có thay đổi cấu trúc phase nào khác.
 
@@ -10,6 +10,10 @@
 
 **Changelog v1.3 → v1.4 (đồng bộ MVP-Scope v3.5 + PRD-CrewLab v1.2):** (1) Cập nhật tham chiếu file: `PRD-Master-v3.2.md` → `PRD-CrewLab.md` (PRD mới gộp lại), `MVP-Scope-v3.4.md` → `MVP-Scope-v3.5.md`. (2) Phase 1 "Xây" — cập nhật mô tả Client Portal từ sơ sài ("ẩn điểm E01") thành chi tiết đồng bộ với MVP-Scope v3.5 §2a–2k: Kanban Dashboard (3 swimlane), Content Hub (3 tab), Content Approval (Gate 2), Asset Request, Settings (4 tab), Notification Center, nút "Đánh dấu đã đăng", placeholder pages (Báo cáo, Campaign tab). (3) Ghi rõ bỏ Pixel Office / virtual office khỏi Phase 1 (không build). (4) Không thay đổi cấu trúc phase, Tiêu chí Pass, hay scope của Phase 2–7.
 
+**Changelog v1.4 → v1.5 (quyết định scope 2026-08-03):** Đưa quản lý provider và API key theo từng client từ Phase 6 lên Phase 1. Agency Admin chọn tối đa 2 provider/client khi onboarding và quản lý key trong Internal App; Portal chỉ cho client chọn model/tier từ provider đã được bật. Chi tiết tại Decision 0007 và Spec 0010.
+
+**Changelog v1.5 → v1.6 (quyết định scope 2026-08-05):** Bỏ nút `Chạy workflow test` và `Chạy lại`/reopen thủ công trong Phase 1. Thay form `Tạo Brief Mới` bằng chat nhiều lượt để hỏi và giao việc cho A01. Direct Assign T20 vẫn defer vì thuật ngữ này chỉ việc bỏ qua A01 để giao thẳng agent con. Chi tiết tại Decision 0010 và Spec 0014.
+
 **Cách đọc file này:** Đây là bức tranh toàn cảnh — MVP (6 agent) chỉ là Phase 1. PRD gốc (full vision) có đủ 12 agent + auto-publish + analytics, nhưng tụi tao chủ động đi từng bước, validate xong mới build tiếp bước sau. File này là **nguồn canonical cho câu hỏi "phase nào build gì"** — PRD-CrewLab §8 đã cập nhật để trỏ ngược về đây, không còn mâu thuẫn kiểu "Phase 1 phải đủ 12 agent" như PRD cũ. Mỗi phase dưới đây trả lời 4 câu: **Xây gì / Cải thiện gì / Vận hành gì / Tiêu chí Pass**.
 
 \---
@@ -18,7 +22,7 @@
 
 *(Trình tự build xem `MVP-Scope-v3.5.md` §6 — không chia sprint, xem changelog v1.3)*
 
-**Xây:** State Architecture rút gọn (C1/C6/C7, agent\_memory thay Hindsight) · 6 agent (B02, B03, D01, D02, E01, và A01 Orchestrator — kiến trúc đầy đủ, 10 trigger active theo MVP-Scope v3.5 §1a) · FSM + retry loop · Client Portal (Kanban Dashboard 3 swimlane, Content Hub 3 tab, Content Approval Gate 2 ẩn điểm E01, Asset Request, Settings 4 tab, Notification Center, nút "Đánh dấu đã đăng", placeholder pages — chi tiết xem MVP-Scope v3.5 §2a–2k; không có Pixel Office/virtual office, không Direct Assign, không Telegram bot) · Internal App cơ bản (task\_logs + nút Chạy lại)
+**Xây:** State Architecture rút gọn (C1/C6/C7, agent\_memory thay Hindsight) · 6 agent (B02, B03, D01, D02, E01, và A01 Orchestrator — kiến trúc đầy đủ, trigger active theo MVP-Scope v3.5 §1a) · FSM + retry loop tự động · Client Portal (Kanban Dashboard 3 swimlane, chat nhiều lượt để giao việc cho A01, Content Hub 3 tab, Content Approval Gate 2 ẩn điểm E01, Asset Request, Settings 4 tab, Notification Center, nút "Đánh dấu đã đăng", placeholder pages — chi tiết xem MVP-Scope v3.5 §2a–2k; không có Pixel Office/virtual office, không Direct Assign bỏ qua A01, không Telegram bot) · Internal App cơ bản (`task\_logs` và debug read-only, không workflow-test/manual retry) · LLM Provider & API Key Management theo từng client (onboarding chọn tối đa 2 provider; Portal chỉ model/tier)
 
 **Cải thiện:** N/A (đây là lần xây đầu, chưa có gì để cải thiện)
 
@@ -156,7 +160,6 @@ Chất lượng output đủ dùng thật, đo bằng: lấy 10 bài gần nhấ
 
 **Xây:**
 
-* LLM Provider \& API Key Management đa client
 * LLM Usage \& Budget Dashboard (theo dõi chi phí per-client, tránh 1 client đốt budget agency)
 * Telegram Bot Pairing — kênh thông báo quen thuộc cho chủ quán không rành tech
 * *(DLQ thật đã build ở Phase 3 — xem ghi chú ở đó, không lặp lại ở đây. Phase 6 chỉ cần đảm bảo DLQ chịu tải tốt khi nhiều client chạy song song, không phải xây mới từ đầu)*

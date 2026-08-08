@@ -22,13 +22,13 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
-from app.core.db import Base, settings
+from app.core.db import Base, database_runtime_url
 import app.models
 
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
 
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", database_runtime_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -77,6 +77,11 @@ async def run_async_migrations() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=(
+            {"statement_cache_size": 0}
+            if ":6543/" in database_runtime_url
+            else {}
+        ),
     )
 
     async with connectable.connect() as connection:

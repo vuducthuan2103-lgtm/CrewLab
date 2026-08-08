@@ -12,6 +12,7 @@ import {
   LogOut,
   Shield,
 } from 'lucide-react';
+import { signOut } from '@/lib/supabase';
 
 const NAV_ITEMS = [
   { href: '/', icon: Users, label: 'Clients' },
@@ -27,7 +28,8 @@ export default function AdminSidebar() {
     return pathname.startsWith(href);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut();
     router.push('/login');
   };
 
