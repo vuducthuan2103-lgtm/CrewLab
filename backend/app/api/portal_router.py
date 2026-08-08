@@ -27,6 +27,7 @@ from app.api.schemas import (
     BrandVoiceUpdate, AgentConfigUpdate,
     PillarOut, AssetRequestOut, BrandAssetOut,
     A01ChatRequest, A01ChatMessageOut,
+    PortalBootstrapOut,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,80 @@ AsyncSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_com
 async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
+
+
+@router.get("/bootstrap", response_model=ApiResponse[PortalBootstrapOut])
+async def get_portal_bootstrap(
+    auth: AuthContext = Depends(get_current_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    client = await db.get(Client, auth.client_id)
+    if client is None or not client.is_active:
+        raise HTTPException(status_code=403, detail="Portal client is unavailable")
+
+    cycle = await db.scalar(
+        select(WorkflowCycle)
+        .where(WorkflowCycle.client_id == auth.client_id)
+        .order_by(WorkflowCycle.created_at.desc())
+        .limit(1)
+    )
+    task_result = await db.execute(
+        select(TaskLog)
+        .where(TaskLog.client_id == auth.client_id)
+        .order_by(TaskLog.created_at.desc())
+        .limit(50)
+    )
+    content_items = []
+    pillars = []
+    if cycle is not None:
+        content_result = await db.execute(
+            select(ContentItem)
+            .where(
+                ContentItem.client_id == auth.client_id,
+                ContentItem.cycle_id == cycle.id,
+            )
+            .order_by(ContentItem.created_at.desc())
+        )
+        content_items = [
+            ContentItemOut.model_validate(item)
+            for item in content_result.scalars().all()
+        ]
+        pillar_result = await db.execute(
+            select(ContentPillar)
+            .where(
+                ContentPillar.client_id == auth.client_id,
+                ContentPillar.cycle_id == cycle.id,
+            )
+            .order_by(ContentPillar.created_at.asc())
+        )
+        pillars = [PillarOut.model_validate(item) for item in pillar_result.scalars().all()]
+
+    return ApiResponse(
+        success=True,
+        data={
+            "viewer": {
+                "user_id": auth.user_id,
+                "email": auth.email,
+                "role": auth.role,
+            },
+            "client": {
+                "id": client.id,
+                "brand_name": client.brand_name,
+            },
+            "work_board": {
+                "content_items": content_items,
+                "task_logs": [
+                    TaskLogOut.model_validate(item)
+                    for item in task_result.scalars().all()
+                ],
+                "pillars": pillars,
+                "schedule": {
+                    "cycle_id": cycle.id if cycle else None,
+                    "phase": cycle.phase if cycle else None,
+                },
+            },
+        },
+    )
 
 
 def _a01_chat_message(memory: AgentMemory) -> A01ChatMessageOut:

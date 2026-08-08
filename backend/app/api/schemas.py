@@ -160,6 +160,35 @@ class PillarOut(BaseModel):
         from_attributes = True
 
 
+class PortalViewerOut(BaseModel):
+    user_id: UUID
+    email: Optional[str] = None
+    role: str
+
+
+class PortalClientOut(BaseModel):
+    id: UUID
+    brand_name: str
+
+
+class PortalScheduleOut(BaseModel):
+    cycle_id: Optional[UUID] = None
+    phase: Optional[str] = None
+
+
+class PortalWorkBoardOut(BaseModel):
+    content_items: list[ContentItemOut]
+    task_logs: list[TaskLogOut]
+    pillars: list[PillarOut]
+    schedule: PortalScheduleOut
+
+
+class PortalBootstrapOut(BaseModel):
+    viewer: PortalViewerOut
+    client: PortalClientOut
+    work_board: PortalWorkBoardOut
+
+
 class AssetRequestOut(BaseModel):
     id: UUID
     content_item_id: UUID
