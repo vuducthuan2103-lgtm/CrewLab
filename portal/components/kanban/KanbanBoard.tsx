@@ -7,10 +7,10 @@ import { TaskCard as TaskCardType, TeamDesk, KanbanColumn } from '@/lib/types';
 import Swimlane from './Swimlane';
 import { ChevronLeft, ChevronRight, LayoutDashboard, MessageSquareText } from 'lucide-react';
 
-const DESKS: { desk: TeamDesk; label: string; emoji: string }[] = [
-  { desk: 'strategy', label: 'STRATEGY DESK', emoji: '🧭' },
-  { desk: 'creative', label: 'CREATIVE DESK', emoji: '✍️' },
-  { desk: 'qa', label: 'QA DESK', emoji: '✅' },
+const DESKS: { desk: TeamDesk; label: string }[] = [
+  { desk: 'strategy', label: 'STRATEGY DESK' },
+  { desk: 'creative', label: 'CREATIVE DESK' },
+  { desk: 'qa', label: 'QA DESK' },
 ];
 
 const COLUMNS: KanbanColumn[] = ['todo', 'in_progress', 'review', 'done'];
@@ -127,12 +127,11 @@ export default function KanbanBoard() {
 
       {/* Swimlanes */}
       <div className="space-y-4">
-        {DESKS.map(({ desk, label, emoji }) => (
+        {DESKS.map(({ desk, label }) => (
           <Swimlane
             key={desk}
             desk={desk}
             deskLabel={label}
-            deskEmoji={emoji}
             tasks={filteredTasks.filter((t) => t.desk === desk)}
             stats={getStats(desk, tasks)}
           />

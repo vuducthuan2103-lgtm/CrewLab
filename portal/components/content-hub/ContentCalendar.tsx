@@ -25,12 +25,10 @@ function StateDot({ state }: { state: ContentItem['state'] }) {
 }
 
 function DayCell({
-  dayLabel,
   date,
   items,
   onItemClick,
 }: {
-  dayLabel: string;
   date: number;
   items: ContentItem[];
   onItemClick: (item: ContentItem) => void;
@@ -41,7 +39,6 @@ function DayCell({
     <div className={`border-r border-border last:border-r-0 p-2 min-h-[120px] ${isToday ? 'bg-accent-tint' : ''}`}>
       {/* Day header */}
       <div className={`text-center mb-2 ${isToday ? 'text-lime-brand' : 'text-muted-foreground'}`}>
-        <p className="text-[10px] font-bold uppercase">{dayLabel}</p>
         <p className={`text-xs font-semibold mt-0.5 w-6 h-6 rounded-full mx-auto flex items-center justify-center ${
           isToday ? 'bg-lime-brand shadow-accent-glow' : ''
         }`}>
@@ -207,7 +204,6 @@ export default function ContentCalendar() {
           {WEEK_DAYS.map((day, i) => (
             <DayCell
               key={day}
-              dayLabel={day}
               date={WEEK_DATES[i]}
               items={itemsByDay[i] || []}
               onItemClick={(item) => setSelectedItem(item)}
