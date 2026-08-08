@@ -1,46 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=JetBrains+Mono:wght@400;500;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* ─── Light Mode — High Contrast, Deeper Emerald ─── */
-    --background: 220 20% 97%;
-    --foreground: 222 47% 9%;
+    color-scheme: dark;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 9%;
+    --crew-primary: #D4FF00;
+    --crew-primary-hover: #E5FF55;
+    --crew-on-primary: #09090B;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 9%;
-
-    /* Light Mode Accent — Deep Forest Emerald #035E47 (darker, 12:1 contrast on white) */
-    --primary: 162 92% 19%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 220 14% 92%;
-    --secondary-foreground: 222 47% 9%;
-
-    --muted: 220 14% 93%;
-    --muted-foreground: 222 20% 28%;
-
-    --accent: 162 92% 19%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 76% 50%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 220 13% 68%;
-    --input: 220 13% 68%;
-    --ring: 162 92% 19%;
-
-    --radius: 0.75rem;
-  }
-
-  .dark {
-    /* Dark Obsidian Theme (#09090B) */
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
 
@@ -50,7 +19,6 @@
     --popover: 240 6% 8%;
     --popover-foreground: 0 0% 98%;
 
-    /* CrewLab Electric Lime in Dark Mode: #D4FF00 -> HSL 72 100% 50% */
     --primary: 72 100% 50%;
     --primary-foreground: 240 10% 3.9%;
 
@@ -69,161 +37,129 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 72 100% 50%;
-  }
-}
 
-@layer base {
+    --radius: 0.75rem;
+  }
+
   * {
     @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
+    @apply min-h-screen bg-background font-sans text-foreground antialiased;
+    transition-property: background-color, color;
+    transition-duration: 300ms;
+    transition-timing-function: ease-in-out;
   }
 }
 
-/* ─── Theme-Aware Brand Utilities ─────────────────────────── */
-/* TEXT: Emerald in light, Lime in dark */
+/* Dark-only brand utilities retained for existing Portal components. */
 .text-lime-brand {
-  color: #035E47;
-  font-weight: 600;
-}
-.dark .text-lime-brand {
-  color: #D4FF00;
+  color: var(--crew-primary);
   font-weight: inherit;
 }
 
-/* BG: Emerald in light, Lime in dark */
-.bg-lime-brand {
-  background-color: #035E47;
-  color: #FFFFFF;
-}
-.dark .bg-lime-brand {
-  background-color: #D4FF00;
-  color: #09090B;
+.bg-lime-brand,
+.btn-lime-glow {
+  background-color: var(--crew-primary);
+  color: var(--crew-on-primary);
 }
 
-/* BORDER */
 .border-lime-brand {
-  border-color: #047857;
-}
-.dark .border-lime-brand {
-  border-color: #D4FF00;
+  border-color: var(--crew-primary);
 }
 
-/* ─── Accent BG tints (opacity variants) ──────────────────── */
 .bg-accent-tint {
-  background-color: rgba(3, 94, 71, 0.10);
-}
-.dark .bg-accent-tint {
-  background-color: rgba(212, 255, 0, 0.10);
+  background-color: rgb(212 255 0 / 10%);
 }
 
 .bg-accent-tint-15 {
-  background-color: rgba(3, 94, 71, 0.15);
-}
-.dark .bg-accent-tint-15 {
-  background-color: rgba(212, 255, 0, 0.15);
+  background-color: rgb(212 255 0 / 15%);
 }
 
-/* Border accent tints */
 .border-accent-tint {
-  border-color: rgba(4, 120, 87, 0.30);
-}
-.dark .border-accent-tint {
-  border-color: rgba(212, 255, 0, 0.30);
+  border-color: rgb(212 255 0 / 30%);
 }
 
 .border-accent-tint-20 {
-  border-color: rgba(4, 120, 87, 0.20);
-}
-.dark .border-accent-tint-20 {
-  border-color: rgba(212, 255, 0, 0.20);
+  border-color: rgb(212 255 0 / 20%);
 }
 
-/* Shadow accent */
 .shadow-accent-glow {
-  box-shadow: 0 0 12px rgba(4, 120, 87, 0.15);
-}
-.dark .shadow-accent-glow {
-  box-shadow: 0 0 12px rgba(212, 255, 0, 0.25);
+  box-shadow: 0 0 12px rgb(212 255 0 / 25%);
 }
 
-/* ─── Button lime glow ────────────────────────────────────── */
 .btn-lime-glow {
-  background-color: #035E47;
-  color: #FFFFFF;
-  box-shadow: 0 0 12px rgba(3, 94, 71, 0.2);
-  transition: all 0.2s ease-in-out;
+  box-shadow: 0 0 20px rgb(212 255 0 / 25%);
+  transition-property: background-color, box-shadow, transform, opacity;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
 }
-.dark .btn-lime-glow {
-  background-color: #D4FF00;
-  color: #09090B;
-  box-shadow: 0 0 20px rgba(212, 255, 0, 0.35);
-}
+
 .btn-lime-glow:hover {
-  background-color: #024E3B;
+  background-color: var(--crew-primary-hover);
+  box-shadow: 0 0 24px rgb(212 255 0 / 35%);
   transform: translateY(-1px);
 }
-.dark .btn-lime-glow:hover {
-  background-color: #E5FF55;
-  box-shadow: 0 0 30px rgba(212, 255, 0, 0.55);
+
+.btn-lime-glow:active {
+  transform: scale(0.98);
 }
 
 .border-lime-glow {
-  border-color: #047857;
-  box-shadow: 0 0 10px rgba(4, 120, 87, 0.15);
-}
-.dark .border-lime-glow {
-  border-color: #D4FF00;
-  box-shadow: 0 0 15px rgba(212, 255, 0, 0.2);
+  border-color: var(--crew-primary);
+  box-shadow: 0 0 12px rgb(212 255 0 / 20%);
 }
 
-/* ─── Focus ring for inputs ───────────────────────────────── */
-.focus-accent:focus {
-  border-color: #047857;
-  box-shadow: 0 0 0 2px rgba(4, 120, 87, 0.15);
-}
-.dark .focus-accent:focus {
-  border-color: rgba(212, 255, 0, 0.6);
-  box-shadow: 0 0 0 2px rgba(212, 255, 0, 0.15);
-}
-
-/* ─── Custom Range Slider ───────────────────────────────────── */
-input[type='range'] {
-  -webkit-appearance: none;
-  appearance: none;
+.focus-accent:focus-visible {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
   outline: none;
-  border: none;
-  background: transparent;
 }
-input[type='range']::-webkit-slider-thumb {
-  -webkit-appearance: none;
+
+input[type='range'] {
   appearance: none;
+  border: 0;
+  background: transparent;
+  outline: none;
+}
+
+input[type='range']::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
+  appearance: none;
+  border: 2px solid var(--crew-on-primary);
   border-radius: 50%;
-  background-color: #035E47;
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  background-color: var(--crew-primary);
+  box-shadow: 0 0 8px rgb(212 255 0 / 35%);
   cursor: pointer;
-  box-shadow: 0 0 8px rgba(3, 94, 71, 0.3);
-  transition: transform 0.15s ease;
+  transition: transform 150ms ease-in-out;
 }
-.dark input[type='range']::-webkit-slider-thumb {
-  background-color: #D4FF00;
-  border: 2px solid rgba(0, 0, 0, 0.15);
-  box-shadow: 0 0 10px rgba(212, 255, 0, 0.5);
-}
+
 input[type='range']::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
 }
+
 input[type='range']::-moz-range-thumb {
   width: 18px;
   height: 18px;
+  border: 2px solid var(--crew-on-primary);
   border-radius: 50%;
-  background-color: #035E47;
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  background-color: var(--crew-primary);
   cursor: pointer;
 }
-.dark input[type='range']::-moz-range-thumb {
-  background-color: #D4FF00;
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

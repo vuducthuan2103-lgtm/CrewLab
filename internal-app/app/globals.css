@@ -1,45 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=JetBrains+Mono:wght@400;500;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* Light Mode — Admin (Zinc/White base) */
-    --background: 0 0% 98%;
-    --foreground: 240 10% 3.9%;
+    color-scheme: dark;
 
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --crew-primary: #D4FF00;
+    --crew-primary-hover: #E5FF55;
+    --crew-on-primary: #09090B;
+    --crew-admin-accent: #22D3EE;
+    --crew-on-admin-accent: #09090B;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-
-    --primary: 72 100% 45%;
-    --primary-foreground: 240 10% 3.9%;
-
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-
-    --accent: 192 91% 36%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 72 100% 45%;
-
-    --radius: 0.75rem;
-  }
-
-  .dark {
-    /* Dark Obsidian Theme (#09090B) — Admin variant with Cyan accent */
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
 
@@ -49,7 +21,6 @@
     --popover: 240 6% 8%;
     --popover-foreground: 0 0% 98%;
 
-    /* Primary: CrewLab Electric Lime */
     --primary: 72 100% 50%;
     --primary-foreground: 240 10% 3.9%;
 
@@ -59,9 +30,8 @@
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
 
-    /* Accent: Cyan for admin technical feel */
-    --accent: 192 91% 36%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 188 86% 53%;
+    --accent-foreground: 240 10% 3.9%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
@@ -69,190 +39,176 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 72 100% 50%;
-  }
-}
 
-@layer base {
+    --radius: 0.75rem;
+  }
+
   * {
     @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
+    @apply min-h-screen bg-background font-sans text-foreground antialiased;
+    transition-property: background-color, color;
+    transition-duration: 300ms;
+    transition-timing-function: ease-in-out;
   }
 }
 
-/* ─── Admin Brand Utilities ─────────────────────────── */
-
-/* Lime brand — primary CTA / branding */
 .text-lime-admin {
-  color: #a3b300;
-  font-weight: 600;
-}
-.dark .text-lime-admin {
-  color: #D4FF00;
+  color: var(--crew-primary);
   font-weight: inherit;
 }
 
-.bg-lime-admin {
-  background-color: #D4FF00;
-  color: #09090B;
+.bg-lime-admin,
+.btn-lime-glow {
+  background-color: var(--crew-primary);
+  color: var(--crew-on-primary);
 }
 
 .border-lime-admin {
-  border-color: #a3b300;
-}
-.dark .border-lime-admin {
-  border-color: #D4FF00;
+  border-color: var(--crew-primary);
 }
 
-/* Cyan accent — admin technical elements */
 .text-cyan-admin {
-  color: #0891b2;
-}
-.dark .text-cyan-admin {
-  color: #22d3ee;
+  color: var(--crew-admin-accent);
 }
 
 .bg-cyan-admin {
-  background-color: #0891b2;
-  color: #ffffff;
-}
-.dark .bg-cyan-admin {
-  background-color: rgba(34, 211, 238, 0.15);
-  color: #22d3ee;
+  background-color: rgb(34 211 238 / 15%);
+  color: var(--crew-admin-accent);
 }
 
 .border-cyan-admin {
-  border-color: #0891b2;
-}
-.dark .border-cyan-admin {
-  border-color: #22d3ee;
+  border-color: var(--crew-admin-accent);
 }
 
-/* ─── Accent BG tints (opacity variants) ──────────── */
 .bg-lime-tint {
-  background-color: rgba(163, 179, 0, 0.10);
-}
-.dark .bg-lime-tint {
-  background-color: rgba(212, 255, 0, 0.10);
+  background-color: rgb(212 255 0 / 10%);
 }
 
 .bg-lime-tint-15 {
-  background-color: rgba(163, 179, 0, 0.15);
-}
-.dark .bg-lime-tint-15 {
-  background-color: rgba(212, 255, 0, 0.15);
+  background-color: rgb(212 255 0 / 15%);
 }
 
 .bg-cyan-tint {
-  background-color: rgba(8, 145, 178, 0.10);
-}
-.dark .bg-cyan-tint {
-  background-color: rgba(34, 211, 238, 0.10);
+  background-color: rgb(34 211 238 / 10%);
 }
 
-/* Border tints */
 .border-lime-tint {
-  border-color: rgba(163, 179, 0, 0.30);
-}
-.dark .border-lime-tint {
-  border-color: rgba(212, 255, 0, 0.30);
+  border-color: rgb(212 255 0 / 30%);
 }
 
 .border-cyan-tint {
-  border-color: rgba(8, 145, 178, 0.30);
-}
-.dark .border-cyan-tint {
-  border-color: rgba(34, 211, 238, 0.30);
+  border-color: rgb(34 211 238 / 30%);
 }
 
-/* ─── Button styles ───────────────────────────────── */
 .btn-lime-glow {
-  background-color: #D4FF00;
-  color: #09090B;
-  box-shadow: 0 0 20px rgba(212, 255, 0, 0.35);
-  transition: all 0.2s ease-in-out;
+  box-shadow: 0 0 20px rgb(212 255 0 / 25%);
   font-weight: 700;
+  transition-property: background-color, box-shadow, transform, opacity;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
 }
+
 .btn-lime-glow:hover {
-  background-color: #E5FF55;
-  box-shadow: 0 0 30px rgba(212, 255, 0, 0.55);
+  background-color: var(--crew-primary-hover);
+  box-shadow: 0 0 24px rgb(212 255 0 / 35%);
   transform: translateY(-1px);
 }
+
 .btn-lime-glow:active {
   transform: scale(0.98);
 }
 
 .btn-outline-admin {
+  border: 1px solid rgb(212 255 0 / 40%);
   background-color: transparent;
-  color: #a3b300;
-  border: 1px solid rgba(163, 179, 0, 0.30);
-  transition: all 0.2s ease-in-out;
+  color: hsl(var(--foreground));
+  transition-property: background-color, border-color, color;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
 }
-.dark .btn-outline-admin {
-  color: #D4FF00;
-  border-color: rgba(212, 255, 0, 0.30);
+
+.btn-outline-admin {
+  color: var(--crew-primary);
 }
+
 .btn-outline-admin:hover {
-  background-color: rgba(163, 179, 0, 0.10);
-}
-.dark .btn-outline-admin:hover {
-  background-color: rgba(212, 255, 0, 0.10);
+  background-color: rgb(212 255 0 / 10%);
 }
 
-/* ─── Shadow / Glow ───────────────────────────────── */
 .shadow-lime-glow {
-  box-shadow: 0 0 20px rgba(212, 255, 0, 0.15);
-}
-.shadow-lime-glow-sm {
-  box-shadow: 0 0 12px rgba(212, 255, 0, 0.1);
-}
-.shadow-cyan-glow {
-  box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
+  box-shadow: 0 0 20px rgb(212 255 0 / 15%);
 }
 
-/* ─── Terminal (always dark regardless of theme) ──── */
-.terminal {
-  background-color: #0a0a0c;
-  border: 1px solid #1a1a2e;
-  border-radius: 0.75rem;
-  font-family: 'JetBrains Mono', monospace;
-  color: #a1a1aa;
+.shadow-lime-glow-sm {
+  box-shadow: 0 0 12px rgb(212 255 0 / 10%);
 }
+
+.shadow-cyan-glow {
+  box-shadow: 0 0 15px rgb(34 211 238 / 20%);
+}
+
+.terminal {
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background-color: #0A0A0C;
+  color: #A1A1AA;
+  font-family: 'JetBrains Mono', monospace;
+}
+
 .terminal-header {
-  border-bottom: 1px solid #1a1a2e;
-  padding: 0.5rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 0.5rem 1rem;
   font-size: 0.6875rem;
 }
+
 .terminal-dot {
+  display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  display: inline-block;
 }
 
-/* ─── Focus ring ──────────────────────────────────── */
-.focus-admin:focus {
+.focus-admin:focus-visible {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
   outline: none;
-  border-color: rgba(212, 255, 0, 0.6);
-  box-shadow: 0 0 0 2px rgba(212, 255, 0, 0.15);
 }
 
-/* ─── Scrollbar ───────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(161, 161, 170, 0.2);
   border-radius: 3px;
+  background-color: rgb(161 161 170 / 25%);
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(161, 161, 170, 0.4);
+  background-color: rgb(161 161 170 / 45%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
