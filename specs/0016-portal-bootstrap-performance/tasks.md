@@ -65,7 +65,7 @@
 - [x] T018 Run targeted and full backend pytest suites and resolve regressions
 - [x] T019 [P] Run Portal lint, TypeScript checking, and production build
 - [x] T020 Verify FR-001 through FR-009 and SC-001 through SC-005 against automated evidence and the smoke-test checklist
-- [ ] T021 Update all task checkboxes, review the diff for secrets/scope drift, commit small Conventional Commits, push, and open a Pull Request
+- [x] T021 Update all task checkboxes, review the diff for secrets/scope drift, commit small Conventional Commits, push, and open a Pull Request
 
 ## Dependencies and execution order
 
