@@ -207,6 +207,39 @@ export interface EligibleModel {
   eligible_agents: string[];
 }
 
+export type PortalLoadArea = 'bootstrap' | 'assets' | 'settings';
+export type PortalLoadStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+export interface PortalLoadError {
+  area: PortalLoadArea;
+  message: string;
+  supportReference: string | null;
+  retryable: boolean;
+  status: number | null;
+  errorCode: string | null;
+}
+
+export interface PortalBootstrapPayload {
+  viewer: {
+    user_id: string;
+    email: string | null;
+    role: string;
+  };
+  client: {
+    id: string;
+    brand_name: string;
+  };
+  work_board: {
+    content_items: any[];
+    task_logs: any[];
+    pillars: any[];
+    schedule: {
+      cycle_id: string | null;
+      phase: string | null;
+    };
+  };
+}
+
 // ─── Content Plan (Calendar) ─────────────────────────────────────────────────
 export interface ContentPlanWeek {
   weekNumber: number;

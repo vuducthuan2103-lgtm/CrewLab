@@ -1,15 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import PortalLayout from '@/components/layout/PortalLayout';
 import MediaLibraryGrid from '@/components/assets/MediaLibraryGrid';
 import AssetUploadDropzone from '@/components/assets/AssetUploadDropzone';
 import { usePortal } from '@/lib/store';
-import { ImageIcon, Upload, AlertCircle, Clock } from 'lucide-react';
+import { shortSupportReference } from '@/lib/api';
+import { Button } from '@/components/ui/Button';
+import { ImageIcon, Upload, AlertCircle, Clock, Loader2, RefreshCw } from 'lucide-react';
 
 export default function AssetsPage() {
-  const { assetRequests, contentItems } = usePortal();
+  const { assetRequests, contentItems, assetsStatus, assetsError, loadAssets } = usePortal();
   const [activeTab, setActiveTab] = useState<'library' | 'requests'>('requests');
+
+  useEffect(() => {
+    void loadAssets();
+  }, [loadAssets]);
 
   const pendingRequests = assetRequests.filter((r) => r.status === 'pending');
 
@@ -29,6 +35,33 @@ export default function AssetsPage() {
           </span>
         )}
       </div>
+
+      {assetsStatus === 'loading' && (
+        <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
+          <Loader2 size={14} className="animate-spin" />
+          Đang tải thư viện ảnh và yêu cầu ảnh…
+        </div>
+      )}
+      {assetsError && (
+        <div role="alert" className="mb-4 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
+          <AlertCircle size={17} className="shrink-0" />
+          <span className="flex-1">
+            <span className="block font-medium">Không tải được dữ liệu hình ảnh</span>
+            <span className="block text-xs">{assetsError.message}</span>
+            {assetsError.supportReference && (
+              <span className="mt-1 block text-[10px] opacity-75">
+                Mã hỗ trợ: {shortSupportReference(assetsError.supportReference)}
+              </span>
+            )}
+          </span>
+          {assetsError.retryable && (
+            <Button variant="secondary" size="sm" onClick={() => void loadAssets(true)}>
+              <RefreshCw size={13} />
+              Thử lại
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-0.5 mb-6 border-b border-border">
@@ -56,7 +89,7 @@ export default function AssetsPage() {
         ))}
       </div>
 
-      {activeTab === 'requests' && (
+      {assetsStatus === 'ready' && activeTab === 'requests' && (
         <div>
           {pendingRequests.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-center">
@@ -95,7 +128,7 @@ export default function AssetsPage() {
         </div>
       )}
 
-      {activeTab === 'library' && <MediaLibraryGrid />}
+      {assetsStatus === 'ready' && activeTab === 'library' && <MediaLibraryGrid />}
     </PortalLayout>
   );
 }

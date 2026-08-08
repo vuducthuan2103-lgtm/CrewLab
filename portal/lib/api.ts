@@ -1,8 +1,55 @@
 import { v4 as uuidv4 } from 'uuid';
-import { A01ChatMessage, BrandVoiceConfig } from './types';
+import {
+  A01ChatMessage,
+  BrandVoiceConfig,
+  PortalBootstrapPayload,
+  PortalLoadArea,
+  PortalLoadError,
+} from './types';
 import { getAccessToken } from './supabase';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly errorCode: string | null,
+    readonly supportReference: string | null,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export function toPortalLoadError(
+  cause: unknown,
+  area: PortalLoadArea,
+  fallbackMessage: string,
+): PortalLoadError {
+  if (cause instanceof ApiError) {
+    return {
+      area,
+      message: cause.message,
+      supportReference: cause.supportReference,
+      retryable: cause.status !== 401 && cause.status !== 403,
+      status: cause.status,
+      errorCode: cause.errorCode,
+    };
+  }
+  return {
+    area,
+    message: cause instanceof Error ? cause.message : fallbackMessage,
+    supportReference: null,
+    retryable: true,
+    status: null,
+    errorCode: null,
+  };
+}
+
+export function shortSupportReference(reference: string | null) {
+  return reference ? reference.slice(-8).toUpperCase() : null;
+}
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   if (!API_BASE_URL) throw new Error('NEXT_PUBLIC_API_URL is not configured');
@@ -23,11 +70,14 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
       : Array.isArray(detail)
         ? detail.map((item) => item?.msg).filter(Boolean).join(', ')
         : null;
-    throw new Error(
+    throw new ApiError(
       result?.error?.message
       || detailMessage
       || result?.message
       || `Không thể kết nối máy chủ (${response.status})`,
+      response.status,
+      result?.error?.error_code || null,
+      response.headers.get('x-request-id'),
     );
   }
   return result?.data;
@@ -35,6 +85,10 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 
 const sideEffect = (body: Record<string, unknown>) =>
   JSON.stringify({ ...body, idempotency_key: uuidv4() });
+
+export function apiFetchBootstrap(): Promise<PortalBootstrapPayload> {
+  return fetchAPI('/api/v1/portal/bootstrap');
+}
 
 export function apiFetchContentItems(status?: string) {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
