@@ -16,6 +16,8 @@ export class ApiError extends Error {
     readonly status: number,
     readonly errorCode: string | null,
     readonly supportReference: string | null,
+    readonly provider: string | null = null,
+    readonly providerRequestId: string | null = null,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -77,7 +79,9 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
       || `Không thể kết nối máy chủ (${response.status})`,
       response.status,
       result?.error?.error_code || null,
-      response.headers.get('x-request-id'),
+      response.headers.get('x-request-id') || result?.error?.details?.support_reference || null,
+      result?.error?.details?.provider || null,
+      result?.error?.details?.provider_request_id || null,
     );
   }
   return result?.data;
@@ -112,10 +116,6 @@ export function apiFetchTaskLogs(limit = 50) {
 
 export function apiFetchPillars() {
   return fetchAPI('/api/v1/portal/pillars');
-}
-
-export function apiFetchAssetRequests() {
-  return fetchAPI('/api/v1/portal/asset-requests');
 }
 
 export function apiFetchAssets() {
@@ -162,23 +162,29 @@ export function apiApproveWeek(cycleId: string) {
   });
 }
 
-export function apiSubmitAssetRequest(requestId: string, assetUrls: string[]) {
-  return fetchAPI(`/api/v1/portal/asset-requests/${requestId}/submit`, {
-    method: 'POST',
-    body: sideEffect({ asset_ids: assetUrls }),
-  });
-}
-
-export async function apiUploadAsset(file: File, requestId?: string) {
+export async function apiUploadAsset(file: File, rightsAttested: boolean) {
   if (!API_BASE_URL) throw new Error('NEXT_PUBLIC_API_URL is not configured');
   const token = await getAccessToken();
-  const query = requestId ? `?asset_request_id=${encodeURIComponent(requestId)}` : '';
-  const response = await fetch(`${API_BASE_URL}/api/v1/portal/assets/upload${query}`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1/portal/assets/upload`, {
     method: 'POST', body: file,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': file.type, 'X-File-Name': file.name },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': file.type,
+      'X-File-Name': file.name,
+      'X-Asset-Rights-Attested': rightsAttested ? 'true' : 'false',
+    },
   });
   const result = await response.json().catch(() => null);
-  if (!response.ok || result?.success === false) throw new Error(result?.error?.message || `Không thể tải ảnh lên (${response.status})`);
+  if (!response.ok || result?.success === false) {
+    throw new ApiError(
+      result?.error?.message || `Không thể tải ảnh lên (${response.status})`,
+      response.status,
+      result?.error?.error_code || null,
+      response.headers.get('x-request-id') || result?.error?.details?.support_reference || null,
+      result?.error?.details?.provider || null,
+      result?.error?.details?.provider_request_id || null,
+    );
+  }
   return result?.data;
 }
 

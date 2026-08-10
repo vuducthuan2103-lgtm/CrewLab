@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Integer, Float, ForeignKey, DateTime
+from sqlalchemy import Boolean, Column, String, Integer, Float, ForeignKey, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from ..core.db import Base, utcnow
@@ -22,6 +22,11 @@ class TaskLog(Base):
     status = Column(String, nullable=False)
     eval_score = Column(Float, nullable=True)
     wake_reason = Column(String, nullable=False)
+    error_code = Column(String, nullable=True)
+    error_provider = Column(String, nullable=True)
+    provider_request_id = Column(String, nullable=True)
+    error_message = Column(Text, nullable=True)
+    error_retryable = Column(Boolean, nullable=True)
     
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 

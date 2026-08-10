@@ -12,7 +12,7 @@ import {
   UserRound,
 } from 'lucide-react';
 
-import { apiFetchA01Messages, apiSendA01Message } from '@/lib/api';
+import { ApiError, apiFetchA01Messages, apiSendA01Message, shortSupportReference } from '@/lib/api';
 import { A01ChatMessage } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
@@ -22,6 +22,33 @@ const SUGGESTIONS = [
   'Tôi muốn quảng bá chương trình mua 2 tặng 1 trên Instagram',
   'Giúp tôi làm rõ nội dung nên đăng cho dịp cuối tuần',
 ];
+
+type A01Error = {
+  message: string;
+  code: string | null;
+  provider: string | null;
+  providerRequestId: string | null;
+  supportReference: string | null;
+};
+
+function toA01Error(cause: unknown, fallback: string): A01Error {
+  if (cause instanceof ApiError) {
+    return {
+      message: cause.message,
+      code: cause.errorCode,
+      provider: cause.provider,
+      providerRequestId: cause.providerRequestId,
+      supportReference: cause.supportReference,
+    };
+  }
+  return {
+    message: cause instanceof Error ? cause.message : fallback,
+    code: null,
+    provider: null,
+    providerRequestId: null,
+    supportReference: null,
+  };
+}
 
 function timeLabel(value: string) {
   return new Intl.DateTimeFormat('vi-VN', {
@@ -54,7 +81,7 @@ export default function A01Chat() {
   const [draft, setDraft] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<A01Error | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -65,7 +92,7 @@ export default function A01Chat() {
         if (active) setMessages(history);
       })
       .catch((cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : 'Không tải được cuộc trò chuyện.');
+        if (active) setError(toA01Error(cause, 'Không tải được cuộc trò chuyện.'));
       })
       .finally(() => {
         if (active) setLoadingHistory(false);
@@ -90,7 +117,7 @@ export default function A01Chat() {
       setDraft('');
       requestAnimationFrame(() => textareaRef.current?.focus());
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Không gửi được tin nhắn. Vui lòng thử lại.');
+      setError(toA01Error(cause, 'Không gửi được tin nhắn. Vui lòng thử lại.'));
     } finally {
       setSending(false);
     }
@@ -204,7 +231,17 @@ export default function A01Chat() {
         {error && (
           <div role="alert" className="mb-3 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-300">
             <CircleAlert size={14} className="mt-0.5 shrink-0" />
-            <span>{error}</span>
+            <span>
+              <span className="block">{error.message}</span>
+              {(error.code || error.provider || error.providerRequestId || error.supportReference) && (
+                <span className="mt-1 block text-[10px] opacity-80">
+                  {error.code && `Mã lỗi: ${error.code}`}
+                  {error.provider && ` · Provider: ${error.provider}`}
+                  {error.providerRequestId && ` · Provider request: ${error.providerRequestId}`}
+                  {error.supportReference && ` · Mã hỗ trợ: ${shortSupportReference(error.supportReference)}`}
+                </span>
+              )}
+            </span>
           </div>
         )}
         <div className="relative mx-auto max-w-3xl">

@@ -43,6 +43,38 @@ function Wait-Url([string]$name, [string]$url, [int]$maxSeconds = 45) {
     return $false
 }
 
+function Test-DockerEngine {
+    $docker = Get-Command docker.exe -ErrorAction SilentlyContinue
+    if (-not $docker) { return $false }
+
+    & docker.exe info 2>$null | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Get-DockerDesktopPath {
+    $candidates = @()
+    $docker = Get-Command docker.exe -ErrorAction SilentlyContinue
+    if ($docker -and $docker.Source) {
+        $cliDirectory = Split-Path -Parent $docker.Source
+        $resourcesDirectory = Split-Path -Parent $cliDirectory
+        $installDirectory = Split-Path -Parent $resourcesDirectory
+        $candidates += Join-Path $installDirectory 'Docker Desktop.exe'
+    }
+
+    $programFiles = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)
+    if ($programFiles) {
+        $candidates += Join-Path $programFiles 'Docker\Docker\Docker Desktop.exe'
+    }
+    $candidates += 'D:\Programs\DockerDesktop\Docker Desktop.exe'
+
+    return $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+}
+
+function Invoke-Docker([string[]]$argumentList, [string]$failureMessage) {
+    & docker.exe @argumentList | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw $failureMessage }
+}
+
 function Get-ListenerPid([int]$port) {
     $listener = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue |
         Select-Object -First 1
@@ -119,11 +151,9 @@ function Test-Spec0010Backend([int]$port) {
 Normalize-ProcessPath
 
 Write-Step 'Kiem tra Docker va Redis'
-try {
-    docker info 2>$null | Out-Null
-} catch {
-    $dockerDesktop = 'C:\Program Files\Docker\Docker\Docker Desktop.exe'
-    if (-not (Test-Path -LiteralPath $dockerDesktop)) {
+if (-not (Test-DockerEngine)) {
+    $dockerDesktop = Get-DockerDesktopPath
+    if ((-not $dockerDesktop) -or (-not (Test-Path -LiteralPath $dockerDesktop))) {
         throw 'Docker Desktop chua duoc cai hoac khong tim thay.'
     }
     Start-Process -FilePath $dockerDesktop -WindowStyle Hidden
@@ -131,18 +161,18 @@ try {
     $deadline = (Get-Date).AddSeconds(55)
     do {
         Start-Sleep -Seconds 2
-        try { docker info 2>$null | Out-Null; $dockerReady = $true } catch {}
+        $dockerReady = Test-DockerEngine
     } while (-not $dockerReady -and (Get-Date) -lt $deadline)
     if (-not $dockerReady) { throw 'Docker Engine chua san sang sau 55 giay.' }
 }
 
-$redisExists = $false
-try { docker inspect crewlab-redis 2>$null | Out-Null; $redisExists = $true } catch {}
+& docker.exe inspect crewlab-redis 2>$null | Out-Null
+$redisExists = ($LASTEXITCODE -eq 0)
 if (-not $redisExists) {
-    docker run -d --name crewlab-redis --restart unless-stopped -p 6379:6379 redis:7-alpine | Out-Null
+    Invoke-Docker @('run', '-d', '--name', 'crewlab-redis', '--restart', 'unless-stopped', '-p', '6379:6379', 'redis:7-alpine') 'Khong the tao Redis container.'
 } else {
-    docker update --restart unless-stopped crewlab-redis | Out-Null
-    docker start crewlab-redis 2>$null | Out-Null
+    Invoke-Docker @('update', '--restart', 'unless-stopped', 'crewlab-redis') 'Khong the cap nhat Redis container.'
+    Invoke-Docker @('start', 'crewlab-redis') 'Khong the khoi dong Redis container.'
 }
 Write-Host '[OK] Redis se tu khoi dong cung Docker' -ForegroundColor Green
 

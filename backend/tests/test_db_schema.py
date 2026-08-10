@@ -10,6 +10,7 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.dialects.postgresql import UUID, JSONB
+from pgvector.sqlalchemy import Vector
 
 # Import all SQLAlchemy models
 from app.models.clients import Client, BrandSetting, BrandSettingHistory
@@ -17,7 +18,7 @@ from app.models.content import WorkflowCycle, ContentPillar, ContentItem, Conten
 from app.models.llm_config import ClientLLMConfig
 from app.models.provider_credentials import ClientProviderCredential
 from app.models.portal_accounts import ClientPortalAdmin
-from app.models.assets import BrandAsset, AssetRequest
+from app.models.assets import BrandAsset, SemanticAssetRecord, VisualSelectionDecision
 from app.models.reviews import HitlReview, AgentMemory
 from app.models.system import TaskLog, AuditLog
 
@@ -28,14 +29,14 @@ ALEMBIC_VERSIONS_DIR = PROJECT_ROOT / "alembic" / "versions"
 MODELS = [
     Client, BrandSetting, BrandSettingHistory, ClientPortalAdmin,
     WorkflowCycle, ContentPillar, ContentItem, ContentItemStateLog, ClientLLMConfig, ClientProviderCredential,
-    BrandAsset, AssetRequest, HitlReview, AgentMemory,
+    BrandAsset, SemanticAssetRecord, VisualSelectionDecision, HitlReview, AgentMemory,
     TaskLog, AuditLog, ContentItemEvalAttempt
 ]
 
 EXPECTED_TABLE_NAMES = {
     "clients", "brand_settings", "brand_settings_history",
     "workflow_cycles", "content_pillars", "content_items",
-    "brand_assets", "asset_requests", "hitl_reviews", "agent_memory",
+    "brand_assets", "semantic_asset_records", "visual_selection_decisions", "hitl_reviews", "agent_memory",
     "task_logs", "audit_log", "client_llm_configs", "content_item_state_logs",
     "content_item_eval_attempts", "client_provider_credentials", "client_portal_admins"
 }
@@ -56,7 +57,7 @@ class TestMigrationAndSchemaStructure(unittest.TestCase):
         """Migration graph must be traversable and converge on the current head."""
         config = Config(str(PROJECT_ROOT / "alembic.ini"))
         script = ScriptDirectory.from_config(config)
-        self.assertEqual(script.get_heads(), ["0012"])
+        self.assertEqual(script.get_heads(), ["0015"])
         self.assertIsNotNone(script.get_revision("0006"))
 
     def test_DB_MIG_002_migration_idempotency_sql(self):
@@ -126,9 +127,9 @@ class TestMigrationAndSchemaStructure(unittest.TestCase):
                         f"DEFECT P1 [DB-MIG-010]: Table '{model.__tablename__}' FK column '{col.name}' is missing index=True"
                     )
         
-        # Hot paths: content_items.status, asset_requests.expires_at, hitl_reviews.target_id, task_logs.agent_code
+        # Hot paths: content_items.status, semantic record status, hitl_reviews.target_id.
         self.assertTrue(class_mapper(ContentItem).columns["status"].index)
-        self.assertTrue(class_mapper(AssetRequest).columns["expires_at"].index)
+        self.assertTrue(class_mapper(SemanticAssetRecord).columns["status"].index)
         self.assertTrue(class_mapper(HitlReview).columns["target_id"].index)
 
     def test_DB_MIG_011_jsonb_fields(self):
@@ -152,11 +153,18 @@ class TestMigrationAndSchemaStructure(unittest.TestCase):
             )
 
     def test_DB_MIG_014_cascade_policies(self):
-        """DB-MIG-014 (P1): Child relations must define ON DELETE CASCADE or SET NULL explicitly"""
+        """DB-MIG-014 (P1): Every FK must declare its deletion policy explicitly."""
         sql_content = FULL_DEPLOY_SQL.read_text(encoding="utf-8")
         fk_lines = [line for line in sql_content.splitlines() if "FOREIGN KEY" in line]
         for fk in fk_lines:
-            has_on_delete = "ON DELETE CASCADE" in fk or "ON DELETE SET NULL" in fk
+            has_on_delete = any(
+                policy in fk
+                for policy in (
+                    "ON DELETE CASCADE",
+                    "ON DELETE SET NULL",
+                    "ON DELETE RESTRICT",
+                )
+            )
             self.assertTrue(
                 has_on_delete,
                 f"DEFECT P1 [DB-MIG-014]: Foreign key missing explicit ON DELETE clause in SQL: {fk}"
@@ -206,7 +214,7 @@ class TestWorkflowCycleAndFSM(unittest.TestCase):
         """DB-FSM-015 (P2): Verify deferred states (draft, generated, scheduled, published) are excluded from MVP FSM"""
         valid_mvp_states = {
             "planned", "ready_for_generation", "caption_generating", "visual_matching",
-            "waiting_asset", "asset_blocked", "visual_generating", "evaluating", "eval_failed",
+            "visual_generating", "evaluating", "eval_failed",
             "pending_content_approval", "approved_ready_to_post", "posted", "rejected", "archived"
         }
         deferred_states = {"draft", "generated", "scheduled", "published"}
@@ -221,11 +229,19 @@ class TestAssetLibraryAndRequests(unittest.TestCase):
         col = class_mapper(BrandAsset).columns["url"]
         self.assertFalse(col.nullable, "DEFECT P0 [DB-AS-001]: brand_assets.url must be NOT NULL")
 
-    def test_DB_AS_005_asset_request_foreign_keys(self):
-        """DB-AS-005 (P0): asset_requests must have FK to client_id and content_item_id"""
-        mapper = class_mapper(AssetRequest)
+    def test_DB_AS_005_semantic_asset_record_foreign_keys(self):
+        """DB-AS-005 (P0): semantic records must remain scoped to client and source asset."""
+        mapper = class_mapper(SemanticAssetRecord)
         self.assertTrue(mapper.columns["client_id"].foreign_keys)
-        self.assertTrue(mapper.columns["content_item_id"].foreign_keys)
+        self.assertTrue(mapper.columns["source_asset_id"].foreign_keys)
+
+    def test_DB_AS_006_semantic_embedding_uses_pgvector(self):
+        mapper = class_mapper(SemanticAssetRecord)
+        self.assertIsInstance(mapper.columns["embedding"].type, Vector)
+        self.assertEqual(mapper.columns["embedding"].type.dim, 1536)
+        sql_content = FULL_DEPLOY_SQL.read_text(encoding="utf-8")
+        self.assertIn("embedding extensions.vector(1536)", sql_content)
+        self.assertIn("USING hnsw (embedding extensions.vector_cosine_ops)", sql_content)
 
 
 class TestHitlReviewAndAppendOnly(unittest.TestCase):
@@ -268,7 +284,10 @@ class TestAgentMemoryAndObservability(unittest.TestCase):
     def test_DB_OBS_001_task_logs_observability_fields(self):
         """DB-OBS-001 (P0): task_logs observability fields"""
         cols = {c.name for c in class_mapper(TaskLog).columns}
-        required = {"client_id", "agent_code", "task_type", "tokens_in", "tokens_out", "latency_ms", "status", "wake_reason"}
+        required = {
+            "client_id", "agent_code", "task_type", "tokens_in", "tokens_out",
+            "latency_ms", "status", "wake_reason", "error_code", "error_retryable",
+        }
         self.assertTrue(required.issubset(cols))
 
     def test_DB_OBS_005_task_logs_content_item_id(self):

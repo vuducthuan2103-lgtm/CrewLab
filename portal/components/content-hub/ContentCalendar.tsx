@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { usePortal } from '@/lib/store';
 import { ContentItem } from '@/lib/types';
 import ContentApprovalModal from '@/components/approval/ContentApprovalModal';
-import { ChevronLeft, ChevronRight, CheckSquare, AlertTriangle, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckSquare, AlertTriangle, Calendar, Download, ImageIcon } from 'lucide-react';
 
 const WEEK_DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const weekStart = new Date();
@@ -20,7 +20,6 @@ function StateDot({ state }: { state: ContentItem['state'] }) {
   if (state === 'approved_ready_to_post') return <span className="text-[8px] text-emerald-400">●</span>;
   if (state === 'pending_content_approval') return <span className="text-[8px] text-lime-brand">●</span>;
   if (state === 'evaluating') return <span className="text-[8px] text-cyan-400 animate-pulse">◐</span>;
-  if (state === 'waiting_asset') return <span className="text-[8px] text-orange-400">◌</span>;
   return <span className="text-[8px] text-zinc-500">○</span>;
 }
 
@@ -64,7 +63,7 @@ function DayCell({
               <div className={`px-1.5 py-0.5 text-[9px] font-bold flex items-center justify-between ${
                 item.platform === 'ig' ? 'bg-blue-500/20 text-blue-300' : item.platform === 'fb' ? 'bg-red-500/20 text-red-300' : 'bg-purple-500/20 text-purple-300'
               }`}>
-                <span>{item.platform === 'ig' ? '🟦 IG' : item.platform === 'fb' ? '🟥 FB' : '🟥🟦'}</span>
+                <span>{item.platform === 'ig' ? 'IG' : item.platform === 'fb' ? 'FB' : 'FB · IG'}</span>
                 <span>
                   {item.publishTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                 </span>
@@ -74,7 +73,7 @@ function DayCell({
                 <img src={item.imageUrl} alt="" className="w-full h-12 object-cover" />
               ) : (
                 <div className="w-full h-10 bg-muted/50 flex items-center justify-center">
-                  <span className="text-[11px]">🎨</span>
+                  <ImageIcon size={12} className="text-muted-foreground" aria-hidden="true" />
                 </div>
               )}
               {/* Status row */}
@@ -162,7 +161,7 @@ export default function ContentCalendar() {
             className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             title="Tải về file Excel/CSV báo cáo tuần"
           >
-            📥 Xuất Kế Hoạch
+            <Download size={12} /> Xuất Kế Hoạch
           </button>
 
           {/* Approve all week button */}

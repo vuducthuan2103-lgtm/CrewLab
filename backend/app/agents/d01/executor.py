@@ -13,6 +13,7 @@ from app.core.llm import call_llm
 from app.models.clients import BrandSetting
 from app.models.content import ContentItem, ContentItemStateLog, ContentPillar
 from app.models.reviews import AgentMemory
+from app.services.task_errors import InvalidModelOutputError, PermanentTaskInputError
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +41,27 @@ async def execute_d01(
     logger.info(f"D01 start: client={client_id} item={content_item_id} wake={wake_reason}")
 
     # 1. Load ContentItem
-    item = await session.get(ContentItem, content_item_id)
+    item = await session.scalar(
+        select(ContentItem).where(
+            ContentItem.id == content_item_id,
+            ContentItem.client_id == client_id,
+            ContentItem.cycle_id == cycle_id,
+        ).with_for_update()
+    )
     if not item:
-        raise ValueError(f"ContentItem {content_item_id} not found — D01 cannot proceed")
+        raise PermanentTaskInputError(
+            f"ContentItem {content_item_id} was not found for the requested client and cycle"
+        )
+
+    if wake_reason != "retry":
+        if item.status == "caption_generating":
+            logger.info("D01 duplicate delivery ignored while item=%s is already running", content_item_id)
+            item._workflow_reused = True
+            return item
+        if item.caption and item.image_brief and item.status not in {"planned", "ready_for_generation"}:
+            logger.info("D01 duplicate delivery reused completed caption for item=%s", content_item_id)
+            item._workflow_reused = True
+            return item
 
     # 2. Read current state BEFORE transition (fix: do not hardcode previous_state)
     previous_state = item.status
@@ -50,7 +69,13 @@ async def execute_d01(
     # Load ContentPillar for context
     pillar = None
     if item.pillar_id:
-        pillar = await session.get(ContentPillar, item.pillar_id)
+        pillar = await session.scalar(
+            select(ContentPillar).where(
+                ContentPillar.id == item.pillar_id,
+                ContentPillar.client_id == client_id,
+                ContentPillar.cycle_id == cycle_id,
+            )
+        )
 
     # 3. Transition → caption_generating and commit early (dashboard/task_logs see it immediately)
     item.status = "caption_generating"
@@ -92,11 +117,19 @@ async def execute_d01(
         parsed = D01Output.model_validate_json(llm_response.content)
     except Exception as e:
         logger.error(f"D01 parse failed: {llm_response.content[:200]}. Error: {e}")
-        raise ValueError(f"D01 LLM output parsing failed: {e}")
+        raise InvalidModelOutputError(f"D01 LLM output parsing failed: {e}") from e
 
     # 7. Update item: caption + image_brief (JSONB)
     item.caption = parsed.caption
-    item.image_brief = parsed.image_brief.model_dump()
+    image_brief = parsed.image_brief.model_dump()
+    image_brief["preferred_setting"] = (
+        image_brief.get("preferred_setting") or "Use the real setting described in the visual brief"
+    )
+    image_brief["platform_format"] = image_brief.get("platform_format") or item.platform or "facebook"
+    image_brief["desired_text_treatment"] = (
+        image_brief.get("desired_text_treatment") or "No overlay text unless explicitly requested"
+    )
+    item.image_brief = image_brief
     item.status = "visual_matching"
 
     # 8. State log — previous_state read from DB, not hardcoded

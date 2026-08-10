@@ -1,9 +1,10 @@
 import uuid
 
 from fastapi import FastAPI
+from sqlalchemy.pool import NullPool
 from starlette.testclient import TestClient
 
-from app.core.db import engine
+from app.core.db import celery_engine, engine
 from app.main import app, database_connection_refused_handler, settings
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -33,12 +34,13 @@ def test_database_connection_error_is_readable_from_internal_app():
 
 
 def test_session_database_pool_is_bounded_for_api_and_workers():
-    """Each process must stay below Supavisor's small session-mode limit."""
+    """API pooling is bounded; Celery never reuses loop-bound connections."""
     if settings.SUPABASE_POOLER_MODE.lower() != "session":
         return
 
     assert engine.pool.size() == settings.DB_POOL_SIZE
     assert engine.pool._max_overflow == settings.DB_MAX_OVERFLOW
+    assert isinstance(celery_engine.pool, NullPool)
 
 
 def test_every_response_has_a_server_request_id():

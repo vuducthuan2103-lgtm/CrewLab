@@ -57,6 +57,8 @@ class ContentItemOut(BaseModel):
     client_edited_caption: Optional[str] = None
     image_url: Optional[str] = None
     image_brief: Optional[Any] = None
+    image_provenance: Optional[dict[str, Any]] = None
+    image_provenance_history: list[dict[str, Any]] = Field(default_factory=list)
     pillar_id: Optional[UUID] = None
     eval_score_caption: Optional[float] = None
     eval_score_visual: Optional[float] = None
@@ -85,6 +87,11 @@ class TaskLogOut(BaseModel):
     wake_reason: str
     created_at: datetime
     content_item_id: Optional[UUID] = None
+    error_code: Optional[str] = None
+    error_provider: Optional[str] = None
+    provider_request_id: Optional[str] = None
+    error_message: Optional[str] = None
+    error_retryable: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -115,11 +122,6 @@ class ConfirmPillarsRequest(BaseModel):
 
 class ApproveWeekRequest(BaseModel):
     content_plan_id: UUID
-    idempotency_key: str
-
-
-class AssetSubmitRequest(BaseModel):
-    asset_ids: list[UUID] = Field(default_factory=list, max_length=10)
     idempotency_key: str
 
 
@@ -189,26 +191,23 @@ class PortalBootstrapOut(BaseModel):
     work_board: PortalWorkBoardOut
 
 
-class AssetRequestOut(BaseModel):
-    id: UUID
-    content_item_id: UUID
-    shot_list: Optional[Any] = None
-    expires_at: Optional[datetime] = None
-    status: str
-
-    class Config:
-        from_attributes = True
-
-
 class BrandAssetOut(BaseModel):
     id: UUID
-    asset_request_id: Optional[UUID] = None
     url: str
     file_name: Optional[str] = None
     storage_path: Optional[str] = None
     tags: Optional[Any] = None
     source: Optional[str] = None
     status: str
+    usage_rights: Optional[str] = None
+    dimensions: Optional[str] = None
+    indexing_status: str = "processing"
+    indexing_reason: Optional[str] = None
+    semantic_summary: Optional[str] = None
+    suggested_tags: Optional[list[str]] = None
+    duplicate_of_asset_id: Optional[UUID] = None
+    replaces_asset_id: Optional[UUID] = None
+    ready_for_d02: bool = False
     created_at: datetime
 
     class Config:

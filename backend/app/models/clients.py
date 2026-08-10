@@ -26,7 +26,6 @@ class Client(Base):
     pillars = relationship("ContentPillar", back_populates="client")
     items = relationship("ContentItem", back_populates="client")
     assets = relationship("BrandAsset", back_populates="client")
-    asset_requests = relationship("AssetRequest", back_populates="client")
     portal_admin = relationship("ClientPortalAdmin", uselist=False)
 
 class BrandSetting(Base):

@@ -9,12 +9,13 @@ os.environ["CREWLAB_LLM_MOCK"] = "true"
 
 from app.agents.d01.executor import execute_d01
 from app.agents.d02.executor import execute_d02
-from app.agents.d02.tools import create_asset_request, query_media_library
-from app.models.assets import AssetRequest, BrandAsset
+from app.agents.d02.tools import query_media_library
+from app.models.assets import BrandAsset
 from app.models.clients import BrandSetting, Client
 from app.models.content import ContentItem, ContentItemStateLog, ContentPillar, WorkflowCycle
 from app.models.reviews import AgentMemory
 from app.services.context_packet import build_context_packet
+from app.services.task_errors import PermanentTaskInputError
 from scripts.seed_bardinh import seed_bardinh
 
 
@@ -129,6 +130,33 @@ async def test_d01_retry_flow_reads_previous_state(db_session):
 
 
 @pytest.mark.asyncio
+async def test_d01_rejects_content_item_from_another_client(db_session):
+    owner, cycle = await seed_bardinh(db_session)
+    other = Client(name="Other D01", brand_name="Other D01", is_active=True)
+    item = ContentItem(
+        client_id=owner.id,
+        cycle_id=cycle.id,
+        topic="Tenant secret",
+        platform="facebook",
+        status="planned",
+    )
+    db_session.add_all([other, item])
+    await db_session.commit()
+
+    with pytest.raises(PermanentTaskInputError):
+        await execute_d01(
+            session=db_session,
+            client_id=other.id,
+            cycle_id=cycle.id,
+            content_item_id=item.id,
+            context_packet={},
+        )
+
+    await db_session.refresh(item)
+    assert item.status == "planned"
+
+
+@pytest.mark.asyncio
 async def test_d02_matching_real_photo(db_session):
     """Test D02 finding a matching real photo in brand_assets."""
     client, cycle = await seed_bardinh(db_session)
@@ -159,6 +187,7 @@ async def test_d02_matching_real_photo(db_session):
         asset_type="photo",
         source="real_photo",
         status="approved",
+        usage_rights="client_owned",
     )
     db_session.add(asset)
     await db_session.commit()
@@ -176,7 +205,10 @@ async def test_d02_matching_real_photo(db_session):
     )
 
     # 4. Assertions
-    assert updated_item.image_url == asset.url
+    assert updated_item.image_url != asset.url
+    assert updated_item.image_url.startswith("mock://generated/")
+    assert updated_item.image_brief["d02_provenance"]["source_asset_id"] == str(asset.id)
+    assert updated_item.image_brief["d02_provenance"]["edit_mode"] == "minimal_edit"
     assert updated_item.status == "visual_generating"
 
     # Verify State Log
@@ -199,15 +231,48 @@ async def test_d02_matching_real_photo(db_session):
     memories = res_mem.scalars().all()
     assert len(memories) == 1
     assert memories[0].content_item_id == item.id
-    assert "real_photo" in memories[0].output_summary
+    assert "minimal_edit" in memories[0].output_summary
 
 
 @pytest.mark.asyncio
-async def test_d02_no_photo_ai_disallowed_creates_asset_request(db_session):
-    """Test D02 when no real photo exists and allow_ai_images=False -> creates AssetRequest -> status=waiting_asset."""
+async def test_d02_rejects_content_item_from_another_client(db_session):
+    owner, cycle = await seed_bardinh(db_session)
+    other = Client(name="Other D02", brand_name="Other D02", is_active=True)
+    item = ContentItem(
+        client_id=owner.id,
+        cycle_id=cycle.id,
+        topic="Tenant visual",
+        platform="facebook",
+        status="visual_matching",
+        image_brief={
+            "visual_mode": "visual_required",
+            "description": "Secret product",
+            "mood": "warm",
+            "suggested_tags": ["secret"],
+        },
+    )
+    db_session.add_all([other, item])
+    await db_session.commit()
+
+    with pytest.raises(PermanentTaskInputError):
+        await execute_d02(
+            session=db_session,
+            client_id=other.id,
+            cycle_id=cycle.id,
+            content_item_id=item.id,
+            context_packet={},
+        )
+
+    await db_session.refresh(item)
+    assert item.image_url is None
+
+
+@pytest.mark.asyncio
+async def test_d02_no_photo_creates_new_ai_visual(db_session):
+    """D02 always creates a final visual when no eligible real source exists."""
     client, cycle = await seed_bardinh(db_session)
 
-    # Ensure allow_ai_images is False in brand settings
+    # A client setting cannot bypass D02's final-visual requirement.
     stmt_setting = select(BrandSetting).where(BrandSetting.client_id == client.id)
     res_setting = await db_session.execute(stmt_setting)
     setting = res_setting.scalar_one_or_none()
@@ -245,34 +310,9 @@ async def test_d02_no_photo_ai_disallowed_creates_asset_request(db_session):
     )
 
     # Assertions
-    assert updated_item.status == "waiting_asset"
-    assert updated_item.image_url is None
-
-    # Verify AssetRequest created in DB
-    stmt_req = select(AssetRequest).where(AssetRequest.content_item_id == item.id)
-    res_req = await db_session.execute(stmt_req)
-    requests = res_req.scalars().all()
-    assert len(requests) == 1
-    req = requests[0]
-    assert req.status == "pending"
-    assert req.shot_list is not None
-    assert len(req.shot_list) > 0
-    assert req.reference_tags == ["bánh ngọt", "croissant"]
-
-    # Test idempotency: running D02 again should NOT create duplicate AssetRequest
-    await execute_d02(
-        session=db_session,
-        client_id=client.id,
-        cycle_id=cycle.id,
-        content_item_id=item.id,
-        context_packet=context_packet,
-        wake_reason="task_assigned",
-    )
-
-    res_req2 = await db_session.execute(stmt_req)
-    requests2 = res_req2.scalars().all()
-    assert len(requests2) == 1  # No duplicate request created
-
+    assert updated_item.status == "visual_generating"
+    assert updated_item.image_url.startswith("mock://generated/")
+    assert updated_item.image_brief["d02_provenance"]["source_asset_id"] is None
 
 @pytest.mark.asyncio
 async def test_d02_ai_images_allowed_generates_ai_image(db_session):
@@ -319,7 +359,7 @@ async def test_d02_ai_images_allowed_generates_ai_image(db_session):
     # Assertions
     assert updated_item.status == "visual_generating"
     assert updated_item.image_url is not None
-    assert "placeholder" in updated_item.image_url or "ai_generated" in updated_item.image_url
+    assert updated_item.image_url.startswith("mock://generated/")
 
 
 @pytest.mark.asyncio
@@ -336,6 +376,7 @@ async def test_d01_d02_chained_flow(db_session):
         asset_type="photo",
         source="real_photo",
         status="approved",
+        usage_rights="client_owned",
     )
     db_session.add(asset)
 
@@ -374,7 +415,8 @@ async def test_d01_d02_chained_flow(db_session):
         wake_reason="task_assigned",
     )
     assert item_d02.status == "visual_generating"
-    assert item_d02.image_url == asset.url
+    assert item_d02.image_url != asset.url
+    assert item_d02.image_url.startswith("mock://generated/")
 
     # Check complete history in ContentItemStateLog
     stmt_logs = (

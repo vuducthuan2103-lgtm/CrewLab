@@ -1,5 +1,5 @@
 -- Idempotent setup for the MVP Media Library.
--- Run in Supabase SQL Editor. The legacy `brand_assets` bucket is intentionally untouched.
+-- Run in Supabase SQL Editor. An empty legacy `brand_assets` bucket is removed.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -16,3 +16,7 @@ create policy "CrewLab service role manages brand-assets"
 on storage.objects for all to service_role
 using (bucket_id = 'brand-assets')
 with check (bucket_id = 'brand-assets');
+
+delete from storage.buckets as bucket
+where bucket.id = 'brand_assets'
+  and not exists (select 1 from storage.objects where bucket_id = bucket.id);

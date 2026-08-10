@@ -1,5 +1,20 @@
 -- CrewLab Database DDL & RLS Setup (Phase 1 MVP - Spec 0001)
 
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'brand-assets', 'brand-assets', false, 52428800,
+    ARRAY['image/jpeg', 'image/png', 'image/webp']::text[]
+)
+ON CONFLICT (id) DO UPDATE SET
+    public = false,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- Supabase blocks direct deletes from storage catalog tables. Remove an
+-- obsolete bucket through the Storage API only after deleting its objects.
+
 CREATE TABLE IF NOT EXISTS clients (
 	id UUID NOT NULL, 
 	name VARCHAR NOT NULL, 
@@ -176,7 +191,7 @@ CREATE TABLE IF NOT EXISTS content_items (
 	FOREIGN KEY(client_id) REFERENCES clients (id) ON DELETE CASCADE, 
 	FOREIGN KEY(cycle_id) REFERENCES workflow_cycles (id) ON DELETE CASCADE, 
 	FOREIGN KEY(pillar_id) REFERENCES content_pillars (id) ON DELETE SET NULL,
-	CONSTRAINT ck_content_items_status CHECK (status IN ('planned', 'ready_for_generation', 'caption_generating', 'visual_matching', 'waiting_asset', 'asset_blocked', 'visual_generating', 'evaluating', 'eval_failed', 'pending_content_approval', 'approved_ready_to_post', 'posted', 'rejected', 'archived'))
+	CONSTRAINT ck_content_items_status CHECK (status IN ('planned', 'ready_for_generation', 'caption_generating', 'visual_matching', 'visual_generating', 'evaluating', 'eval_failed', 'pending_content_approval', 'approved_ready_to_post', 'posted', 'rejected', 'archived'))
 );
 
 CREATE INDEX IF NOT EXISTS ix_content_items_client_id ON content_items (client_id);
@@ -198,48 +213,110 @@ CREATE TABLE IF NOT EXISTS content_item_state_logs (
 
 CREATE INDEX IF NOT EXISTS ix_content_item_state_logs_content_item_id ON content_item_state_logs (content_item_id);
 
-CREATE TABLE IF NOT EXISTS asset_requests (
-	id UUID NOT NULL, 
-	client_id UUID NOT NULL, 
-	content_item_id UUID NOT NULL, 
-	note TEXT, 
-	status VARCHAR NOT NULL DEFAULT 'pending', 
-	priority VARCHAR NOT NULL DEFAULT 'normal', 
-	expires_at TIMESTAMP WITH TIME ZONE, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	updated_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(client_id) REFERENCES clients (id) ON DELETE CASCADE, 
-	FOREIGN KEY(content_item_id) REFERENCES content_items (id) ON DELETE CASCADE,
-	CONSTRAINT ck_asset_requests_status CHECK (status IN ('pending', 'fulfilled', 'expired')),
-	CONSTRAINT ck_asset_requests_priority CHECK (priority IN ('low', 'normal', 'high', 'urgent'))
-);
-
-CREATE INDEX IF NOT EXISTS ix_asset_requests_client_id ON asset_requests (client_id);
-CREATE INDEX IF NOT EXISTS ix_asset_requests_content_item_id ON asset_requests (content_item_id);
-CREATE INDEX IF NOT EXISTS ix_asset_requests_expires_at ON asset_requests (expires_at);
-
 CREATE TABLE IF NOT EXISTS brand_assets (
 	id UUID NOT NULL, 
 	client_id UUID NOT NULL, 
-	asset_request_id UUID, 
 	url VARCHAR NOT NULL, 
+	storage_path VARCHAR NOT NULL DEFAULT '',
 	file_name VARCHAR, 
 	tags JSONB, 
 	asset_type VARCHAR, 
+	format VARCHAR,
 	source VARCHAR, 
-	status VARCHAR NOT NULL DEFAULT 'approved', 
+	status VARCHAR NOT NULL DEFAULT 'pending_review',
+	source_asset_id UUID,
+	replaces_asset_id UUID,
+	generation_mode TEXT,
 	usage_rights VARCHAR, 
 	dimensions VARCHAR, 
+	content_sha256 VARCHAR(64),
+	usage_count INTEGER NOT NULL DEFAULT 0,
+	last_used_at TIMESTAMP WITH TIME ZONE,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
 	updated_at TIMESTAMP WITH TIME ZONE NOT NULL, 
 	PRIMARY KEY (id), 
-	FOREIGN KEY(client_id) REFERENCES clients (id) ON DELETE CASCADE, 
-	FOREIGN KEY(asset_request_id) REFERENCES asset_requests (id) ON DELETE SET NULL
+	FOREIGN KEY(client_id) REFERENCES clients (id) ON DELETE CASCADE,
+	FOREIGN KEY(source_asset_id) REFERENCES brand_assets (id) ON DELETE SET NULL,
+	FOREIGN KEY(replaces_asset_id) REFERENCES brand_assets (id) ON DELETE RESTRICT
 );
 
+ALTER TABLE brand_assets ADD COLUMN IF NOT EXISTS replaces_asset_id UUID;
+ALTER TABLE brand_assets DROP CONSTRAINT IF EXISTS brand_assets_replaces_asset_id_fkey;
+ALTER TABLE brand_assets ADD CONSTRAINT brand_assets_replaces_asset_id_fkey
+    FOREIGN KEY (replaces_asset_id) REFERENCES brand_assets(id) ON DELETE RESTRICT;
+
 CREATE INDEX IF NOT EXISTS ix_brand_assets_client_id ON brand_assets (client_id);
-CREATE INDEX IF NOT EXISTS ix_brand_assets_asset_request_id ON brand_assets (asset_request_id);
+CREATE INDEX IF NOT EXISTS ix_brand_assets_source_asset_id ON brand_assets (source_asset_id);
+CREATE INDEX IF NOT EXISTS ix_brand_assets_replaces_asset_id ON brand_assets (replaces_asset_id);
+CREATE INDEX IF NOT EXISTS ix_brand_assets_content_sha256 ON brand_assets (content_sha256);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_brand_assets_client_source_fingerprint
+    ON brand_assets (client_id, content_sha256)
+    WHERE content_sha256 IS NOT NULL AND source_asset_id IS NULL
+      AND source IN ('client_uploaded', 'real_photo', 'portal');
+CREATE TABLE IF NOT EXISTS semantic_asset_records (
+    id UUID NOT NULL,
+    client_id UUID NOT NULL,
+    source_asset_id UUID NOT NULL UNIQUE,
+    status VARCHAR NOT NULL DEFAULT 'processing',
+    content_fingerprint VARCHAR(64),
+    analysis_version VARCHAR NOT NULL DEFAULT 'v1',
+    embedding_version VARCHAR,
+    embedding extensions.vector(1536),
+    search_text TEXT,
+    semantic_summary TEXT,
+    primary_subjects JSONB,
+    secondary_subjects JSONB,
+    setting JSONB,
+    actions JSONB,
+    composition JSONB,
+    mood_lighting JSONB,
+    text_safe_areas JSONB,
+    visible_text JSONB,
+    suggested_tags JSONB,
+    technical_quality JSONB,
+    editability JSONB,
+    safety JSONB,
+    confidence JSONB,
+    failure_reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (id),
+    FOREIGN KEY(client_id) REFERENCES clients (id) ON DELETE CASCADE,
+    FOREIGN KEY(source_asset_id) REFERENCES brand_assets (id) ON DELETE CASCADE,
+    CONSTRAINT ck_semantic_asset_records_status CHECK (
+        status IN ('processing', 'ready', 'needs_attention', 'failed', 'superseded')
+    )
+);
+CREATE INDEX IF NOT EXISTS ix_semantic_asset_records_client_id ON semantic_asset_records (client_id);
+CREATE INDEX IF NOT EXISTS ix_semantic_asset_records_status ON semantic_asset_records (status);
+CREATE INDEX IF NOT EXISTS ix_semantic_asset_records_client_status ON semantic_asset_records (client_id, status);
+CREATE INDEX IF NOT EXISTS ix_semantic_asset_records_content_fingerprint ON semantic_asset_records (content_fingerprint);
+CREATE INDEX IF NOT EXISTS ix_semantic_asset_records_embedding_hnsw
+    ON semantic_asset_records USING hnsw (embedding extensions.vector_cosine_ops)
+    WHERE status = 'ready';
+
+CREATE TABLE IF NOT EXISTS visual_selection_decisions (
+    id UUID PRIMARY KEY,
+    client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    content_item_id UUID NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+    run_number INTEGER NOT NULL,
+    wake_reason VARCHAR NOT NULL,
+    source_asset_id UUID REFERENCES brand_assets(id) ON DELETE RESTRICT,
+    derivative_asset_id UUID NOT NULL REFERENCES brand_assets(id) ON DELETE RESTRICT,
+    generation_mode VARCHAR NOT NULL,
+    selection_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+    selection_rationale TEXT,
+    candidates JSONB NOT NULL DEFAULT '[]'::jsonb,
+    eligibility_exclusions JSONB NOT NULL DEFAULT '[]'::jsonb,
+    prompt_summary TEXT,
+    technical_validation JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_visual_decision_item_run UNIQUE (content_item_id, run_number)
+);
+CREATE INDEX IF NOT EXISTS ix_visual_selection_decisions_client_id ON visual_selection_decisions(client_id);
+CREATE INDEX IF NOT EXISTS ix_visual_selection_decisions_content_item_id ON visual_selection_decisions(content_item_id);
+CREATE INDEX IF NOT EXISTS ix_visual_selection_decisions_source_asset_id ON visual_selection_decisions(source_asset_id);
+CREATE INDEX IF NOT EXISTS ix_visual_selection_decisions_derivative_asset_id ON visual_selection_decisions(derivative_asset_id);
 
 CREATE TABLE IF NOT EXISTS hitl_reviews (
 	id UUID NOT NULL, 
@@ -297,11 +374,15 @@ CREATE TABLE IF NOT EXISTS task_logs (
 	status VARCHAR NOT NULL, 
 	eval_score FLOAT, 
 	wake_reason VARCHAR NOT NULL, 
+	error_code VARCHAR,
+	error_provider VARCHAR,
+	provider_request_id VARCHAR,
+	error_message TEXT,
+	error_retryable BOOLEAN,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
 	PRIMARY KEY (id), 
 	FOREIGN KEY(client_id) REFERENCES clients (id) ON DELETE CASCADE,
-	FOREIGN KEY(content_item_id) REFERENCES content_items (id) ON DELETE SET NULL,
-	CONSTRAINT ck_task_logs_wake_reason CHECK (wake_reason IN ('scheduled', 'task_assigned', 'manual', 'retry'))
+	FOREIGN KEY(content_item_id) REFERENCES content_items (id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS ix_task_logs_client_id ON task_logs (client_id);
@@ -344,19 +425,24 @@ CREATE INDEX IF NOT EXISTS idx_eval_attempts_item_num ON content_item_eval_attem
 
 -- --- ENABLE ROW LEVEL SECURITY (RLS) --- 
 
-DO $$ 
-DECLARE 
-    t text;
-BEGIN
-    FOR t IN SELECT unnest(ARRAY[
-        'clients', 'brand_settings', 'brand_settings_history', 'workflow_cycles',
-        'content_pillars', 'content_items', 'brand_assets', 'asset_requests',
-        'hitl_reviews', 'agent_memory', 'task_logs', 'audit_log', 'client_llm_configs', 'client_provider_credentials', 'client_portal_admins',
-        'content_item_state_logs', 'content_item_eval_attempts'
-    ]) LOOP
-        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);
-    END LOOP;
-END $$;
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brand_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brand_settings_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workflow_cycles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_pillars ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brand_assets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE semantic_asset_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE visual_selection_decisions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hitl_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_memory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE task_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_llm_configs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_provider_credentials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_portal_admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_item_state_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_item_eval_attempts ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE client_provider_credentials FORCE ROW LEVEL SECURITY;
 ALTER TABLE client_portal_admins FORCE ROW LEVEL SECURITY;
@@ -368,7 +454,7 @@ DECLARE
 BEGIN
     FOR t IN SELECT unnest(ARRAY[
         'clients', 'brand_settings', 'brand_settings_history', 'workflow_cycles',
-        'content_pillars', 'content_items', 'brand_assets', 'asset_requests',
+        'content_pillars', 'content_items', 'brand_assets', 'semantic_asset_records', 'visual_selection_decisions',
         'hitl_reviews', 'agent_memory', 'task_logs', 'audit_log', 'client_llm_configs', 'client_provider_credentials', 'client_portal_admins',
         'content_item_state_logs', 'content_item_eval_attempts'
     ]) LOOP
@@ -388,7 +474,7 @@ DECLARE
 BEGIN
     FOR t IN SELECT unnest(ARRAY[
         'clients', 'brand_settings', 'brand_settings_history', 'workflow_cycles',
-        'content_pillars', 'content_items', 'brand_assets', 'asset_requests',
+        'content_pillars', 'content_items', 'brand_assets',
         'agent_memory', 'task_logs', 'client_llm_configs', 'content_item_eval_attempts'
     ]) LOOP
         EXECUTE format('DROP POLICY IF EXISTS %I ON %I;', 'Clients can only access their own ' || t, t);
@@ -407,6 +493,18 @@ BEGIN
         END IF;
     END LOOP;
 END $$;
+
+-- Semantic analysis and vectors are server-authoritative derived data.
+DROP POLICY IF EXISTS "Clients can only access their own semantic_asset_records" ON semantic_asset_records;
+DROP POLICY IF EXISTS "Clients can view their own semantic_asset_records" ON semantic_asset_records;
+CREATE POLICY "Clients can view their own semantic_asset_records" ON semantic_asset_records
+    FOR SELECT TO authenticated
+    USING (client_id::text = ((select auth.jwt()) -> 'app_metadata' ->> 'client_id')::text);
+
+DROP POLICY IF EXISTS "Clients can view their own visual_selection_decisions" ON visual_selection_decisions;
+CREATE POLICY "Clients can view their own visual_selection_decisions" ON visual_selection_decisions
+    FOR SELECT TO authenticated
+    USING (client_id::text = ((select auth.jwt()) -> 'app_metadata' ->> 'client_id')::text);
 
 -- 3. Append-Only RLS Policies for hitl_reviews and audit_log (SELECT + INSERT ONLY, NO UPDATE/DELETE)
 DROP POLICY IF EXISTS "Clients can view their own hitl_reviews" ON hitl_reviews;

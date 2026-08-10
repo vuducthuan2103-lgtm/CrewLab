@@ -91,9 +91,48 @@ async def require_agency_admin(
 get_current_auth = require_portal_client
 
 
-def check_idempotency(key: str) -> Optional[Dict[str, Any]]:
-    return IDEMPOTENCY_CACHE.get(key)
+def _scoped_idempotency_key(
+    key: str,
+    *,
+    client_id: UUID,
+    operation: str,
+    target_id: object | None = None,
+) -> str:
+    """Namespace an untrusted caller key to one tenant, operation and target."""
+    target = str(target_id) if target_id is not None else "_"
+    return f"{client_id}:{operation}:{target}:{key}"
 
 
-def save_idempotency(key: str, response_data: Dict[str, Any]):
-    IDEMPOTENCY_CACHE[key] = response_data
+def check_idempotency(
+    key: str,
+    *,
+    client_id: UUID,
+    operation: str,
+    target_id: object | None = None,
+) -> Optional[Dict[str, Any]]:
+    return IDEMPOTENCY_CACHE.get(
+        _scoped_idempotency_key(
+            key,
+            client_id=client_id,
+            operation=operation,
+            target_id=target_id,
+        )
+    )
+
+
+def save_idempotency(
+    key: str,
+    response_data: Dict[str, Any],
+    *,
+    client_id: UUID,
+    operation: str,
+    target_id: object | None = None,
+) -> None:
+    IDEMPOTENCY_CACHE[
+        _scoped_idempotency_key(
+            key,
+            client_id=client_id,
+            operation=operation,
+            target_id=target_id,
+        )
+    ] = response_data

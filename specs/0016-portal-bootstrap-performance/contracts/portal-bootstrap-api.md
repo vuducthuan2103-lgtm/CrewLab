@@ -49,7 +49,6 @@ Failure behavior:
 
 The following contracts remain unchanged but are no longer called during bootstrap:
 
-- `GET /api/v1/portal/asset-requests`
 - `GET /api/v1/portal/assets`
 - `GET /api/v1/portal/settings`
 

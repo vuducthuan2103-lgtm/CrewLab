@@ -81,6 +81,7 @@ async def handle_event(
             return instructions
             
         stmt = select(ContentItem).where(
+            ContentItem.client_id == client_id,
             ContentItem.cycle_id == cycle_id,
             ContentItem.status == 'planned'
         )
@@ -103,15 +104,28 @@ async def handle_event(
             )
             
     elif event_type == "d01_complete":
-        # Dispatch to D02 Image Design
+        # Dispatch visual-required posts to D02; genuine text-only posts go to E01.
         if not cycle_id or not content_item_id:
             logger.error("d01_complete requires cycle_id and content_item_id")
             return instructions
-            
+
+        item = await session.scalar(
+            select(ContentItem).where(
+                ContentItem.id == content_item_id,
+                ContentItem.client_id == client_id,
+                ContentItem.cycle_id == cycle_id,
+            )
+        )
+        if item is None:
+            logger.error("d01_complete content item %s was not found", content_item_id)
+            return instructions
+
+        visual_mode = (item.image_brief or {}).get("visual_mode", "visual_required")
+        target_agent = "E01" if visual_mode == "text_only" else "D02"
         instructions.append(
             DispatchInstruction(
-                agent_code="D02",
-                idempotency_key=f"{client_id}:{cycle_id}:D02:{content_item_id}:0",
+                agent_code=target_agent,
+                idempotency_key=f"{client_id}:{cycle_id}:{target_agent}:{content_item_id}:0",
                 payload={
                     "client_id": str(client_id),
                     "cycle_id": str(cycle_id),
@@ -139,6 +153,25 @@ async def handle_event(
                     "wake_reason": WakeReason.task_assigned.value,
                     "context_packet": packet_dict
                 }
+            )
+        )
+
+    elif event_type in {"recover_d01", "recover_d02", "recover_e01"}:
+        if not cycle_id or not content_item_id:
+            logger.error("%s requires cycle_id and content_item_id", event_type)
+            return instructions
+        target_agent = event_type.removeprefix("recover_").upper()
+        instructions.append(
+            DispatchInstruction(
+                agent_code=target_agent,
+                idempotency_key=f"{client_id}:{cycle_id}:{target_agent}:{content_item_id}:recovery",
+                payload={
+                    "client_id": str(client_id),
+                    "cycle_id": str(cycle_id),
+                    "content_item_id": str(content_item_id),
+                    "wake_reason": WakeReason.retry.value,
+                    "context_packet": packet_dict,
+                },
             )
         )
         
@@ -263,6 +296,17 @@ async def handle_event(
         if not content_item_id:
             logger.error("eval_passed requires content_item_id")
             return instructions
+        item = await session.scalar(
+            select(ContentItem).where(
+                ContentItem.id == content_item_id,
+                ContentItem.client_id == client_id,
+            )
+        )
+        if item is None or (cycle_id is not None and item.cycle_id != cycle_id):
+            logger.error("eval_passed item %s is outside the requested tenant/cycle", content_item_id)
+            return instructions
+        if item.status == "pending_content_approval":
+            return instructions
         
         await update_content_state(
             session=session,
@@ -278,7 +322,10 @@ async def handle_event(
             logger.error(f"{event_type} requires content_item_id")
             return instructions
             
-        stmt = select(ContentItem).where(ContentItem.id == content_item_id)
+        stmt = select(ContentItem).where(
+            ContentItem.id == content_item_id,
+            ContentItem.client_id == client_id,
+        )
         result = await session.execute(stmt)
         item = result.scalar_one_or_none()
         
@@ -340,20 +387,6 @@ async def handle_event(
                 )
             )
 
-    elif event_type == "asset_request_expired":
-        if not content_item_id:
-            logger.error("asset_request_expired requires content_item_id")
-            return instructions
-            
-        await update_content_state(
-            session=session,
-            content_item_id=content_item_id,
-            new_state="asset_blocked",
-            agent_code="System",
-            reason="asset_request_expired"
-        )
-        logger.info(f"Agency Admin notified for content item {content_item_id} due to expired asset request")
-            
     else:
         logger.warning(f"Unknown event_type: {event_type}")
 

@@ -20,6 +20,7 @@ Bạn nhận thông tin về một bài đăng cần tạo và thực hiện 2 n
 - **Tiếng Việt tự nhiên**: Sử dụng từ ngữ gen Z/millennial nếu phù hợp brand voice
 
 ## Nguyên tắc viết Image Brief
+- Trước hết quyết định `visual_mode`: chỉ dùng `text_only` khi bài đăng thực sự không cần visual; mọi trường hợp khác là `visual_required`.
 - **suggested_tags** là tags để TÌM KIẾM ảnh trong thư viện — dùng từ khóa cụ thể, thực tế
 - Mô tả cụ thể: màu sắc, bố cục, góc chụp, ánh sáng, cảm xúc
 - **avoid** phải thực tế và hữu ích (không phải tránh "ảnh xấu" chung chung)
@@ -98,7 +99,14 @@ def build_d01_user_prompt(
         '    "mood": "Cảm xúc/phong cách",\n'
         '    "suggested_tags": ["tag1", "tag2"],\n'
         '    "composition_notes": "Gợi ý bố cục",\n'
-        '    "avoid": ["tránh1", "tránh2"]\n'
+        '    "avoid": ["tránh1", "tránh2"],\n'
+        '    "visual_mode": "visual_required",\n'
+        '    "rationale": "Vì sao bài có/không cần visual",\n'
+        '    "required_subject": "Sản phẩm/chủ thể bắt buộc",\n'
+        '    "preferred_setting": "Preferred real-world setting",\n'
+        '    "platform_format": "Platform aspect ratio and format",\n'
+        '    "desired_text_treatment": "No overlay, or exact text placement and hierarchy",\n'
+        '    "desired_alteration": "minimal"\n'
         "  }\n"
         "}"
     )

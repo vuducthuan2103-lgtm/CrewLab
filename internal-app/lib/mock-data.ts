@@ -17,7 +17,7 @@ export const AGENTS: AgentInfo[] = [
   { code: 'B02', name: 'Content Pillar', role: 'Đề xuất Trụ nội dung & Góc khai thác tuần', status: 'completed', lastRun: '2 phút trước', icon: '🧭' },
   { code: 'B03', name: 'Content Plan', role: 'Lên lịch đăng bài, phân bổ platform & giờ vàng', status: 'completed', lastRun: '5 phút trước', icon: '📅' },
   { code: 'D01', name: 'Caption Writer', role: 'Viết caption theo brand voice & platform', status: 'completed', lastRun: '1 phút trước', icon: '✍️' },
-  { code: 'D02', name: 'Image Designer', role: 'Tạo/chọn ảnh, tạo asset_request nếu cần ảnh thật', status: 'completed', lastRun: '1 phút trước', icon: '🎨' },
+  { code: 'D02', name: 'Image Designer', role: 'Chọn ảnh thật phù hợp và tạo ảnh dẫn xuất bằng AI', status: 'completed', lastRun: '1 phút trước', icon: '🎨' },
   { code: 'E01', name: 'Evaluator', role: 'Chấm điểm caption + visual, retry-routing nếu fail', status: 'running', lastRun: 'Đang chạy...', icon: '✅' },
 ];
 
@@ -81,7 +81,7 @@ export const CONTENT_ITEMS: ContentItemAdmin[] = [
   },
   {
     id: 'ci-002', clientId: 'client-001', title: 'Bạc Xỉu Kem Trứng', platform: 'fb',
-    state: 'waiting_asset',
+    state: 'visual_generating',
     caption: '🥚✨ Bạc Xỉu Kem Trứng — sự kết hợp hoàn hảo...',
     imageUrl: null,
     publishTime: new Date('2026-06-18T18:00:00'), pillarLabel: 'Product Spotlight', weekNumber: 25,
@@ -306,5 +306,5 @@ export const LIVE_AGENT_LOGS = [
   { time: '10:43:10', agent: 'B03', type: 'INFO' as const, msg: 'Content plan generated for week 25: 6 items across FB/IG, optimized posting times applied' },
   { time: '10:42:05', agent: 'E01', type: 'WARN' as const, msg: 'Eval FAILED for "Combo Ăn Sáng" — score 6.2/10. failed_criteria: [brand_voice, content_accuracy]. Routing retry → D01' },
   { time: '10:41:30', agent: 'A01', type: 'FSM' as const, msg: 'Retry routing: ci-004 eval_failed → D01 (brand_voice fix). eval_retry_count: 1/3' },
-  { time: '10:40:15', agent: 'D02', type: 'INFO' as const, msg: 'Asset request created for "Bạc Xỉu Kem Trứng" — need 3 real photos. Deadline: 2026-06-20' },
+  { time: '10:40:15', agent: 'D02', type: 'INFO' as const, msg: 'Source-guided visual generated for "Bạc Xỉu Kem Trứng".' },
 ];

@@ -23,8 +23,8 @@ backend\.venv\Scripts\python.exe -m pytest backend\tests -q
 1. Start the backend and Portal with the existing project scripts.
 2. Open browser developer tools, clear the Network list, and sign in with a linked active Portal account.
 3. Confirm the sidebar first shows the session email and then the correct restaurant name.
-4. Confirm initial Portal data uses one `/api/v1/portal/bootstrap` request and does not request `/assets`, `/asset-requests`, or `/settings`.
-5. Open the assets page. Confirm its own loading state and requests to `/assets` plus `/asset-requests`.
+4. Confirm initial Portal data uses one `/api/v1/portal/bootstrap` request and does not request `/assets` or `/settings`.
+5. Open the assets page. Confirm its own loading/indexing state and one request to `/assets`; no `/asset-requests` request or UI may exist.
 6. Open settings. Confirm its own loading state and one `/settings` request.
 7. Force one deferred request to fail. Confirm the work board remains usable and the affected page shows retry plus a support reference.
 8. Confirm the failed response's `X-Request-ID` matches a backend log entry.

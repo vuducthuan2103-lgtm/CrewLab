@@ -6,7 +6,25 @@ import MediaLibraryGrid from '@/components/assets/MediaLibraryGrid';
 import { Button } from '@/components/ui/Button';
 import { usePortal } from '@/lib/store';
 import { shortSupportReference } from '@/lib/api';
-import { Settings, Mic2, ImageIcon, Bot, Plug2, Save, CheckCircle2, Plus, X, ChevronDown, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
+import {
+  AlertCircle,
+  Bot,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  Compass,
+  ImageIcon,
+  Lightbulb,
+  Loader2,
+  Mic2,
+  PenLine,
+  Plug2,
+  Plus,
+  RefreshCw,
+  Save,
+  Settings,
+  X,
+} from 'lucide-react';
 
 // ─── Tab 1: Brand Voice (6 Structured Sections) ──────────────────────────────
 function BrandVoiceForm() {
@@ -558,8 +576,17 @@ function BrandVoiceForm() {
 
 // ─── Tab 3: Model & Budget ────────────────────────────────────────────────────
 const AGENT_NAMES: Record<string, string> = {
-  A01: '🧠 A01 Orchestrator', B02: '🧭 B02 Content Pillar', B03: '📅 B03 Content Plan',
-  D01: '✍️ D01 Caption Writer', D02: '🎨 D02 Image Designer', E01: '✅ E01 Evaluator',
+  A01: 'A01 Orchestrator', B02: 'B02 Content Pillar', B03: 'B03 Content Plan',
+  D01: 'D01 Caption Writer', D02: 'D02 Image Designer', E01: 'E01 Evaluator',
+};
+
+const AGENT_ICONS: Record<string, typeof Bot> = {
+  A01: Bot,
+  B02: Compass,
+  B03: CalendarDays,
+  D01: PenLine,
+  D02: ImageIcon,
+  E01: CheckCircle2,
 };
 
 function ModelBudgetConfig() {
@@ -608,6 +635,7 @@ function ModelBudgetConfig() {
         )}
         {agentModelConfigs.map((cfg) => {
           const options = eligibleModels.filter((model) => model.eligible_agents.includes(cfg.agentCode));
+          const AgentIcon = AGENT_ICONS[cfg.agentCode] || Bot;
           return (
           <div key={cfg.agentCode} className="p-4 border border-border rounded-xl bg-background">
             {cfg.isActive === false && (
@@ -618,9 +646,9 @@ function ModelBudgetConfig() {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-sm">
-                  {AGENT_NAMES[cfg.agentCode]?.split(' ')[0]}
+                  <AgentIcon size={15} className="text-muted-foreground" aria-hidden="true" />
                 </div>
-                <span className="text-sm font-semibold text-foreground">{AGENT_NAMES[cfg.agentCode]?.slice(2)}</span>
+                <span className="text-sm font-semibold text-foreground">{AGENT_NAMES[cfg.agentCode]}</span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -738,7 +766,8 @@ function MetaIntegrationTab() {
         </div>
         <div className="mt-4 p-3 bg-muted/30 rounded-lg">
           <p className="text-[11px] text-muted-foreground">
-            💡 Kết nối và làm mới token Meta do Agency Admin (CrewLab) thực hiện. Bạn chỉ cần theo dõi trạng thái kết nối tại đây.
+            <Lightbulb size={12} className="mr-1 inline" aria-hidden="true" />
+            Kết nối và làm mới token Meta do Agency Admin (CrewLab) thực hiện. Bạn chỉ cần theo dõi trạng thái kết nối tại đây.
           </p>
         </div>
       </div>

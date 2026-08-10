@@ -60,8 +60,35 @@ def upload_file(bucket_name: str, path: str, file_bytes: bytes, content_type: st
         return False
 
 
-def client_asset_path(client_id: str, asset_id: str, content_type: str, asset_request_id: str | None = None) -> str:
+def delete_files(bucket_name: str, paths: list[str]) -> bool:
+    """Delete only explicitly named objects; callers must resolve the scope first."""
+    if not supabase_client or not paths:
+        return False
+    try:
+        supabase_client.storage.from_(bucket_name).remove(paths)
+        return True
+    except Exception as e:
+        logger.error("Error deleting files from Supabase bucket=%s: %s", bucket_name, e)
+        return False
+
+
+def download_file(bucket_name: str, path: str) -> bytes | None:
+    """Read one private object for server-side vision/editing."""
+    if not supabase_client:
+        return None
+    try:
+        result = supabase_client.storage.from_(bucket_name).download(path)
+        return bytes(result)
+    except Exception as e:
+        logger.error("Error downloading file from Supabase path=%s: %s", path, e)
+        return None
+
+
+def client_asset_path(client_id: str, asset_id: str, content_type: str) -> str:
     extension = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[content_type]
-    if asset_request_id:
-        return f"{client_id}/requests/{asset_request_id}/{asset_id}.{extension}"
     return f"{client_id}/originals/{asset_id}.{extension}"
+
+
+def client_derivative_path(client_id: str, asset_id: str, content_type: str) -> str:
+    extension = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[content_type]
+    return f"{client_id}/derivatives/{asset_id}.{extension}"

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { usePortal } from '@/lib/store';
 import { ContentPillar } from '@/lib/types';
-import { Sparkles, Check, RotateCcw, Plus, Trash2, X } from 'lucide-react';
+import { Sparkles, Check, Layers3, Lightbulb, RotateCcw, Plus, Trash2, X } from 'lucide-react';
 
 // ─── Pillar Bar — PRD §2c: slider + input số đồng bộ ────────────────────────
 function PillarBar({ pillar, onUpdate }: { pillar: ContentPillar; onUpdate: (id: string, val: number) => void }) {
@@ -11,7 +11,9 @@ function PillarBar({ pillar, onUpdate }: { pillar: ContentPillar; onUpdate: (id:
     <div className="border border-border rounded-xl p-4 bg-background hover:border-border/60 transition-colors">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-lg">{pillar.emoji}</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground">
+            <Layers3 size={15} aria-hidden="true" />
+          </span>
           <div>
             <p className="text-sm font-bold text-foreground">{pillar.label}</p>
             <p className="text-[11px] text-muted-foreground">{pillar.description}</p>
@@ -71,7 +73,7 @@ function PillarBar({ pillar, onUpdate }: { pillar: ContentPillar; onUpdate: (id:
       {/* Platform ratio + angles */}
       <div className="flex items-center gap-3">
         <span className="text-[10px] text-muted-foreground">
-          🟥 FB {pillar.fbRatio}% · 🟦 IG {pillar.igRatio}%
+          FB {pillar.fbRatio}% · IG {pillar.igRatio}%
         </span>
         <div className="flex flex-wrap gap-1 ml-auto">
           {pillar.angles.map((a) => (
@@ -135,7 +137,9 @@ export default function PillarSlider() {
       <div className="flex items-start gap-3 p-4 mb-4 border border-primary/30 bg-primary/5 rounded-xl">
         <Sparkles size={16} className="text-lime-brand flex-shrink-0 mt-0.5" />
         <div className="flex-1">
-          <p className="text-xs font-semibold text-lime-brand mb-0.5">💡 B02 gợi ý</p>
+          <p className="flex items-center gap-1 text-xs font-semibold text-lime-brand mb-0.5">
+            <Lightbulb size={12} aria-hidden="true" /> B02 gợi ý
+          </p>
           <p className="text-xs text-muted-foreground leading-relaxed">
             Tăng <strong className="text-foreground">Behind the Scenes</strong> lên 35% — engagement tuần trước đạt <strong className="text-foreground">4.2%</strong> (cao nhất 3 tuần gần đây).
             Giảm Product Spotlight xuống 35% để cân bằng nội dung.

@@ -7,7 +7,6 @@ import { AppNotification, NotificationType } from '@/lib/types';
 
 function NotificationIcon({ type }: { type: NotificationType }) {
   if (type === 'content_ready_for_approval') return <CheckCircle2 size={14} className="text-lime-brand" />;
-  if (type === 'asset_request_created') return <ImageIcon size={14} className="text-cyan-400" />;
   if (type === 'strategy_ready_for_approval') return <BarChart3 size={14} className="text-purple-400" />;
   return <Bell size={14} className="text-muted-foreground" />;
 }

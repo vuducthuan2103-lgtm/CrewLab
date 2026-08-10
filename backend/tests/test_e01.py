@@ -1,4 +1,4 @@
-"""Tests for Agent E01 Evaluator, Retry Loop, and check_asset_request_expiry."""
+"""Tests for Agent E01 Evaluator and retry-loop behavior."""
 import os
 import uuid
 import pytest
@@ -12,7 +12,6 @@ from sqlalchemy.future import select
 from app.core.db import Base
 from app.models.clients import Client, BrandSetting
 from app.models.content import WorkflowCycle, ContentPillar, ContentItem, ContentItemStateLog, ContentItemEvalAttempt
-from app.models.assets import AssetRequest
 from app.models.system import TaskLog
 from app.agents.e01.executor import execute_e01, _resolve_image_url
 from app.agents.a01.dispatcher import handle_event
@@ -246,58 +245,6 @@ def test_retry_routing_criteria_mapping():
 
     # Both -> D01 first
     assert determine_retry_route(["brand_voice", "mobile_readability"]) == "D01"
-
-
-@pytest.mark.asyncio
-async def test_check_asset_request_expiry_guard(async_session: AsyncSession, sample_data: dict):
-    client = sample_data["client"]
-    item = sample_data["item"]
-
-    # Item is in 'waiting_asset'
-    item.status = "waiting_asset"
-    await async_session.commit()
-
-    past_time = datetime.now(timezone.utc) - timedelta(hours=1)
-    req = AssetRequest(
-        client_id=client.id,
-        content_item_id=item.id,
-        status="pending",
-        expires_at=past_time,
-    )
-    async_session.add(req)
-    await async_session.commit()
-    await async_session.refresh(req)
-
-    # Run check logic manually (simulating beat task)
-    now = datetime.now(timezone.utc)
-    stmt = select(AssetRequest).where(
-        AssetRequest.status == "pending",
-        AssetRequest.expires_at <= now,
-    )
-    res = await async_session.execute(stmt)
-    pending_reqs = res.scalars().all()
-
-    for r in pending_reqs:
-        target_item = await async_session.get(ContentItem, r.content_item_id)
-        if target_item and target_item.status == "waiting_asset":
-            r.status = "expired"
-            target_item.status = "asset_blocked"
-            async_session.add(
-                ContentItemStateLog(
-                    content_item_id=r.content_item_id,
-                    agent_code="System",
-                    previous_state="waiting_asset",
-                    new_state="asset_blocked",
-                    reason="AssetRequest expired",
-                )
-            )
-
-    await async_session.commit()
-    await async_session.refresh(item)
-    await async_session.refresh(req)
-
-    assert req.status == "expired"
-    assert item.status == "asset_blocked"
 
 
 @pytest.mark.asyncio

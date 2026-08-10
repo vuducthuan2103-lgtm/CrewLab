@@ -16,6 +16,8 @@
 
 **Scope amendment 05/08/2026:** Bỏ nút `Chạy workflow test` và mọi nút `Chạy lại`/reopen thủ công khỏi Internal App. Portal thay form `Tạo Brief Mới` bằng màn hình chat nhiều lượt với A01 để hỏi, làm rõ và giao việc. Đây không phải Direct Assign T20: Direct Assign là bỏ qua A01 để giao thẳng cho một agent con. Khi A01 nhận một việc đủ rõ mà chưa có cycle active, backend được tạo cycle hiện tại nội bộ rồi A01 dispatch D01 bằng `task_assigned`; người dùng không có nút khởi chạy cycle. Xem Decision 0010 và Spec 0014.
 
+**Scope amendment 09/08/2026:** Asset Request đã bị loại bỏ toàn bộ theo Decision 0014. Không còn table/route/UI/event `asset_request`, `waiting_asset`, `asset_blocked`, `asset_submitted` hoặc expiry job. Client chủ động upload Media Library; D01 chọn `text_only` hoặc tạo Visual Intent, còn D02 luôn tạo final visual qua image-capable LLM theo Spec 0017. Amendment này thay thế các mô tả Asset Request trong changelog lịch sử v3.5 và PRD full vision.
+
 \---
 
 ## 1\. Agent scope — 6 agent (5 content agent + A01 Orchestrator)
@@ -174,22 +176,22 @@ Cách làm này tránh đầu tư RAG/Hindsight theo lịch trình mặc định
 
 |Component|Quyết định|
 |-|-|
-|C1 PostgreSQL|Schema gồm `content\_items` (FSM đủ evaluating/eval\_failed/asset\_blocked), `hitl\_reviews`, `brand\_settings`, `content\_pillars`, `brand\_assets`, `asset\_requests` (cần field hết hạn để job check\_asset\_request\_expiry dùng), `audit\_log`. Bỏ `analytics\_records`.|
+|C1 PostgreSQL|Schema gồm `content\_items` (FSM không còn waiting\_asset/asset\_blocked), `hitl\_reviews`, `brand\_settings`, `content\_pillars`, `brand\_assets`, `semantic\_asset\_records`, `audit\_log`. Asset Request đã bị loại bỏ theo Decision 0014.|
 |C2 ChromaDB|**Bỏ** — brand voice dùng form ngắn (B2) nhét thẳng vào context, không cần semantic search tài liệu dài|
 |C3 Hindsight|**Thay bằng bảng Postgres đơn giản** `agent\_memory(agent\_code, client\_id, task\_type, input\_summary, output\_summary, human\_feedback, created\_at)` — Retain sau mỗi lần người approve/edit/reject; Recall = query 5 bản ghi gần nhất|
 |C4 Celery + Context Packet|Giữ, đơn giản hoá — spec cụ thể `build\_context\_packet\_mvp()` ở mục 1b (4/7 field so với bản gốc)|
 |C5 Ingest (Docling+Chonkie)|**Bỏ** — không có tài liệu dài cần đọc tự động|
 |C6 Multi-tenant|Giữ nguyên (rẻ, nên có từ đầu)|
-|C7 Media Library|Giữ storage+metadata, tìm ảnh bằng **lọc tag đơn giản** (không semantic search), asset request = flag + note, Agency Admin tự nhắn khách ngoài hệ thống|
+|C7 Media Library|Storage private + metadata + Semantic Asset Record client-isolated. Client chủ động upload; D02 luôn tạo derivative qua LLM và không gửi Asset Request. Chi tiết theo Spec 0017/Decision 0013-0014.|
 
 ### Tầng 2
 
-* FSM (xem mục 3) — **giữ lại `evaluating`/`eval\_failed`** vì có E01, **thêm mới `asset\_blocked`** cho case asset\_request hết hạn
+* FSM (xem mục 3) — **giữ lại `evaluating`/`eval\_failed`** vì có E01; loại bỏ `waiting\_asset` và `asset\_blocked` cùng toàn bộ Asset Request workflow.
 * Gates: S2 (Pillar), S3 (Plan), **Content Approval Gate** (người xem caption+ảnh đã qua E01 lọc, **không thấy điểm số** — giữ nguyên tinh thần AC-WF-14 gốc)
 * Không S1 (không campaign), không Gate Family 3 (không G04)
 * Retry: A01 đọc `failed\_criteria` từ E01 để route đúng agent — bảng routing chi tiết ở mục 1a — tối đa 3 lần → hard fail alert Agency Admin
 * **`eval\_retry\_count` chỉ tăng khi E01 đã chạy và fail chất lượng — Celery retry do lỗi hạ tầng (`wake\_reason='retry'`) KHÔNG tăng counter này** (mục 1a, business rule 5 — carry-over AC-WF-20 gốc PRD)
-* Thêm job đơn giản `check\_asset\_request\_expiry` (Celery Beat, mỗi vài giờ) → asset\_request quá hạn → chuyển item sang `asset\_blocked` + `notify\_agency\_admin`, không tự dùng ảnh AI thay thế (theo AC-WF-21 gốc PRD)
+* Celery recovery chỉ dùng các wake reason `scheduled`, `task_assigned`, `retry`; không còn `manual` hay expiry job/event của Asset Request.
 * `workflow\_cycles`: rút còn 2 phase — `strategy` → `content\_production` → **`done`** (không `publishing`/`analytics` vì đăng tay, không phân tích tự động)
 
 ### Tầng 3
@@ -214,7 +216,7 @@ Cách làm này tránh đầu tư RAG/Hindsight theo lịch trình mặc định
 │      ├─ Tab: Pillar & Angle                  │
 │      └─ Tab: Content Plan (Calendar)         │
 │  📊 Báo cáo (placeholder "Sắp ra mắt")      │
-│  📸 Yêu cầu ảnh (Asset Request)             │
+│  📸 Thư viện ảnh (Media Library)            │
 │  🔔 Thông báo                               │
 │  ⚙️ Cài đặt (Settings)                      │
 │      ├─ Brand Voice                          │
@@ -224,7 +226,7 @@ Cách làm này tránh đầu tư RAG/Hindsight theo lịch trình mặc định
 └─────────────────────────────────────────────┘
 ```
 
-Sidebar hiển thị **Công việc**, **Trò chuyện A01**, **Content**, **Báo cáo**, **Thông báo**, **Cài đặt**. Asset Request truy cập qua notification/CTA từ Kanban, không chiếm chỗ cố định trên sidebar.
+Sidebar hiển thị **Công việc**, **Trò chuyện A01**, **Content**, **Báo cáo**, **Thông báo**, **Cài đặt**. Media Library nằm trong Settings/Assets; không có Asset Request UI hay CTA.
 
 #### 2a.1. Trò chuyện và giao việc cho A01
 
@@ -405,15 +407,14 @@ Nút Approve chỉ enabled khi caption và giờ đăng ở trạng thái saved.
 
 **Yêu cầu mobile-first:** Modal duyệt bài và Asset Upload (2f) phải responsive mobile-first — SME xem điện thoại nhiều hơn desktop.
 
-#### 2f. Asset Request Flow MVP (nộp ảnh)
+#### 2f. Media Library Upload MVP
 
-* Trigger: D02 tạo `asset_request`, item chuyển `waiting_asset` → notification
-* Notification Center hiển thị request dạng card: nội dung cần chụp, deadline, shot list, ví dụ ảnh
-* Upload area tối ưu mobile: chụp trực tiếp / chọn từ máy, multi-upload, ghi chú từng ảnh
-* Submit → `brand_assets` với `status='pending_review'`, link `asset_request_id` + `content_item_id`
-* Auto-tag bằng vision model → Agency Admin/Client Admin review
-* Khi asset approve → index vào media library, A01 nhận trigger `asset_submitted` resume item
-* **Bỏ kênh Telegram** — MVP chưa có bot, chỉ qua Portal
+* Client chủ động upload ảnh vào private bucket qua backend; tenant lấy từ auth, không nhận từ browser.
+* Upload area tối ưu mobile, kiểm tra MIME/decode/kích thước và yêu cầu xác nhận quyền sử dụng.
+* Source bất biến được lưu dưới `<client_id>/originals/`; exact bytes được dedupe trong cùng client.
+* Background task tạo Semantic Asset Record và lifecycle `processing` → `ready` / `needs_attention` / `failed`.
+* D02 chỉ chọn source `ready`, approved, đủ usage rights; nếu không đủ ảnh thì dùng ảnh gần nhất hoặc new generation, không tạo request cho client.
+* Mọi final visual của bài `visual_required` là derivative qua image-capable LLM; source thật không bị sửa đè.
 
 #### 2g. Settings MVP — 4 tab
 
@@ -456,7 +457,7 @@ Nút Approve chỉ enabled khi caption và giờ đăng ở trạng thái saved.
 
 * List notification, đánh dấu đã đọc, filter theo loại (chờ duyệt / asset / hệ thống)
 * Real-time qua Supabase Realtime — không polling
-* Notification types MVP: `asset_request_created`, `content_ready_for_approval`, `strategy_ready_for_approval`, `asset_submitted`
+* Notification types MVP: `content_ready_for_approval`, `strategy_ready_for_approval`, `semantic_asset_failed`
 * `action_url` trỏ đến đúng card task trên Kanban hoặc modal duyệt tương ứng ở Content Plan Calendar
 
 #### 2i. Placeholder pages MVP
@@ -514,7 +515,7 @@ planned
   → rejected / archived
 ```
 
-**Vì sao cần `asset\_blocked` ngay từ MVP:** dù MVP cắt hết Meta integration/analytics, workflow Asset Request/Media Library (C7) vẫn chạy đầy đủ ngay từ Phase 1 — nên case "chủ quán không nộp ảnh kịp deadline" hoàn toàn có thể xảy ra trong pilot thật, không phải chuyện của các phase sau. Cần 1 job đơn giản `check\_asset\_request\_expiry` (Celery Beat, chạy mỗi vài giờ — không cần đầy đủ như `maintenance.check\_stale\_items` bản PRD gốc) để phát hiện asset\_request quá hạn và chuyển state.
+**Asset Request đã bị loại khỏi MVP:** `waiting\_asset`, `asset\_blocked`, expiry job và submit/resume event không còn hợp lệ. Thiếu exact source không chặn workflow; D02 tiếp tục theo Spec 0017 bằng source gần nhất hoặc new generation và luôn tạo final visual qua LLM.
 
 **Ai điều khiển transition:** từng agent tự ghi state của bước mình vừa xong (qua `T15`); A01 (mục 1a) đọc state mới nhất và quyết định dispatch bước kế tiếp — không có 2 nơi cùng ghi 1 transition, tránh race condition.
 
@@ -525,8 +526,7 @@ planned
 |Giữ|Cắt|
 |-|-|
 |T02/T03 recall/retain — nhưng trỏ vào bảng Postgres đơn giản, không phải Hindsight|T01 (không ChromaDB)|
-|T04 query\_media\_library (tag filter)|T06, T07 (không publish/metrics Meta)|
-|T05 create\_asset\_request (chỉ flag+note)|T10, T11 (không performance\_patterns)|
+|T04 query\_media\_library (hybrid semantic + lexical + hard filters)|T05 create\_asset\_request, T06, T07, T10, T11|
 |T08 read\_content\_plan, T09 write\_planning\_artifact|T16, T17 (không B01, không schedule publish)|
 |T12 generate\_image\_ai, T13 compose\_image\_from\_assets|T18, T19 (không analytics record/learning packet — Retain vào `agent\_memory` đã đóng vai trò này)|
 |T14 notify\_agency\_admin (rút gọn), T15 update\_content\_state|T20 (defer), T21 (không G02)|
@@ -552,7 +552,7 @@ planned
 |3|A01 Orchestrator (agent thứ 6 — trigger routing, retry-routing table, DispatchInstruction, idempotency, mục 1a)|5 agent nội dung cần A01 dispatch tới mới chạy được — viết trước để có khung test|
 |4|Context Packet MVP + P01-lite + Observability tối giản (mục 1b/1c/1d)|Mọi agent nội dung đều gọi `build\_context\_packet\_mvp()` và ghi `task\_logs` — cần có trước khi 5 agent nội dung chạy|
 |5|5 agent nội dung (B02/B03/D01/D02/E01) + FSM/state transitions + retry loop E01|Phần lõi tạo ra output thật — việc lớn nhất, làm sau khi khung dispatch/context đã sẵn|
-|6|Portal (Kanban Dashboard 3 swimlane + chat A01 + Content Hub 3 tab + Content Approval Gate 2 + Asset Request + Settings 4 tab + Notification Center + nút "Đánh dấu đã đăng" + placeholder pages) + Internal App (`task\_logs` read-only)|Cần có agent chạy ra output thật rồi mới build UI để duyệt và giao việc — scope Tầng 4 chi tiết xem mục 2a–2k|
+|6|Portal (Kanban Dashboard 3 swimlane + chat A01 + Content Hub 3 tab + Content Approval Gate 2 + Media Library upload/indexing + Settings 4 tab + Notification Center + nút "Đánh dấu đã đăng" + placeholder pages) + Internal App (`task\_logs` read-only)|Cần có agent chạy ra output thật rồi mới build UI để duyệt và giao việc — scope Tầng 4 chi tiết xem mục 2a–2k|
 |7|Hardening nhẹ + pilot thật tại Bardinh Coffee (đăng tay)|Bước cuối, sau khi mọi phần trên đã chạy được|
 
 Không ước lượng thời gian cho từng dòng trong tài liệu này. Nếu cần một con số tổng để lên kế hoạch (vd báo với ai đó ngoài team), khuyến nghị chạy thật dòng 1-4 trước rồi mới tự ước lượng phần còn lại dựa trên tốc độ thật đã quan sát được, thay vì đoán trước khi có dữ liệu — sprint estimate lần đầu chưa chạy thật gần như luôn lạc quan, nhất là khi code cùng AI coding assistant (rework/debug thường tốn thời gian hơn dự đoán).

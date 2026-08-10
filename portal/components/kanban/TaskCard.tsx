@@ -8,9 +8,15 @@ import {
   Clock,
   RefreshCw,
   AlertCircle,
+  BadgeCheck,
   Bot,
-  User,
+  CalendarDays,
   ChevronRight,
+  Compass,
+  FileText,
+  ImageIcon,
+  PenLine,
+  User,
 } from 'lucide-react';
 
 interface TaskCardProps {
@@ -27,8 +33,14 @@ const AGENT_COLORS: Record<string, string> = {
   HUMAN: 'bg-accent-tint-15 text-lime-brand border-accent-tint',
 };
 
-const AGENT_ICONS: Record<string, string> = {
-  A01: '🧠', B02: '🧭', B03: '📅', D01: '✍️', D02: '🎨', E01: '✅', HUMAN: '👤',
+const AGENT_ICONS: Record<string, typeof Bot> = {
+  A01: Bot,
+  B02: Compass,
+  B03: CalendarDays,
+  D01: PenLine,
+  D02: ImageIcon,
+  E01: BadgeCheck,
+  HUMAN: User,
 };
 
 function getSLALabel(deadline: Date | null): { text: string; urgent: boolean } | null {
@@ -54,6 +66,7 @@ export default function TaskCardComponent({ task }: TaskCardProps) {
   const isClickable = isHumanTask && task.column === 'review';
   const sla = getSLALabel(task.slaDeadline);
   const agentColor = AGENT_COLORS[task.assigneeCode] || 'bg-zinc-500/20 text-zinc-400';
+  const AgentIcon = AGENT_ICONS[task.assigneeCode] || Bot;
 
   return (
     <>
@@ -73,7 +86,7 @@ export default function TaskCardComponent({ task }: TaskCardProps) {
         {/* Top row: assignee avatar + badges */}
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border ${agentColor}`}>
-            <span>{AGENT_ICONS[task.assigneeCode]}</span>
+            <AgentIcon size={10} aria-hidden="true" />
             <span>{task.assigneeCode}</span>
           </div>
           <div className="flex items-center gap-1 flex-wrap justify-end">
@@ -112,7 +125,7 @@ export default function TaskCardComponent({ task }: TaskCardProps) {
               <img src={linkedItem.imageUrl} alt="" className="w-7 h-7 rounded-md object-cover flex-shrink-0 border border-border" />
             ) : (
               <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                <span className="text-[10px]">📄</span>
+                <FileText size={12} className="text-muted-foreground" aria-hidden="true" />
               </div>
             )}
             <span className="text-[10px] text-muted-foreground truncate">{linkedItem.title}</span>
@@ -127,6 +140,18 @@ export default function TaskCardComponent({ task }: TaskCardProps) {
               <User size={10} /> Chờ bạn xử lý
             </div>
             <div className="text-[10px] text-lime-brand opacity-70">Bấm để xem &amp; duyệt →</div>
+          </div>
+        )}
+
+        {task.hasError && (
+          <div className="mt-2 space-y-1 rounded-lg border border-red-500/20 bg-red-500/5 px-2 py-1.5 text-[10px] text-red-300">
+            <p>{task.errorMessage}</p>
+            <div className="flex flex-wrap gap-x-2 gap-y-0.5 opacity-80">
+              {task.errorCode && <span>Mã: {task.errorCode}</span>}
+              {task.errorProvider && <span>Provider: {task.errorProvider}</span>}
+              {task.providerRequestId && <span>Request: {task.providerRequestId}</span>}
+              {task.errorRetryable !== undefined && <span>{task.errorRetryable ? 'Có thể thử lại tự động' : 'Cần kiểm tra'}</span>}
+            </div>
           </div>
         )}
 

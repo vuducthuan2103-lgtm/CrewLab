@@ -14,22 +14,19 @@ except ImportError:
             return func
         return decorator
 
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.core.db import engine
+from app.core.db import CeleryAsyncSessionLocal as AsyncSessionLocal
 from app.models.clients import Client
-from app.models.content import WorkflowCycle
+from app.models.content import WorkflowCycle, ContentItem, ContentItemStateLog
+from app.models.reviews import AgentMemory
+from app.models.system import TaskLog
 from app.agents.a01.precheck import check_client_readiness
 from app.agents.a01.dispatcher import handle_event
+from app.services.task_errors import TaskDispatchError, classify_task_error, log_task_failure
 
 logger = logging.getLogger(__name__)
-
-AsyncSessionLocal = sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False
-)
-
 
 async def create_weekly_cycle(session: AsyncSession, client_id: uuid.UUID) -> WorkflowCycle:
     """Create the active cycle that B02/B03 and the creative agents operate on."""
@@ -66,8 +63,49 @@ AGENT_TASK_MAP = {
 }
 
 
-@shared_task(name="a01_handle_trigger")
-def a01_handle_trigger(client_id: str, event_type: str, cycle_id: str = None, content_item_id: str = None):
+def _send_task(task_name: str, payload: dict, task_id: str) -> None:
+    """Send one already-authorized A01 instruction to Celery."""
+    from celery import current_app as celery_app
+
+    celery_app.send_task(task_name, kwargs={"payload": payload}, task_id=task_id)
+
+
+def dispatch_instructions(instructions) -> None:
+    """A01-owned conversion of DispatchInstructions into concrete Celery work.
+
+    Agents may obtain instructions from ``handle_event`` but must always use this
+    function so task-name routing stays centralized and observable.
+    """
+    failures: list[str] = []
+    for inst in instructions:
+        task_name = AGENT_TASK_MAP.get(inst.agent_code)
+        if not task_name:
+            message = f"No Celery task registered for agent={inst.agent_code} id={inst.idempotency_key}"
+            logger.error(message)
+            failures.append(message)
+            continue
+        logger.info(
+            "Dispatching: agent=%s task=%s idempotency=%s",
+            inst.agent_code,
+            task_name,
+            inst.idempotency_key,
+        )
+        try:
+            _send_task(task_name, inst.payload, inst.idempotency_key)
+        except Exception as exc:
+            logger.exception(
+                "Celery dispatch failed: agent=%s idempotency=%s",
+                inst.agent_code,
+                inst.idempotency_key,
+            )
+            failures.append(f"{inst.agent_code}:{inst.idempotency_key}: {exc}")
+
+    if failures:
+        raise TaskDispatchError("; ".join(failures))
+
+
+@shared_task(name="a01_handle_trigger", bind=True, max_retries=2, default_retry_delay=30)
+def a01_handle_trigger(self, client_id: str, event_type: str, cycle_id: str = None, content_item_id: str = None):
     """
     Main entry point for Orchestrator A01.
     Handles events and dispatches to appropriate agent Celery tasks.
@@ -103,29 +141,31 @@ def a01_handle_trigger(client_id: str, event_type: str, cycle_id: str = None, co
                 content_item_id=item_uuid
             )
 
-            # 3. Dispatch each instruction to its Celery task
-            for inst in instructions:
-                task_name = AGENT_TASK_MAP.get(inst.agent_code)
-                if not task_name:
-                    logger.warning(
-                        f"No Celery task registered for agent={inst.agent_code}. "
-                        f"Skipping dispatch. (Add to AGENT_TASK_MAP when task is implemented.)"
-                    )
-                    continue
+            # 3. Dispatch each instruction to its Celery task.
+            dispatch_instructions(instructions)
 
-                logger.info(
-                    f"Dispatching: agent={inst.agent_code} task={task_name} "
-                    f"idempotency={inst.idempotency_key}"
+    try:
+        run_async(_run())
+    except Exception as exc:
+        logger.exception("A01 trigger failed: client=%s event=%s", client_id, event_type)
+
+        async def _log_failure():
+            async with AsyncSessionLocal() as failure_session:
+                await log_task_failure(
+                    failure_session,
+                    client_id=client_uuid,
+                    content_item_id=item_uuid,
+                    agent_code="A01",
+                    task_type="orchestrator_dispatch",
+                    wake_reason=event_type,
+                    exc=exc,
                 )
-                try:
-                    from celery import current_app as celery_app
-                    celery_app.send_task(task_name, kwargs={"payload": inst.payload})
-                except Exception as e:
-                    logger.error(
-                        f"Failed to dispatch {task_name} for agent={inst.agent_code}: {e}"
-                    )
 
-    run_async(_run())
+        try:
+            run_async(_log_failure())
+        except Exception:
+            logger.exception("A01 failed to persist trigger failure")
+        raise self.retry(exc=exc)
 
 
 @shared_task(name="check_scheduled_cycles")
@@ -158,72 +198,104 @@ def check_scheduled_cycles():
     run_async(_run())
 
 
-async def expire_asset_requests(session: AsyncSession, now: datetime | None = None) -> int:
-    """Expire due asset requests without allowing one bad row to stop the batch."""
-    from app.models.assets import AssetRequest
-    from app.models.content import ContentItem, ContentItemStateLog
-    from app.models.system import TaskLog
-
+async def recover_stalled_items(session: AsyncSession, now: datetime | None = None) -> int:
+    """Requeue work that was acknowledged by a worker which then disappeared."""
     now = now or datetime.now(UTC)
-    stmt = select(AssetRequest).where(
-        AssetRequest.status == "pending",
-        AssetRequest.expires_at <= now,
+    cutoff = now - timedelta(minutes=15)
+    state_to_event = {
+        "caption_generating": "recover_d01",
+        "visual_matching": "recover_d02",
+        "visual_generating": "recover_d02",
+        "evaluating": "recover_e01",
+        "eval_failed": "eval_failed",
+    }
+    stmt = select(ContentItem).where(
+        ContentItem.status.in_(tuple(state_to_event)),
+        ContentItem.updated_at < cutoff,
     )
-    requests = (await session.execute(stmt)).scalars().all()
-    processed = 0
-
-    for req in requests:
+    items = list((await session.execute(stmt)).scalars().all())
+    pending_chat_stmt = (
+        select(ContentItem)
+        .join(AgentMemory, AgentMemory.content_item_id == ContentItem.id)
+        .where(
+            ContentItem.status == "planned",
+            ContentItem.updated_at < cutoff,
+            AgentMemory.agent_code == "A01",
+            AgentMemory.task_type == "portal_chat:create_content:pending",
+        )
+        .distinct()
+    )
+    items.extend((await session.execute(pending_chat_stmt)).scalars().all())
+    recovered = 0
+    for item in items:
+        event_type = (
+            "a01_chat_task_created"
+            if item.status == "planned"
+            else state_to_event[item.status]
+        )
+        if (
+            item.status == "visual_matching"
+            and (item.image_brief or {}).get("visual_mode") == "text_only"
+        ):
+            event_type = "recover_e01"
+        if (
+            item.status == "visual_generating"
+            and item.image_url
+            and ((item.image_brief or {}).get("d02_provenance") or {}).get("derivative_asset_id")
+        ):
+            event_type = "recover_e01"
         try:
-            item = await session.get(ContentItem, req.content_item_id)
-            req.status = "expired"
-
-            if not item or item.status != "waiting_asset":
-                logger.info(
-                    "Skipping asset state transition for expired request %s: item=%s status=%s",
-                    req.id,
-                    req.content_item_id,
-                    item.status if item else None,
-                )
-                await session.commit()
-                processed += 1
-                continue
-
-            previous_state = item.status
-            item.status = "asset_blocked"
-            session.add(
-                ContentItemStateLog(
-                    content_item_id=req.content_item_id,
-                    agent_code="System",
-                    previous_state=previous_state,
-                    new_state="asset_blocked",
-                    reason=f"AssetRequest {req.id} expired at {req.expires_at}",
-                )
+            a01_handle_trigger.delay(
+                client_id=str(item.client_id),
+                event_type=event_type,
+                cycle_id=str(item.cycle_id),
+                content_item_id=str(item.id),
             )
-            session.add(
-                TaskLog(
-                    client_id=req.client_id,
-                    content_item_id=req.content_item_id,
-                    agent_code="System",
-                    task_type="asset_request_expiry",
-                    status="completed",
-                    wake_reason="beat_expiry_check",
-                )
+        except Exception as exc:
+            error = classify_task_error(TaskDispatchError(str(exc)))
+            values = dict(
+                client_id=item.client_id,
+                content_item_id=item.id,
+                agent_code="A01",
+                task_type="worker_recovery",
+                status="failed",
+                wake_reason="worker_restart_recovery",
+                error_code=error.code,
+                error_provider=error.provider,
+                provider_request_id=error.provider_request_id,
+                error_message=error.message,
             )
-            await session.commit()
-            processed += 1
-        except Exception:
-            await session.rollback()
-            logger.exception("Failed to process expired AssetRequest %s; continuing batch", req.id)
+            if hasattr(TaskLog, "error_retryable"):
+                values["error_retryable"] = error.retryable
+            session.add(TaskLog(**values))
+            continue
 
-    return processed
+        recovered += 1
+        item.updated_at = now
+        session.add(ContentItemStateLog(
+            content_item_id=item.id,
+            agent_code="System",
+            previous_state=item.status,
+            new_state=item.status,
+            reason=f"Worker recovery queued {event_type} after stale activity",
+        ))
+        session.add(TaskLog(
+            client_id=item.client_id,
+            content_item_id=item.id,
+            agent_code="A01",
+            task_type="worker_recovery",
+            status="recovered",
+            wake_reason="worker_restart_recovery",
+        ))
+    await session.commit()
+    return recovered
 
 
-@shared_task(name="check_asset_request_expiry")
-def check_asset_request_expiry():
-    """Runs periodically (hourly) to process due AssetRequest records."""
+@shared_task(name="recover_stalled_agent_work")
+def recover_stalled_agent_work():
     async def _run():
         async with AsyncSessionLocal() as session:
-            await expire_asset_requests(session)
+            await recover_stalled_items(session)
 
     run_async(_run())
 
