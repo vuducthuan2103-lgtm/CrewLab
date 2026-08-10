@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { usePortal } from '@/lib/store';
-import { Bell, Sun, Moon, X, CheckCircle2, Image as ImageIcon, BarChart3, ChevronRight } from 'lucide-react';
+import { Bell, X, CheckCircle2, Image as ImageIcon, BarChart3, ChevronRight } from 'lucide-react';
 import { AppNotification, NotificationType } from '@/lib/types';
 
 function NotificationIcon({ type }: { type: NotificationType }) {
@@ -37,21 +37,13 @@ function NotificationItem({ notif, onClose }: { notif: AppNotification; onClose:
 }
 
 export default function Header() {
-  const { isDark, toggleTheme, notifications, unreadCount } = usePortal();
+  const { notifications, unreadCount } = usePortal();
   const [notifOpen, setNotifOpen] = useState(false);
 
   return (
     <header className="fixed top-0 left-56 right-0 h-14 z-30 border-b border-border bg-background/95 backdrop-blur-sm flex items-center px-6 gap-4">
       <div className="flex-1" />
       <div className="flex items-center gap-2">
-        <button
-          id="theme-toggle"
-          onClick={toggleTheme}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-150"
-          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {isDark ? <Sun size={15} /> : <Moon size={15} />}
-        </button>
         <div className="relative">
           <button
             id="notification-bell"

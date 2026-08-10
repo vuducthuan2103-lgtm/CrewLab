@@ -1,0 +1,171 @@
+{
+  "_meta": {
+    "generatedFrom": "DESIGN.md",
+    "generator": "@google/design.md",
+    "editSourceInstead": true
+  },
+  "theme": {
+    "extend": {
+      "colors": {
+        "primary": "#d4ff00",
+        "primary-hover": "#e5ff55",
+        "on-primary-dark": "#09090b",
+        "admin-accent-dark": "#22d3ee",
+        "on-admin-accent-dark": "#09090b",
+        "background-dark": "#09090b",
+        "on-background-dark": "#fafafa",
+        "surface-dark": "#131316",
+        "on-surface-dark": "#fafafa",
+        "surface-dark-muted": "#27272a",
+        "on-surface-dark-muted": "#a1a1aa",
+        "border-dark": "#27272a",
+        "success-dark-container": "#166534",
+        "on-success-dark-container": "#dcfce7",
+        "warning-dark-container": "#f59e0b",
+        "on-warning-dark-container": "#09090b",
+        "error-dark-container": "#7f1d1d",
+        "on-error-dark-container": "#ffffff",
+        "info-dark-container": "#164e63",
+        "on-info-dark-container": "#ecfeff"
+      },
+      "fontFamily": {
+        "headline-display": [
+          "Montserrat"
+        ],
+        "headline-xl": [
+          "Montserrat"
+        ],
+        "headline-lg": [
+          "Montserrat"
+        ],
+        "headline-md": [
+          "Montserrat"
+        ],
+        "headline-sm": [
+          "Montserrat"
+        ],
+        "body-lg": [
+          "Montserrat"
+        ],
+        "body-md": [
+          "Montserrat"
+        ],
+        "body-sm": [
+          "Montserrat"
+        ],
+        "label-lg": [
+          "Montserrat"
+        ],
+        "label-md": [
+          "Montserrat"
+        ],
+        "label-mono": [
+          "JetBrains Mono"
+        ]
+      },
+      "fontSize": {
+        "headline-display": [
+          "56px",
+          {
+            "lineHeight": "1.1",
+            "letterSpacing": "-0.02em",
+            "fontWeight": "700"
+          }
+        ],
+        "headline-xl": [
+          "40px",
+          {
+            "lineHeight": "1.15",
+            "letterSpacing": "-0.01em",
+            "fontWeight": "700"
+          }
+        ],
+        "headline-lg": [
+          "32px",
+          {
+            "lineHeight": "1.2",
+            "fontWeight": "600"
+          }
+        ],
+        "headline-md": [
+          "24px",
+          {
+            "lineHeight": "1.3",
+            "fontWeight": "600"
+          }
+        ],
+        "headline-sm": [
+          "20px",
+          {
+            "lineHeight": "1.3",
+            "fontWeight": "600"
+          }
+        ],
+        "body-lg": [
+          "16px",
+          {
+            "lineHeight": "1.6",
+            "fontWeight": "400"
+          }
+        ],
+        "body-md": [
+          "14px",
+          {
+            "lineHeight": "1.5",
+            "fontWeight": "400"
+          }
+        ],
+        "body-sm": [
+          "12px",
+          {
+            "lineHeight": "1.5",
+            "fontWeight": "400"
+          }
+        ],
+        "label-lg": [
+          "14px",
+          {
+            "lineHeight": "1.2",
+            "fontWeight": "600"
+          }
+        ],
+        "label-md": [
+          "12px",
+          {
+            "lineHeight": "1.2",
+            "fontWeight": "600"
+          }
+        ],
+        "label-mono": [
+          "12px",
+          {
+            "lineHeight": "1.2",
+            "letterSpacing": "0.05em",
+            "fontWeight": "500"
+          }
+        ]
+      },
+      "borderRadius": {
+        "sm": "8px",
+        "md": "10px",
+        "lg": "12px",
+        "xl": "12px",
+        "2xl": "16px",
+        "3xl": "24px",
+        "full": "9999px"
+      },
+      "spacing": {
+        "2xs": "4px",
+        "xs": "8px",
+        "sm": "12px",
+        "md": "16px",
+        "lg": "24px",
+        "xl": "32px",
+        "2xl": "48px",
+        "container-padding": "32px",
+        "container-padding-mobile": "16px",
+        "container-max": "1400px"
+      }
+    }
+  }
+}
