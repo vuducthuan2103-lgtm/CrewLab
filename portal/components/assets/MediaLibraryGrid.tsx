@@ -4,7 +4,7 @@ import React, { useRef, useState } from 'react';
 import { usePortal } from '@/lib/store';
 import { MediaAsset, AssetSource } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
-import { X, Tag, Info, Trash2, Search, Upload, Loader2 } from 'lucide-react';
+import { X, Tag, Info, Search, Upload, Loader2 } from 'lucide-react';
 
 type FilterTab = 'all' | 'ai_generated' | 'real_photo' | 'pending_review';
 
@@ -22,6 +22,14 @@ const SOURCE_BADGES: Record<AssetSource, { label: string; class: string }> = {
   real_photo: { label: 'Ảnh thật', class: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
   ai_generated: { label: 'AI tạo', class: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
   pending_review: { label: 'Chờ duyệt', class: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+};
+
+const INDEXING_LABELS: Record<NonNullable<MediaAsset['indexingStatus']>, string> = {
+  processing: 'Đang phân tích ảnh',
+  ready: 'Sẵn sàng cho D02',
+  needs_attention: 'Cần kiểm tra',
+  failed: 'Xử lý thất bại',
+  superseded: 'Đã được thay thế',
 };
 
 function AssetDetailPanel({ asset, onClose }: { asset: MediaAsset; onClose: () => void }) {
@@ -48,6 +56,19 @@ function AssetDetailPanel({ asset, onClose }: { asset: MediaAsset; onClose: () =
               <span className="text-muted-foreground text-xs">Upload lúc</span>
               <span className="text-xs text-foreground">
                 {asset.uploadedAt.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-xs">D02 indexing</span>
+              <span className="text-xs text-foreground">
+                {INDEXING_LABELS[asset.indexingStatus || 'processing']}
+              </span>
+            </div>
+            {asset.indexingReason && <p className="text-xs text-amber-400">{asset.indexingReason}</p>}
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-xs">D02 sử dụng</span>
+              <span className={`text-xs ${asset.readyForD02 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                {asset.readyForD02 ? 'Đủ điều kiện' : 'Chưa đủ điều kiện'}
               </span>
             </div>
             {asset.usedInItems.length > 0 && (
@@ -78,9 +99,6 @@ function AssetDetailPanel({ asset, onClose }: { asset: MediaAsset; onClose: () =
             <button onClick={onClose} className="flex-1 py-2 border border-border text-xs font-medium text-muted-foreground rounded-lg hover:bg-muted/50 transition-colors">
               Đóng
             </button>
-            <button className="flex items-center gap-1 px-3 py-2 border border-red-500/30 text-red-400 text-xs font-medium rounded-lg hover:bg-red-500/5 transition-colors">
-              <Trash2 size={12} /> Xóa
-            </button>
           </div>
         </div>
       </div>
@@ -95,6 +113,7 @@ export default function MediaLibraryGrid() {
   const [selectedAsset, setSelectedAsset] = useState<MediaAsset | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [rightsAttested, setRightsAttested] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = mediaAssets.filter((a) => {
@@ -130,7 +149,7 @@ export default function MediaLibraryGrid() {
     setUploadError(null);
     void (async () => {
       try {
-        for (const file of selectedFiles) await uploadAsset(file);
+        for (const file of selectedFiles) await uploadAsset(file, rightsAttested);
       } catch (cause) {
         setUploadError(cause instanceof Error ? cause.message : 'Không thể tải ảnh lên.');
       } finally {
@@ -187,12 +206,20 @@ export default function MediaLibraryGrid() {
             event.target.value = '';
           }}
         />
+        <label className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={rightsAttested}
+            onChange={(event) => setRightsAttested(event.target.checked)}
+            className="h-3.5 w-3.5 accent-lime-brand"
+          />
+          Tôi có quyền sử dụng và cho phép D02 chỉnh sửa ảnh
+        </label>
         <Button
           id="media-library-upload-btn"
           size="sm"
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="ml-auto"
+          disabled={uploading || !rightsAttested}
         >
           {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
           {uploading ? 'Đang tải...' : 'Tải ảnh lên'}
@@ -218,6 +245,13 @@ export default function MediaLibraryGrid() {
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                 />
               </div>
+              {asset.indexingStatus === 'processing' && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/45 text-white">
+                  <span className="flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-semibold">
+                    <Loader2 size={11} className="animate-spin" /> Đang phân tích
+                  </span>
+                </div>
+              )}
               {/* Source badge */}
               <div className="absolute top-1.5 left-1.5">
                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border backdrop-blur-sm ${badge.class}`}>

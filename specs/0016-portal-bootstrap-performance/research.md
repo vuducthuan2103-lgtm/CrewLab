@@ -26,7 +26,7 @@
 
 ## Decision 3: Explicit deferred loaders with independent state
 
-**Decision**: Asset requests/media assets load when the assets experience mounts; full settings load when settings mounts. Bootstrap, assets, and settings each have independent loading/error/retry state.
+**Decision**: Media assets load when the assets experience mounts; full settings load when settings mounts. Bootstrap, assets, and settings each have independent loading/error/retry state. Asset Request was removed by Decision 0014.
 
 **Rationale**: Page ownership prevents optional failures from blanking the work board and makes retries precise. It also ensures media signed-URL generation and provider/model configuration queries do not run for users who only use the board.
 

@@ -13,7 +13,8 @@ import {
   ThumbsDown,
   ThumbsUp,
   Flag,
-  MessageSquare,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { ContentItem, RejectionReason, REJECTION_REASON_LABELS, FSM_STATE_LABELS } from '@/lib/types';
 
@@ -34,7 +35,6 @@ function FSMBadge({ state }: { state: ContentItem['state'] }) {
     },
     posted: { class: 'bg-blue-500/10 text-blue-400 border-blue-500/20', label: FSM_STATE_LABELS['posted'] },
     eval_failed: { class: 'bg-amber-500/10 text-amber-400 border-amber-500/20', label: FSM_STATE_LABELS['eval_failed'] },
-    waiting_asset: { class: 'bg-orange-500/10 text-orange-400 border-orange-500/20', label: FSM_STATE_LABELS['waiting_asset'] },
   };
   const cfg = configs[state] || { class: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20', label: FSM_STATE_LABELS[state] || state };
   return (
@@ -44,14 +44,15 @@ function FSMBadge({ state }: { state: ContentItem['state'] }) {
   );
 }
 
-function MockFBPreview({ item, caption }: { item: ContentItem; caption: string }) {
+function MockFBPreview({ item, caption, brandName }: { item: ContentItem; caption: string; brandName: string }) {
+  const displayName = brandName || 'Thương hiệu';
   return (
     <div className="rounded-xl overflow-hidden border border-border bg-[#1C1E21] text-white text-xs">
       {/* FB Post Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/10">
-        <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-[10px]">B</div>
+        <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-[10px]">{displayName.slice(0, 1).toUpperCase()}</div>
         <div>
-          <p className="font-semibold text-[11px]">Bardinh Coffee</p>
+          <p className="font-semibold text-[11px]">{displayName}</p>
           <p className="text-[10px] text-white/50">Vừa xong · 🌐</p>
         </div>
         <div className="ml-auto text-white/40">···</div>
@@ -80,14 +81,16 @@ function MockFBPreview({ item, caption }: { item: ContentItem; caption: string }
   );
 }
 
-function MockIGPreview({ item, caption }: { item: ContentItem; caption: string }) {
+function MockIGPreview({ item, caption, brandName }: { item: ContentItem; caption: string; brandName: string }) {
+  const displayName = brandName || 'Thương hiệu';
+  const handle = displayName.toLocaleLowerCase('vi-VN').replace(/\s+/g, '.');
   return (
     <div className="rounded-xl overflow-hidden border border-border bg-[#000] text-white text-xs">
       {/* IG Header */}
       <div className="flex items-center gap-2 px-3 py-2.5">
-        <div className="w-7 h-7 rounded-full ring-2 ring-emerald-500 flex items-center justify-center bg-emerald-600 text-white font-bold text-[10px]">B</div>
+        <div className="w-7 h-7 rounded-full ring-2 ring-emerald-500 flex items-center justify-center bg-emerald-600 text-white font-bold text-[10px]">{displayName.slice(0, 1).toUpperCase()}</div>
         <div>
-          <p className="font-semibold text-[11px]">bardinh.coffee</p>
+          <p className="font-semibold text-[11px]">{handle}</p>
         </div>
         <div className="ml-auto text-white/40">···</div>
       </div>
@@ -109,7 +112,7 @@ function MockIGPreview({ item, caption }: { item: ContentItem; caption: string }
       {/* Caption */}
       <div className="px-3 pb-3">
         <p className="text-[11px] leading-relaxed whitespace-pre-line text-white/90 line-clamp-3">
-          <span className="font-semibold">bardinh.coffee</span> {caption.split('\n')[0]}
+          <span className="font-semibold">{handle}</span> {caption.split('\n')[0]}
         </p>
       </div>
     </div>
@@ -117,40 +120,51 @@ function MockIGPreview({ item, caption }: { item: ContentItem; caption: string }
 }
 
 export default function ContentApprovalModal({ contentItem, onClose }: ContentApprovalModalProps) {
-  const { approveContent, rejectContent, markAsPosted } = usePortal();
+  const { approveContent, rejectContent, markAsPosted, clientName } = usePortal();
   const [editCaption, setEditCaption] = useState(contentItem.clientEditedCaption || contentItem.caption);
   const [isEditingCaption, setIsEditingCaption] = useState(false);
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState<RejectionReason>('tone_wrong');
   const [rejectFeedback, setRejectFeedback] = useState('');
   const [actionDone, setActionDone] = useState<'approved' | 'rejected' | 'posted' | null>(null);
+  const [actionPending, setActionPending] = useState<'approved' | 'rejected' | 'posted' | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const canApprove = contentItem.state === 'pending_content_approval';
   const canMarkPosted = contentItem.state === 'approved_ready_to_post';
-  const isReadOnly = contentItem.state === 'posted' || contentItem.state === 'waiting_asset';
+  const isReadOnly = contentItem.state === 'posted';
 
-  const handleApprove = () => {
-    approveContent(contentItem.id, editCaption);
-    setActionDone('approved');
-    setTimeout(onClose, 1000);
+  const runAction = async (
+    action: 'approved' | 'rejected' | 'posted',
+    operation: () => Promise<void>,
+  ) => {
+    if (actionPending) return;
+    setActionPending(action);
+    setActionError(null);
+    try {
+      await operation();
+      setActionDone(action);
+      setTimeout(onClose, 1000);
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'Không thể hoàn tất thao tác. Vui lòng thử lại.');
+    } finally {
+      setActionPending(null);
+    }
   };
 
-  const handleReject = () => {
-    rejectContent(contentItem.id, rejectReason, rejectFeedback);
-    setActionDone('rejected');
-    setTimeout(onClose, 1000);
-  };
+  const handleApprove = () => void runAction('approved', () => approveContent(contentItem.id, editCaption));
 
-  const handleMarkPosted = () => {
-    markAsPosted(contentItem.id);
-    setActionDone('posted');
-    setTimeout(onClose, 1000);
-  };
+  const handleReject = () => void runAction(
+    'rejected',
+    () => rejectContent(contentItem.id, rejectReason, rejectFeedback),
+  );
+
+  const handleMarkPosted = () => void runAction('posted', () => markAsPosted(contentItem.id));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={actionPending ? undefined : onClose} />
 
       {/* Modal */}
       <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -196,7 +210,7 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
               <div className="flex items-center gap-1.5 mb-3">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">🟥 Preview Facebook</span>
               </div>
-              <MockFBPreview item={contentItem} caption={editCaption} />
+              <MockFBPreview item={contentItem} caption={editCaption} brandName={clientName} />
             </div>
 
             {/* Instagram Preview */}
@@ -204,7 +218,7 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
               <div className="flex items-center gap-1.5 mb-3">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">🟦 Preview Instagram</span>
               </div>
-              <MockIGPreview item={contentItem} caption={editCaption} />
+              <MockIGPreview item={contentItem} caption={editCaption} brandName={clientName} />
             </div>
           </div>
 
@@ -254,6 +268,20 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
             </div>
           </div>
 
+          {contentItem.imageProvenance && (
+            <div className="px-6 pb-4">
+              <div className="rounded-xl border border-border bg-muted/20 p-3 text-xs">
+                <p className="mb-2 font-semibold text-foreground">Nguồn gốc hình ảnh D02</p>
+                <div className="space-y-1 text-muted-foreground">
+                  <p>Chế độ: <span className="text-foreground">{contentItem.imageProvenance.generationMode || 'Không xác định'}</span></p>
+                  <p>Ảnh nguồn: <span className="text-foreground">{contentItem.imageProvenance.sourceAssetId || 'Không dùng ảnh nguồn'}</span></p>
+                  {contentItem.imageProvenance.selectionScore !== null && contentItem.imageProvenance.selectionScore !== undefined && <p>Điểm phù hợp: <span className="text-foreground">{contentItem.imageProvenance.selectionScore}/100</span></p>}
+                  {contentItem.imageProvenance.selectionRationale && <p>Lý do chọn: <span className="text-foreground">{contentItem.imageProvenance.selectionRationale}</span></p>}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Reject Form */}
           {showRejectForm && (
             <div className="mx-6 mb-4 p-4 border border-amber-500/30 bg-amber-500/5 rounded-xl space-y-3">
@@ -290,9 +318,10 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
                 <button
                   id="confirm-reject"
                   onClick={handleReject}
+                  disabled={Boolean(actionPending)}
                   className="flex-1 py-2 bg-amber-500 text-black text-xs font-bold rounded-lg hover:bg-amber-400 transition-colors flex items-center justify-center gap-1"
                 >
-                  <XCircle size={12} /> Xác nhận từ chối
+                  {actionPending === 'rejected' ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />} Xác nhận từ chối
                 </button>
               </div>
             </div>
@@ -314,6 +343,12 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
               {actionDone === 'rejected' && <><Flag size={14} /> Đã từ chối và gửi feedback về AI.</>}
             </div>
           )}
+          {actionError && (
+            <div role="alert" className="mx-6 mb-4 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+              <AlertCircle size={15} className="mt-0.5 shrink-0" />
+              <span>{actionError}</span>
+            </div>
+          )}
         </div>
 
         {/* Footer Actions */}
@@ -322,9 +357,10 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
             <button
               id="mark-as-posted-btn"
               onClick={handleMarkPosted}
+              disabled={Boolean(actionPending)}
               className="flex items-center gap-2 px-4 py-2.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-semibold rounded-lg hover:bg-blue-500/20 transition-all"
             >
-              <CheckSquare size={14} /> Đánh dấu đã đăng
+              {actionPending === 'posted' ? <Loader2 size={14} className="animate-spin" /> : <CheckSquare size={14} />} Đánh dấu đã đăng
             </button>
           )}
           <div className="flex-1" />
@@ -333,6 +369,7 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
               <button
                 id="reject-btn"
                 onClick={() => setShowRejectForm(true)}
+                disabled={Boolean(actionPending)}
                 className="flex items-center gap-1.5 px-4 py-2.5 border border-border text-muted-foreground text-sm font-semibold rounded-lg hover:border-amber-500/50 hover:text-amber-400 hover:bg-amber-500/5 transition-all"
               >
                 <XCircle size={14} /> Từ chối
@@ -340,9 +377,10 @@ export default function ContentApprovalModal({ contentItem, onClose }: ContentAp
               <button
                 id="approve-btn"
                 onClick={handleApprove}
+                disabled={Boolean(actionPending)}
                 className="flex items-center gap-2 px-5 py-2.5 btn-lime-glow text-sm font-bold rounded-lg transition-all"
               >
-                <ThumbsUp size={14} /> Duyệt bài
+                {actionPending === 'approved' ? <Loader2 size={14} className="animate-spin" /> : <ThumbsUp size={14} />} Duyệt bài
               </button>
             </>
           )}

@@ -1,19 +1,26 @@
-"""Tool functions for D02 — Image Design & Matching agent.
-
-T04: query_media_library — tag filter với Postgres JSONB ?| operator
-T05: create_asset_request — tạo structured asset request, check duplicate
-T12: generate_image_ai — mock implementation (Phase 1: allow_ai_images=false default)
-"""
+"""Database and generation tools for the D02 visual-production agent."""
 import logging
+import hashlib
+from io import BytesIO
+import os
+import re
 import uuid
-from datetime import timedelta
 
-from sqlalchemy import text
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+from PIL import Image
 
-from app.core.db import utcnow
-from app.models.assets import AssetRequest, BrandAsset
+from app.core.llm import LLMConfigurationError, create_asset_embedding, generate_image
+from app.models.assets import BrandAsset, SemanticAssetRecord
+from app.services.asset_service import inspect_image_upload
+from app.services.storage import (
+    BRAND_ASSETS_BUCKET,
+    client_derivative_path,
+    download_file,
+    upload_file,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,155 +32,183 @@ async def query_media_library(
     status: str = "approved",
     asset_type: str | None = None,
     limit: int = 10,
+    visual_intent_text: str | None = None,
+    exclusion_audit: list[dict] | None = None,
 ) -> list[BrandAsset]:
-    """T04 — Tìm ảnh trong brand_assets theo tag filter.
+    """Hybrid pgvector + lexical retrieval with tenant and eligibility gates.
 
-    Dùng Postgres JSONB ?| operator: match nếu có ít nhất 1 tag trong danh sách.
-    Chỉ trả ảnh status='approved'. Sắp xếp theo usage_count ASC (ưu tiên ảnh chưa dùng nhiều).
+    Newly uploaded assets require a ready Semantic Asset Record. Only legacy
+    assets without any semantic row may use the metadata fallback during the
+    controlled backfill window.
     """
-    if not tags:
-        logger.warning("query_media_library called with empty tags list")
+    if not tags and not visual_intent_text:
+        logger.warning("query_media_library called without tags or Visual Intent")
         return []
 
-    # Build raw SQL với JSONB ?| operator — SQLAlchemy ORM không hỗ trợ trực tiếp
-    base_sql = """
-        SELECT * FROM brand_assets
-        WHERE client_id = :client_id
-          AND status = :status
-          AND tags ?| ARRAY[:tags]
-    """
-    params: dict = {
-        "client_id": str(client_id),
-        "status": status,
-        "tags": tags,
-    }
-
-    if asset_type:
-        base_sql += " AND asset_type = :asset_type"
-        params["asset_type"] = asset_type
-
-    base_sql += " ORDER BY COALESCE((SELECT 0), 0) ASC LIMIT :limit"
-    params["limit"] = limit
-
-    # Check dialect for SQLite fallback (used in pytest)
     bind = getattr(session, "bind", None)
-    if bind and getattr(bind, "dialect", None) and bind.dialect.name == "sqlite":
-        stmt = select(BrandAsset).where(
-            BrandAsset.client_id == client_id,
-            BrandAsset.status == status,
+    dialect = getattr(getattr(bind, "dialect", None), "name", None)
+    disallowed_rights = ("unknown", "denied", "expired", "restricted", "none")
+    hard_filters = (
+        BrandAsset.client_id == client_id,
+        BrandAsset.status == status,
+        BrandAsset.source_asset_id.is_(None),
+        BrandAsset.source.in_(("client_uploaded", "real_photo", "portal")),
+        BrandAsset.usage_rights.is_not(None),
+        BrandAsset.usage_rights.not_in(disallowed_rights),
+    )
+
+    if exclusion_audit is not None:
+        audit_stmt = (
+            select(BrandAsset)
+            .where(
+                BrandAsset.client_id == client_id,
+                BrandAsset.source_asset_id.is_(None),
+            )
+            .options(selectinload(BrandAsset.semantic_record))
+            .order_by(BrandAsset.created_at.desc())
+            .limit(200)
+        )
+        for asset in (await session.execute(audit_stmt)).scalars().all():
+            reason = None
+            if asset.status != status:
+                reason = "approval_not_approved"
+            elif asset.source not in {"client_uploaded", "real_photo", "portal"}:
+                reason = "source_not_eligible"
+            elif not asset.usage_rights or asset.usage_rights in disallowed_rights:
+                reason = "usage_rights_ineligible"
+            elif asset.semantic_record is not None and asset.semantic_record.status != "ready":
+                reason = f"semantic_{asset.semantic_record.status}"
+            elif asset.semantic_record is not None and (
+                (asset.semantic_record.safety or {}).get("safe") is False
+            ):
+                reason = "safety_gate_failed"
+            elif asset.semantic_record is not None and (
+                (asset.semantic_record.technical_quality or {}).get("usable") is False
+            ):
+                reason = "technical_quality_gate_failed"
+            if reason:
+                exclusion_audit.append({"asset_id": str(asset.id), "reason": reason})
+
+    query_embedding = None
+    if visual_intent_text:
+        try:
+            query_embedding = await create_asset_embedding(
+                session=session,
+                client_id=client_id,
+                text_value=visual_intent_text,
+                wake_reason="d02_semantic_retrieval",
+            )
+        except LLMConfigurationError:
+            logger.warning("No compatible embedding provider for client=%s", client_id)
+
+    semantic_scores: dict[uuid.UUID, float] = {}
+    if query_embedding is not None and dialect != "sqlite":
+        similarity = (
+            1 - SemanticAssetRecord.embedding.cosine_distance(query_embedding.embedding)
+        ).label("semantic_similarity")
+        vector_stmt = (
+            select(BrandAsset, similarity)
+            .join(
+                SemanticAssetRecord,
+                SemanticAssetRecord.source_asset_id == BrandAsset.id,
+            )
+            .where(
+                *hard_filters,
+                SemanticAssetRecord.client_id == client_id,
+                SemanticAssetRecord.status == "ready",
+                SemanticAssetRecord.embedding_version == query_embedding.version,
+                SemanticAssetRecord.embedding.is_not(None),
+            )
+            .options(selectinload(BrandAsset.semantic_record))
+            .order_by(similarity.desc())
+            .limit(max(limit * 5, 25))
         )
         if asset_type:
-            stmt = stmt.where(BrandAsset.asset_type == asset_type)
-        res = await session.execute(stmt)
-        all_assets = res.scalars().all()
+            vector_stmt = vector_stmt.where(BrandAsset.asset_type == asset_type)
+        for asset, score in (await session.execute(vector_stmt)).all():
+            semantic_scores[asset.id] = max(0.0, min(float(score or 0.0), 1.0))
 
-        tags_set = set(t.lower().strip() for t in tags)
-        matching = []
-        for asset in all_assets:
-            asset_tags = asset.tags or []
-            if isinstance(asset_tags, list):
-                asset_tags_set = set(str(t).lower().strip() for t in asset_tags)
-                if tags_set.intersection(asset_tags_set):
-                    matching.append(asset)
-        return matching[:limit]
-
-    # Postgres raw SQL với JSONB ?| operator
-    tag_placeholders = ", ".join(f":tag_{i}" for i in range(len(tags)))
-    sql = f"""
-        SELECT id, client_id, url, file_name, tags, asset_type, source, status, created_at, updated_at
-        FROM brand_assets
-        WHERE client_id = :client_id
-          AND status = :status
-          AND tags::jsonb ?| ARRAY[{tag_placeholders}]
-    """
-    if asset_type:
-        sql += " AND asset_type = :asset_type"
-    sql += " ORDER BY created_at DESC LIMIT :limit"
-
-    bind_params: dict = {
-        "client_id": str(client_id),
-        "status": status,
-        "limit": limit,
-    }
-    for i, tag in enumerate(tags):
-        bind_params[f"tag_{i}"] = tag
-    if asset_type:
-        bind_params["asset_type"] = asset_type
-
-    try:
-        result = await session.execute(text(sql), bind_params)
-        rows = result.fetchall()
-    except Exception as e:
-        logger.error(f"query_media_library DB error: {e}")
-        raise
-
-    # Convert rows to BrandAsset-like objects bằng cách query ORM
-    if not rows:
-        return []
-
-    asset_ids = [row[0] for row in rows]
-    stmt = select(BrandAsset).where(BrandAsset.id.in_(asset_ids))
-    res = await session.execute(stmt)
-    assets = res.scalars().all()
-
-    logger.info(
-        f"query_media_library: client={client_id} tags={tags} → {len(assets)} assets found"
-    )
-    return list(assets)
-
-
-async def create_asset_request(
-    session: AsyncSession,
-    client_id: uuid.UUID,
-    content_item_id: uuid.UUID,
-    image_brief,  # ImageBrief instance
-    topic: str = "",
-    expires_days: int = 3,
-) -> AssetRequest | None:
-    """T05 — Tạo AssetRequest có cấu trúc cho client.
-
-    Check duplicate trước: nếu đã có AssetRequest pending cho item này → skip, trả None.
-    """
-    from app.agents.d02.prompts import build_d02_asset_request_note
-
-    # Duplicate check
-    stmt = select(AssetRequest).where(
-        AssetRequest.content_item_id == content_item_id,
-        AssetRequest.status == "pending",
-    )
-    res = await session.execute(stmt)
-    existing = res.scalar_one_or_none()
-
-    if existing:
-        logger.info(
-            f"AssetRequest already pending for item={content_item_id} (id={existing.id}), skipping create"
+    pool_stmt = (
+        select(BrandAsset)
+        .outerjoin(
+            SemanticAssetRecord,
+            SemanticAssetRecord.source_asset_id == BrandAsset.id,
         )
-        return existing
-
-    # Build structured request
-    note, shot_list = build_d02_asset_request_note(image_brief, topic)
-
-    expires_at = utcnow() + timedelta(days=expires_days)
-
-    asset_request = AssetRequest(
-        client_id=client_id,
-        content_item_id=content_item_id,
-        note=note,
-        shot_list=shot_list,
-        reference_tags=image_brief.suggested_tags,
-        example_asset_ids=[],
-        status="pending",
-        priority="normal",
-        expires_at=expires_at,
+        .where(
+            *hard_filters,
+            or_(
+                SemanticAssetRecord.id.is_(None),
+                (
+                    (SemanticAssetRecord.client_id == client_id)
+                    & (SemanticAssetRecord.status == "ready")
+                ),
+            ),
+        )
+        .options(selectinload(BrandAsset.semantic_record))
+        .order_by(BrandAsset.created_at.desc())
+        .limit(max(limit * 10, 50))
     )
-    session.add(asset_request)
-    # Không commit ở đây — để executor's transaction handle
+    if asset_type:
+        pool_stmt = pool_stmt.where(BrandAsset.asset_type == asset_type)
+    assets = list((await session.execute(pool_stmt)).scalars().unique().all())
 
-    logger.info(
-        f"AssetRequest created: client={client_id} item={content_item_id} "
-        f"expires={expires_at.date()} shot_list={len(shot_list)} shots"
-    )
-    return asset_request
+    wanted_tags = {str(tag).casefold().strip() for tag in tags if str(tag).strip()}
+    intent_tokens = set(re.findall(r"[\w-]+", (visual_intent_text or "").casefold()))
+    ranked: list[tuple[float, BrandAsset]] = []
+    for asset in assets:
+        record = asset.semantic_record
+        if record is not None:
+            if (record.safety or {}).get("safe") is False:
+                continue
+            if (record.technical_quality or {}).get("usable") is False:
+                continue
+            edit_score = (record.editability or {}).get("score")
+            if isinstance(edit_score, (int, float)) and edit_score < 0.25:
+                continue
+
+        semantic_score = semantic_scores.get(asset.id)
+        if semantic_score is None and query_embedding is not None and dialect == "sqlite" and record is not None:
+            stored = [float(value) for value in (record.embedding or [])]
+            if len(stored) == len(query_embedding.embedding):
+                semantic_score = sum(
+                    left * right for left, right in zip(stored, query_embedding.embedding)
+                )
+
+        searchable_values = [str(value).casefold().strip() for value in (asset.tags or [])]
+        if record is not None:
+            searchable_values.extend(
+                str(value).casefold().strip() for value in (record.suggested_tags or [])
+            )
+            searchable_values.extend(
+                str(value).casefold().strip() for value in (record.primary_subjects or [])
+            )
+        exact_hits = len(wanted_tags.intersection(searchable_values))
+        searchable_text = " ".join(searchable_values + [
+            (record.semantic_summary or "").casefold() if record is not None else ""
+        ])
+        token_hits = len(intent_tokens.intersection(set(re.findall(r"[\w-]+", searchable_text))))
+        lexical_score = min(1.0, exact_hits * 0.35 + token_hits * 0.03)
+        if semantic_score is None and lexical_score <= 0:
+            continue
+
+        freshness_score = 1.0 / (1.0 + max(asset.usage_count or 0, 0))
+        rights_score = 1.0 if asset.usage_rights else 0.5
+        if semantic_score is None:
+            hybrid_score = lexical_score * 0.85 + freshness_score * 0.10 + rights_score * 0.05
+        else:
+            hybrid_score = (
+                semantic_score * 0.70
+                + lexical_score * 0.20
+                + freshness_score * 0.05
+                + rights_score * 0.05
+            )
+        asset._semantic_similarity = semantic_score
+        asset._lexical_score = lexical_score
+        asset._hybrid_score = max(0.0, min(hybrid_score, 1.0))
+        ranked.append((asset._hybrid_score, asset))
+
+    ranked.sort(key=lambda candidate: candidate[0], reverse=True)
+    return [asset for _, asset in ranked[:limit]]
 
 
 async def generate_image_ai(
@@ -181,29 +216,107 @@ async def generate_image_ai(
     client_id: uuid.UUID,
     prompt: str,
     size: str = "1080x1080",
+    source_asset_id: uuid.UUID | None = None,
+    generation_mode: str = "new_generation",
 ) -> BrandAsset:
-    """T12 — Generate AI image.
+    """Create a new D02 derivative through the configured image-capable LLM."""
+    source_asset = None
+    source_bytes = None
+    source_file_name = "source.png"
+    source_content_type = "image/png"
+    if source_asset_id is not None:
+        source_asset = await session.get(BrandAsset, source_asset_id)
+        if source_asset is None or source_asset.client_id != client_id:
+            raise ValueError("D02 source asset does not belong to the client")
+        if not source_asset.storage_path:
+            if os.environ.get("CREWLAB_LLM_MOCK", "").lower() in {"true", "1", "yes"}:
+                source_bytes = b"mock-source-pixels"
+            else:
+                raise ValueError("D02 source asset has no immutable storage object")
+        else:
+            source_bytes = download_file(BRAND_ASSETS_BUCKET, source_asset.storage_path)
+            if not source_bytes:
+                raise RuntimeError("D02 could not download immutable source pixels")
+        source_file_name = source_asset.file_name or "source.png"
+        source_content_type = source_asset.format or "image/png"
 
-    Phase 1: MOCK ONLY — allow_ai_images=false by default, nhánh này hiếm khi chạy.
-    Phase 2+: tích hợp provider thực (DALL-E / Replicate / Flux) khi cần.
-    """
-    logger.info(f"T12 generate_image_ai (MOCK): client={client_id} prompt={prompt[:80]}...")
-
-    # Mock: tạo BrandAsset với placeholder AI image
-    mock_asset = BrandAsset(
+    result = await generate_image(
+        session=session,
         client_id=client_id,
-        url=f"https://via.placeholder.com/{size}?text=AI+Generated",
-        file_name=f"ai_generated_{uuid.uuid4().hex[:8]}.jpg",
-        tags=["ai_generated", "mock"],
-        asset_type="photo",
-        source="ai_generated",
-        status="approved",
+        prompt=prompt,
+        size="1024x1024" if size == "1080x1080" else size,
+        source_image_bytes=source_bytes,
+        source_file_name=source_file_name,
+        source_content_type=source_content_type,
+        generation_mode=generation_mode,
     )
-    session.add(mock_asset)
-    # Không commit — để caller handle
+    derivative_id = uuid.uuid4()
+    storage_path = ""
+    content_sha256 = None
+    dimensions = None
+    image_format = None
+    persisted_url = result.image_url
+    derivative_extension = "png"
+    generated_bytes = result.image_bytes
+    if generated_bytes is None and result.provider == "mock":
+        mock_buffer = BytesIO()
+        Image.new("RGB", (1024, 1024), (120, 80, 40)).save(mock_buffer, format="PNG")
+        generated_bytes = mock_buffer.getvalue()
 
-    logger.warning(
-        "T12 generate_image_ai is MOCKED. "
-        "Real AI image generation will be implemented in Phase 2+ spec."
+    technical_validation = None
+    if generated_bytes is not None:
+        inspection = inspect_image_upload(generated_bytes)
+        if not inspection.is_d02_resolution:
+            raise ValueError("D02 generated image is below the minimum usable resolution")
+        technical_validation = {
+            "passed": True,
+            "format": inspection.image_format,
+            "content_type": inspection.content_type,
+            "dimensions": inspection.dimensions,
+            "width": inspection.width,
+            "height": inspection.height,
+            "size_bytes": len(generated_bytes),
+        }
+        storage_path = client_derivative_path(
+            str(client_id), str(derivative_id), inspection.content_type
+        )
+        if result.provider != "mock":
+            if not upload_file(
+                BRAND_ASSETS_BUCKET,
+                storage_path,
+                generated_bytes,
+                inspection.content_type,
+            ):
+                raise RuntimeError("D02 generated image could not be persisted to CrewLab Storage")
+            persisted_url = storage_path
+        else:
+            storage_path = ""
+        content_sha256 = hashlib.sha256(generated_bytes).hexdigest()
+        dimensions = inspection.dimensions
+        image_format = inspection.content_type
+        derivative_extension = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/webp": "webp",
+        }[inspection.content_type]
+
+    generated_asset = BrandAsset(
+        id=derivative_id,
+        client_id=client_id,
+        url=persisted_url,
+        storage_path=storage_path,
+        file_name=f"ai_generated_{uuid.uuid4().hex[:8]}.{derivative_extension}",
+        tags=["ai_generated", "d02_derivative"],
+        asset_type="photo",
+        source="d02_ai_derivative",
+        status="approved",
+        source_asset_id=source_asset_id,
+        generation_mode=generation_mode,
+        content_sha256=content_sha256,
+        dimensions=dimensions,
+        format=image_format,
+        usage_rights="client_derivative",
     )
-    return mock_asset
+    generated_asset._technical_validation = technical_validation
+    session.add(generated_asset)
+    return generated_asset

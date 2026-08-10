@@ -1,6 +1,6 @@
 """Pydantic schemas for D01 — Caption Writer agent output."""
 from pydantic import BaseModel
-from typing import Optional
+from typing import Literal
 
 
 class ImageBrief(BaseModel):
@@ -10,6 +10,13 @@ class ImageBrief(BaseModel):
     suggested_tags: list[str]  # Tags để D02 tìm trong brand_assets (VD: ["cà phê", "cold brew"])
     composition_notes: str     # Gợi ý bố cục (VD: "Ảnh dọc, close-up sản phẩm trên nền gỗ sáng")
     avoid: list[str]           # Cần tránh trong ảnh (VD: ["ảnh mờ", "nền tối"])
+    visual_mode: Literal["visual_required", "text_only"] = "visual_required"
+    rationale: str = ""
+    required_subject: str = ""
+    preferred_setting: str = ""
+    platform_format: str = ""
+    desired_text_treatment: str = ""
+    desired_alteration: Literal["minimal", "guided", "regenerate"] = "minimal"
 
 
 class D01Output(BaseModel):

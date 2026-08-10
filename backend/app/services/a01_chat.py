@@ -20,6 +20,7 @@ from app.core.llm import call_llm
 from app.models.content import ContentItem, WorkflowCycle
 from app.models.reviews import AgentMemory
 from app.services.context_packet import build_context_packet
+from app.services.task_errors import InitialDispatchError, log_task_failure
 
 logger = logging.getLogger(__name__)
 
@@ -185,10 +186,24 @@ async def run_a01_chat(
                 cycle_id=str(content_item.cycle_id),
                 content_item_id=str(content_item.id),
             )
-        except Exception:
+        except Exception as exc:
             dispatch_status = "pending"
             memory.task_type = f"{CHAT_TASK_PREFIX}:create_content:pending"
-            await session.commit()
+            try:
+                await log_task_failure(
+                    session,
+                    client_id=client_id,
+                    content_item_id=content_item.id,
+                    agent_code="A01",
+                    task_type="initial_dispatch",
+                    wake_reason="task_assigned",
+                    exc=InitialDispatchError(str(exc)),
+                )
+            except Exception:
+                await session.rollback()
+                memory.task_type = f"{CHAT_TASK_PREFIX}:create_content:pending"
+                await session.commit()
+                logger.exception("Could not persist initial A01 dispatch failure log")
             logger.exception("A01 accepted item %s but queue dispatch is pending", content_item.id)
 
     return memory, dispatch_status

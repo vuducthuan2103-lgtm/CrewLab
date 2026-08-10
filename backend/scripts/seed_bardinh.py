@@ -20,7 +20,6 @@ from sqlalchemy.future import select
 from app.core.db import engine
 from app.models.clients import BrandSetting, Client
 from app.models.content import ContentItem, ContentPillar, WorkflowCycle
-from app.models.assets import AssetRequest
 from app.models.system import TaskLog
 from app.models.llm_config import ClientLLMConfig
 
@@ -41,7 +40,6 @@ SEED_ITEM_IDS = [
     uuid.UUID("44444444-4444-4444-4444-444444444443"),
     uuid.UUID("44444444-4444-4444-4444-444444444444"),
 ]
-SEED_ASSET_REQUEST_ID = uuid.UUID("55555555-5555-5555-5555-555555555551")
 
 
 async def seed_bardinh(
@@ -173,7 +171,7 @@ async def seed_bardinh(
 
     item_values = [
         ("Cold Brew Cầu Đất — bài giới thiệu sản phẩm", "facebook", "pending_content_approval", 0),
-        ("Behind the scenes: một mẻ rang thủ công", "instagram", "waiting_asset", 0),
+        ("Behind the scenes: một mẻ rang thủ công", "instagram", "visual_generating", 0),
         ("Gợi ý góc làm việc cùng cà phê sáng", "both", "planned", 0),
         ("Ưu đãi cuối tuần cho khách quen", "facebook", "eval_failed", 1),
     ]
@@ -193,27 +191,13 @@ async def seed_bardinh(
                     "Một tách Cold Brew mát lạnh, vị sạch và hậu vị dịu — sẵn sàng cho buổi sáng nhiều năng lượng."
                     if status != "planned" else None
                 ),
-                image_url=("https://images.unsplash.com/photo-1495474472287-4d71bcdd2085" if status != "waiting_asset" else None),
+                image_url="https://images.unsplash.com/photo-1495474472287-4d71bcdd2085",
                 eval_retry_count=retry_count,
                 failed_criteria=["visual_match"] if status == "eval_failed" else None,
                 fix_instructions="Cần chọn ảnh đúng sản phẩm và bối cảnh thương hiệu." if status == "eval_failed" else None,
             )
             session.add(item)
         items.append(item)
-
-    asset_request = await session.scalar(select(AssetRequest).where(AssetRequest.id == SEED_ASSET_REQUEST_ID))
-    if not asset_request:
-        asset_request = AssetRequest(
-            id=SEED_ASSET_REQUEST_ID,
-            client_id=BARDIHN_CLIENT_ID,
-            content_item_id=SEED_ITEM_IDS[1],
-            note="Vui lòng gửi 2 ảnh thật: quầy pha chế và cận cảnh mẻ rang.",
-            shot_list=["Ảnh quầy pha chế", "Ảnh cận cảnh mẻ rang"],
-            reference_tags=["coffee", "handcrafted", "warm-light"],
-            status="pending",
-            priority="normal",
-        )
-        session.add(asset_request)
 
     task_values = [
         ("B02", "content_planning", "completed", SEED_ITEM_IDS[0]),

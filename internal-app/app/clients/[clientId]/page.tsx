@@ -39,7 +39,7 @@ export default function ClientContentMonitorPage() {
     if (stateFilter === 'approval') return item.state === 'pending_content_approval';
     if (stateFilter === 'ready') return item.state === 'approved_ready_to_post';
     if (stateFilter === 'posted') return item.state === 'posted';
-    if (stateFilter === 'failed') return ['eval_failed', 'asset_blocked', 'rejected'].includes(item.state);
+    if (stateFilter === 'failed') return ['eval_failed', 'rejected'].includes(item.state);
     return true;
   });
 
@@ -92,7 +92,7 @@ export default function ClientContentMonitorPage() {
             { id: 'approval', label: 'Chờ duyệt', count: clientItems.filter(i => i.state === 'pending_content_approval').length },
             { id: 'ready', label: 'Sẵn sàng đăng', count: clientItems.filter(i => i.state === 'approved_ready_to_post').length },
             { id: 'posted', label: 'Đã đăng', count: clientItems.filter(i => i.state === 'posted').length },
-            { id: 'failed', label: 'Lỗi / Fail', count: clientItems.filter(i => ['eval_failed', 'asset_blocked', 'rejected'].includes(i.state)).length },
+            { id: 'failed', label: 'Lỗi / Fail', count: clientItems.filter(i => ['eval_failed', 'rejected'].includes(i.state)).length },
           ].map(tab => (
             <button
               key={tab.id}

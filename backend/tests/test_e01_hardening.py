@@ -18,8 +18,6 @@ from app.core.credentials import CredentialCipher
 from app.models.clients import BrandSetting, Client
 from app.models.content import ContentItem, ContentItemEvalAttempt, ContentPillar, WorkflowCycle
 from app.models.system import TaskLog
-from app.tasks.orchestrator_tasks import expire_asset_requests
-from app.models.assets import AssetRequest
 from app.models.llm_config import ClientLLMConfig
 from app.models.provider_credentials import ClientProviderCredential
 
@@ -199,11 +197,15 @@ async def test_call_llm_forwards_structured_response_format(monkeypatch, db_sess
         ]
     )
     await db_session.commit()
-    captured = {}
+    calls = []
+    responses = iter([
+        '{"caption_eval":{"score":8',
+        '{"caption_eval":{"score":8,"passed":true,"failed_criteria":[],"fix_instructions":""},"visual_eval":{"score":4,"passed":true,"failed_criteria":[],"fix_instructions":""},"overall_passed":true}',
+    ])
 
     async def fake_acompletion(**kwargs):
-        captured.update(kwargs)
-        message = types.SimpleNamespace(content='{"caption_eval":{"score":8,"passed":true,"failed_criteria":[],"fix_instructions":""},"visual_eval":{"score":4,"passed":true,"failed_criteria":[],"fix_instructions":""},"overall_passed":true}')
+        calls.append(kwargs)
+        message = types.SimpleNamespace(content=next(responses))
         return types.SimpleNamespace(
             choices=[types.SimpleNamespace(message=message)],
             usage=None,
@@ -219,36 +221,11 @@ async def test_call_llm_forwards_structured_response_format(monkeypatch, db_sess
         response_format=E01Output,
     )
 
-    assert captured["response_format"] is E01Output
-
-
-@pytest.mark.asyncio
-async def test_expire_asset_requests_updates_real_workflow_and_task_log(db_session):
-    client, _, item = await _create_content_item(db_session)
-    item.status = "waiting_asset"
-    request = AssetRequest(
-        client_id=client.id,
-        content_item_id=item.id,
-        status="pending",
-        expires_at=None,
-    )
-    session_now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
-    request.expires_at = session_now
-    db_session.add(request)
-    await db_session.commit()
-
-    processed = await expire_asset_requests(db_session, now=session_now)
-
-    await db_session.refresh(item)
-    await db_session.refresh(request)
-    logs = (await db_session.execute(
-        select(TaskLog).where(TaskLog.content_item_id == item.id)
-    )).scalars().all()
-
-    assert processed == 1
-    assert request.status == "expired"
-    assert item.status == "asset_blocked"
-    assert any(log.task_type == "asset_request_expiry" for log in logs)
+    assert calls[0]["response_format"] is E01Output
+    assert "temperature" not in calls[0]
+    assert len(calls) == 2
+    assert calls[1]["max_tokens"] >= 2048
+    assert "incomplete or invalid" in calls[1]["messages"][-1]["content"]
 
 
 @pytest.mark.asyncio

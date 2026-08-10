@@ -7,8 +7,6 @@ export type FSMState =
   | 'ready_for_generation'
   | 'caption_generating'
   | 'visual_matching'
-  | 'waiting_asset'
-  | 'asset_blocked'
   | 'evaluating'
   | 'eval_failed'
   | 'pending_content_approval'
@@ -52,6 +50,10 @@ export interface TaskCard {
   retryCount: number;
   hasError: boolean;
   errorMessage?: string;
+  errorCode?: string;
+  errorProvider?: string;
+  providerRequestId?: string;
+  errorRetryable?: boolean;
   slaDeadline: Date | null; // null = no SLA
   createdAt: Date;
   startedAt: Date | null;
@@ -71,9 +73,15 @@ export interface ContentItem {
   pillarId: string;
   weekNumber: number;
   needsRealPhoto: boolean;
-  assetRequestId: string | null;
   rejectionReason?: RejectionReason;
   rejectionFeedback?: string;
+  imageProvenance?: {
+    sourceAssetId?: string | null;
+    derivativeAssetId?: string | null;
+    generationMode?: string | null;
+    selectionRationale?: string | null;
+    selectionScore?: number | null;
+  };
 }
 
 // ─── Pillar & Angle (Gate S2 - B02) ─────────────────────────────────────────
@@ -95,10 +103,8 @@ export interface ContentPillar {
 
 // ─── Notifications ───────────────────────────────────────────────────────────
 export type NotificationType =
-  | 'asset_request_created'
   | 'content_ready_for_approval'
   | 'strategy_ready_for_approval'
-  | 'asset_submitted'
   | 'system';
 
 export interface AppNotification {
@@ -123,19 +129,10 @@ export interface MediaAsset {
   tags: string[];
   uploadedAt: Date;
   usedInItems: string[]; // content item IDs
-  assetRequestId: string | null;
   notes?: string;
-}
-
-// ─── Asset Requests (from D02) ───────────────────────────────────────────────
-export interface AssetRequest {
-  id: string;
-  contentItemId: string;
-  shotList: string[];
-  deadline: Date;
-  exampleImageUrl: string | null;
-  status: 'pending' | 'submitted' | 'approved';
-  submittedAssetIds: string[];
+  indexingStatus?: 'processing' | 'ready' | 'needs_attention' | 'failed' | 'superseded';
+  indexingReason?: string | null;
+  readyForD02?: boolean;
 }
 
 // ─── Brand Voice (6 Structured Sections) ──────────────────────────────────────
@@ -266,8 +263,6 @@ export const FSM_STATE_LABELS: Record<FSMState, string> = {
   ready_for_generation: 'Sẵn sàng tạo nội dung',
   caption_generating: 'Đang viết caption',
   visual_matching: 'Đang xử lý hình ảnh',
-  waiting_asset: 'Chờ ảnh thật',
-  asset_blocked: 'Ảnh bị chặn',
   evaluating: 'AI đang thẩm định',
   eval_failed: 'Thẩm định lại',
   pending_content_approval: 'Chờ bạn duyệt',

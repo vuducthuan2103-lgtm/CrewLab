@@ -7,8 +7,6 @@ export type ContentState =
   | 'ready_for_generation'
   | 'caption_generating'
   | 'visual_matching'
-  | 'waiting_asset'
-  | 'asset_blocked'
   | 'visual_generating'
   | 'evaluating'
   | 'eval_failed'
@@ -136,8 +134,6 @@ export const STATE_LABELS: Record<ContentState, string> = {
   ready_for_generation: 'Sẵn sàng tạo',
   caption_generating: 'Đang viết caption',
   visual_matching: 'Đang ghép ảnh',
-  waiting_asset: 'Chờ ảnh thật',
-  asset_blocked: 'Ảnh bị chặn',
   visual_generating: 'Đang tạo ảnh',
   evaluating: 'Đang thẩm định',
   eval_failed: 'Thẩm định thất bại',
@@ -153,8 +149,6 @@ export const STATE_COLORS: Record<ContentState, { bg: string; text: string; bord
   ready_for_generation: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/30' },
   caption_generating: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30' },
   visual_matching: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30' },
-  waiting_asset: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30' },
-  asset_blocked: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30' },
   visual_generating: { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/30' },
   evaluating: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30' },
   eval_failed: { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/30' },

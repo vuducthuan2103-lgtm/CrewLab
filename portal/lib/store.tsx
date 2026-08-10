@@ -2,13 +2,13 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
-  AgentModelConfig, AppNotification, AssetRequest, BrandVoiceConfig, ContentItem, ContentPillar, EligibleModel,
+  AgentModelConfig, AppNotification, BrandVoiceConfig, ContentItem, ContentPillar, EligibleModel,
   MediaAsset, PortalLoadError, PortalLoadStatus, RejectionReason, TaskCard,
 } from './types';
 import {
-  apiApproveContent, apiApproveWeek, apiConfirmPillars, apiFetchAssetRequests,
+  apiApproveContent, apiApproveWeek, apiConfirmPillars,
   apiFetchAssets, apiFetchBootstrap, apiFetchSettings,
-  apiMarkAsPosted, apiRejectContent, apiSubmitAssetRequest, apiUpdateAgentBudget,
+  apiMarkAsPosted, apiRejectContent, apiUpdateAgentBudget,
   apiUpdateAgentModel, apiUpdateBrandVoice, apiUploadAsset, toPortalLoadError,
 } from './api';
 import { supabase } from './supabase';
@@ -19,7 +19,6 @@ interface PortalState {
   pillars: ContentPillar[];
   notifications: AppNotification[];
   mediaAssets: MediaAsset[];
-  assetRequests: AssetRequest[];
   brandVoice: BrandVoiceConfig;
   agentModelConfigs: AgentModelConfig[];
   eligibleModels: EligibleModel[];
@@ -47,8 +46,7 @@ interface PortalActions {
   updateBrandVoice: (config: BrandVoiceConfig) => Promise<void>;
   updateAgentModel: (agentCode: string, model: string, tier: string) => Promise<void>;
   updateAgentBudget: (agentCode: string, budget: number) => Promise<void>;
-  submitAssets: (requestId: string, assetUrls: string[]) => Promise<void>;
-  uploadAsset: (file: File) => Promise<void>;
+  uploadAsset: (file: File, rightsAttested: boolean) => Promise<void>;
   refreshData: () => Promise<void>;
   loadAssets: (force?: boolean) => Promise<void>;
   loadSettings: (force?: boolean) => Promise<void>;
@@ -78,8 +76,14 @@ function mapContentItems(items: any[]): ContentItem[] {
     state: item.status,
     pillarId: item.pillar_id || 'general',
     weekNumber: currentWeekNumber(),
-    needsRealPhoto: item.status === 'waiting_asset',
-    assetRequestId: null,
+    needsRealPhoto: false,
+    imageProvenance: item.image_provenance ? {
+      sourceAssetId: item.image_provenance.source_asset_id || null,
+      derivativeAssetId: item.image_provenance.derivative_asset_id || null,
+      generationMode: item.image_provenance.generation_mode || null,
+      selectionRationale: item.image_provenance.selection_rationale || null,
+      selectionScore: item.image_provenance.selection_score ?? null,
+    } : undefined,
   }));
 }
 
@@ -94,7 +98,11 @@ function mapTaskLogs(logs: any[]): TaskCard[] {
     linkedContentItemId: log.content_item_id || null,
     retryCount: 0,
     hasError: log.status === 'failed',
-    errorMessage: log.status === 'failed' ? log.wake_reason : undefined,
+    errorMessage: log.status === 'failed' ? (log.error_message || 'Tác vụ thất bại') : undefined,
+    errorCode: log.error_code || undefined,
+    errorProvider: log.error_provider || undefined,
+    providerRequestId: log.provider_request_id || undefined,
+    errorRetryable: log.error_retryable ?? undefined,
     slaDeadline: null,
     createdAt: new Date(log.created_at),
     startedAt: new Date(log.created_at),
@@ -115,28 +123,23 @@ function mapPillars(pillars: any[]): ContentPillar[] {
   }));
 }
 
-function mapAssetRequests(requests: any[]): AssetRequest[] {
-  return (requests || []).map((request: any) => ({
-    id: request.id,
-    contentItemId: request.content_item_id,
-    shotList: Array.isArray(request.shot_list) ? request.shot_list : [],
-    deadline: request.expires_at ? new Date(request.expires_at) : new Date(),
-    exampleImageUrl: null,
-    status: request.status === 'fulfilled' ? 'submitted' : request.status,
-    submittedAssetIds: [],
-  }));
-}
-
 function mapAssets(assets: any[]): MediaAsset[] {
   return (assets || []).map((asset: any) => ({
     id: asset.id,
     url: asset.url,
     thumbnailUrl: asset.url,
-    source: asset.source || 'pending_review',
+    source: asset.status === 'pending_review'
+      ? 'pending_review'
+      : asset.source === 'd02_ai_derivative'
+        ? 'ai_generated'
+        : 'real_photo',
     tags: asset.tags || [],
     uploadedAt: new Date(asset.created_at),
     usedInItems: [],
-    assetRequestId: asset.asset_request_id || null,
+    notes: asset.semantic_summary || undefined,
+    indexingStatus: asset.indexing_status || 'processing',
+    indexingReason: asset.indexing_reason || null,
+    readyForD02: Boolean(asset.ready_for_d02),
   }));
 }
 
@@ -148,7 +151,6 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   const [pillars, setPillars] = useState<ContentPillar[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
-  const [assetRequests, setAssetRequests] = useState<AssetRequest[]>([]);
   const [brandVoice, setBrandVoice] = useState<BrandVoiceConfig>(EMPTY_BRAND_VOICE);
   const [agentModelConfigs, setAgentModelConfigs] = useState<AgentModelConfig[]>([]);
   const [eligibleModels, setEligibleModels] = useState<EligibleModel[]>([]);
@@ -174,7 +176,6 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     setPillars([]);
     setNotifications([]);
     setMediaAssets([]);
-    setAssetRequests([]);
     setBrandVoice(EMPTY_BRAND_VOICE);
     setAgentModelConfigs([]);
     setEligibleModels([]);
@@ -217,16 +218,13 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     if (assetsStatusRef.current === 'loading') return;
     if (!force && assetsStatusRef.current !== 'idle') return;
     const generation = tenantGenerationRef.current;
+    const isBackgroundRefresh = force && assetsStatusRef.current === 'ready';
     assetsStatusRef.current = 'loading';
-    setAssetsStatus('loading');
+    if (!isBackgroundRefresh) setAssetsStatus('loading');
     setAssetsError(null);
     try {
-      const [requests, assets] = await Promise.all([
-        apiFetchAssetRequests(),
-        apiFetchAssets(),
-      ]);
+      const assets = await apiFetchAssets();
       if (generation !== tenantGenerationRef.current) return;
-      setAssetRequests(mapAssetRequests(requests));
       setMediaAssets(mapAssets(assets));
       assetsStatusRef.current = 'ready';
       setAssetsStatus('ready');
@@ -335,18 +333,18 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     setContentItems((previous) => previous.map((item) => item.state === 'planned' ? { ...item, state: 'ready_for_generation' } : item));
   }, [cycleId]);
 
-  const submitAssets = useCallback(async (requestId: string, assetUrls: string[]) => {
-    await apiSubmitAssetRequest(requestId, assetUrls);
-    setAssetRequests((previous) => previous.map((request) => request.id === requestId ? { ...request, status: 'submitted' } : request));
-    await Promise.all([loadAssets(true), refreshData()]);
-  }, [loadAssets, refreshData]);
-
-  const uploadAsset = useCallback(async (file: File) => {
-    const asset = await apiUploadAsset(file);
+  const uploadAsset = useCallback(async (file: File, rightsAttested: boolean) => {
+    const asset = await apiUploadAsset(file, rightsAttested);
     setMediaAssets((previous) => [{
-      id: asset.id, url: asset.url, thumbnailUrl: asset.url, source: asset.source || 'pending_review',
+      id: asset.id, url: asset.url, thumbnailUrl: asset.url,
+      source: asset.status === 'pending_review'
+        ? 'pending_review'
+        : asset.source === 'd02_ai_derivative'
+          ? 'ai_generated'
+          : 'real_photo',
       tags: asset.tags || [], uploadedAt: new Date(asset.created_at), usedInItems: [],
-      assetRequestId: asset.asset_request_id || null,
+      indexingStatus: asset.indexing_status || 'processing', indexingReason: asset.indexing_reason || null,
+      readyForD02: Boolean(asset.ready_for_d02),
     }, ...previous]);
   }, []);
 
@@ -368,11 +366,11 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   }, [agentModelConfigs]);
 
   const value: PortalState & PortalActions = {
-    tasks, contentItems, pillars, notifications, mediaAssets, assetRequests, brandVoice, agentModelConfigs, eligibleModels, clientName, portalUserEmail, weekApproved,
+    tasks, contentItems, pillars, notifications, mediaAssets, brandVoice, agentModelConfigs, eligibleModels, clientName, portalUserEmail, weekApproved,
     isLoading, error, assetsStatus, assetsError, settingsStatus, settingsError,
     markNotificationRead, unreadCount: notifications.filter((n) => !n.read).length,
     approveContent, rejectContent, markAsPosted, updatePillarPercentage, confirmPillars, resetPillarsToAI, approveWeek,
-    updateBrandVoice, updateAgentModel, updateAgentBudget, submitAssets, uploadAsset, refreshData, loadAssets, loadSettings,
+    updateBrandVoice, updateAgentModel, updateAgentBudget, uploadAsset, refreshData, loadAssets, loadSettings,
   };
   return <PortalContext.Provider value={value}>{children}</PortalContext.Provider>;
 }

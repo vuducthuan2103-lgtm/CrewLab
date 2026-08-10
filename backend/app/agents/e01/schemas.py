@@ -1,5 +1,5 @@
 """Validated Pydantic schemas for Agent E01 — Evaluator."""
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -46,8 +46,9 @@ class CaptionEval(BaseModel):
 class VisualEval(BaseModel):
     """Evaluation result for visual image."""
 
-    score: float = Field(..., ge=0.0, le=5.0, description="Visual quality score (0.0 to 5.0)")
+    score: Optional[float] = Field(None, ge=0.0, le=5.0, description="Visual quality score (0.0 to 5.0)")
     passed: bool = Field(..., description="Must equal score >= 3.5")
+    not_applicable: bool = False
     failed_criteria: list[VisualCriterion] = Field(
         default_factory=list,
         description="Subset of the three standard visual criteria",
@@ -56,6 +57,12 @@ class VisualEval(BaseModel):
 
     @model_validator(mode="after")
     def validate_evaluation_consistency(self) -> "VisualEval":
+        if self.not_applicable:
+            if self.score is not None or not self.passed or self.failed_criteria:
+                raise ValueError("not_applicable visual evaluation must be passed without a score or failures")
+            return self
+        if self.score is None:
+            raise ValueError("visual_eval.score is required unless not_applicable")
         expected_passed = self.score >= 3.5
         if self.passed != expected_passed:
             raise ValueError("visual_eval.passed must match the 3.5 score threshold")

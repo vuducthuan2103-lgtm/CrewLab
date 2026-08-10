@@ -5,7 +5,18 @@ import Link from 'next/link';
 import { usePortal } from '@/lib/store';
 import { TaskCard as TaskCardType, TeamDesk, KanbanColumn } from '@/lib/types';
 import Swimlane from './Swimlane';
-import { ChevronLeft, ChevronRight, LayoutDashboard, MessageSquareText } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  CircleUserRound,
+  Clock3,
+  LayoutDashboard,
+  ListTodo,
+  LoaderCircle,
+  MessageSquareText,
+} from 'lucide-react';
 
 const DESKS: { desk: TeamDesk; label: string }[] = [
   { desk: 'strategy', label: 'STRATEGY DESK' },
@@ -58,7 +69,8 @@ export default function KanbanBoard() {
               onClick={() => setActiveFilter('pending_approval')}
               className="ml-2 text-xs bg-primary/15 text-lime-brand border border-primary/30 rounded-full px-3 py-1 font-bold shadow-sm cursor-pointer hover:scale-105 transition-transform animate-pulse"
             >
-              ⚡ {totalReview} task chờ bạn xử lý
+              <Clock3 size={12} className="mr-1 inline" />
+              {totalReview} task chờ bạn xử lý
             </span>
           )}
         </div>
@@ -75,21 +87,22 @@ export default function KanbanBoard() {
           {/* Filter toggle */}
           <div className="flex items-center gap-1 border border-border rounded-lg p-1 bg-muted/30">
             {[
-              { key: 'all', label: 'Tất cả' },
-              { key: 'pending_approval', label: `⚡ Cần duyệt (${totalReview})` },
-              { key: 'human_only', label: '👤 Cần tôi' },
-              { key: 'has_error', label: '🔴 Có lỗi' },
-            ].map(({ key, label }) => (
+              { key: 'all', label: 'Tất cả', icon: LayoutDashboard },
+              { key: 'pending_approval', label: `Cần duyệt (${totalReview})`, icon: Clock3 },
+              { key: 'human_only', label: 'Cần tôi', icon: CircleUserRound },
+              { key: 'has_error', label: 'Có lỗi', icon: AlertCircle },
+            ].map(({ key, label, icon: FilterIcon }) => (
               <button
                 key={key}
                 id={`kanban-filter-${key}`}
                 onClick={() => setActiveFilter(key as FilterType)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
                   activeFilter === key
                     ? 'bg-lime-brand text-black font-bold shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
+                <FilterIcon size={12} />
                 {label}
               </button>
             ))}
@@ -112,16 +125,20 @@ export default function KanbanBoard() {
       <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr] mb-2 px-0">
         <div className="w-0" /> {/* placeholder for swimlane label width */}
         <div className="pl-3 pr-2 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <span>📋 CHỜ LÀM (TODO)</span>
+          <ListTodo size={13} />
+          <span>CHỜ LÀM (TODO)</span>
         </div>
         <div className="px-2 py-1.5 text-xs font-bold text-cyan-500 dark:text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
-          <span>⚙️ ĐANG CHẠY (IN PROGRESS)</span>
+          <LoaderCircle size={13} />
+          <span>ĐANG CHẠY (IN PROGRESS)</span>
         </div>
         <div className="px-2 py-1.5 text-xs font-bold text-lime-brand uppercase tracking-wider flex items-center gap-1.5">
-          <span>⚡ CHỜ DUYỆT (REVIEW)</span>
+          <Clock3 size={13} />
+          <span>CHỜ DUYỆT (REVIEW)</span>
         </div>
         <div className="pl-2 pr-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-          <span>✅ HOÀN THÀNH (DONE)</span>
+          <CheckCircle2 size={13} />
+          <span>HOÀN THÀNH (DONE)</span>
         </div>
       </div>
 

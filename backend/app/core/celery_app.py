@@ -27,6 +27,7 @@ celery_app = Celery(
         "app.tasks.d01_tasks",
         "app.tasks.d02_tasks",
         "app.tasks.e01_tasks",
+        "app.tasks.asset_tasks",
     ],
 )
 
@@ -36,6 +37,10 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="Asia/Ho_Chi_Minh",
     enable_utc=True,
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
+    worker_prefetch_multiplier=1,
+    broker_transport_options={"visibility_timeout": 1800},
 )
 
 # Beat schedule configuration
@@ -44,8 +49,8 @@ celery_app.conf.beat_schedule = {
         "task": "check_scheduled_cycles",
         "schedule": crontab(minute="*/15"),  # Every 15 minutes
     },
-    "check-asset-expiry": {
-        "task": "check_asset_request_expiry",
-        "schedule": crontab(minute=0),        # Hourly on minute 0
+    "recover-stalled-agent-work": {
+        "task": "recover_stalled_agent_work",
+        "schedule": crontab(minute="*/10"),
     },
 }

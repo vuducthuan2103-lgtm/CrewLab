@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import declarative_base, declared_attr
+from sqlalchemy.orm import declarative_base, declared_attr, sessionmaker
 from sqlalchemy.pool import NullPool
 from sqlalchemy import Column, DateTime, String
 import sqlalchemy as sa
@@ -58,6 +58,23 @@ else:
         pool_pre_ping=True,
     )
 engine = create_async_engine(database_runtime_url, **_engine_options)
+
+# Celery sync tasks can recreate their event loop between deliveries. asyncpg
+# connections are loop-bound, so worker sessions must not reuse pooled
+# connections created by an earlier delivery. Keep API pooling unchanged and
+# give workers a dedicated NullPool engine.
+_celery_engine_options: dict[str, Any] = {
+    "echo": False,
+    "poolclass": NullPool,
+}
+if _uses_transaction_pooler:
+    _celery_engine_options["connect_args"] = {"statement_cache_size": 0}
+celery_engine = create_async_engine(database_runtime_url, **_celery_engine_options)
+CeleryAsyncSessionLocal = sessionmaker(
+    bind=celery_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
 
 class Base:
     @declared_attr

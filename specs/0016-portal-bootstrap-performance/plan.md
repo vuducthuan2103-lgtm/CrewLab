@@ -6,7 +6,7 @@
 
 ## Summary
 
-Replace the Portal's six-request login waterfall with one authenticated bootstrap response containing the viewer, client identity, content items, task logs, pillars, and current workflow-cycle summary. Keep asset requests, media assets, and full client settings behind explicit page loaders. Add a request correlation ID to every backend response and log entry, expose actionable retry states in the Portal, and add a database-aware readiness endpoint. The existing Supabase account-to-client trust model, JWT verification decision, database schema, and MVP FSM remain unchanged.
+Replace the Portal's login waterfall with one authenticated bootstrap response containing the viewer, client identity, content items, task logs, pillars, and current workflow-cycle summary. Keep media assets and full client settings behind explicit page loaders. Add a request correlation ID to every backend response and log entry, expose actionable retry states in the Portal, and add a database-aware readiness endpoint. The existing Supabase account-to-client trust model, JWT verification decision, and manual-posting workflow remain unchanged. Asset Request behavior is superseded by Decision 0014.
 
 ## Technical Context
 

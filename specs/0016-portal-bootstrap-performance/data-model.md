@@ -43,7 +43,7 @@ This model is client-side state and is not persisted.
 - `error`: `PortalLoadError | null`
 - `loaded_at`: optional in-memory timestamp used only to avoid duplicate mount requests
 
-Asset requests and media assets share one deferred load because they render in the same assets experience. Full brand/model settings use a separate deferred load.
+Media assets use a deferred page load. Full brand/model settings use a separate deferred load. Asset Request has no runtime model after Decision 0014.
 
 ## ReadinessResult
 

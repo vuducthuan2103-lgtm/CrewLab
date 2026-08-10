@@ -21,7 +21,7 @@ As a client Portal user, I see my email and my restaurant name as soon as the Po
 **Acceptance Scenarios**:
 
 1. **Given** a signed-in user linked to one active client, **When** the Portal opens, **Then** the sidebar shows that client's restaurant name and the signed-in email without waiting for the image library or Settings page data.
-2. **Given** a signed-in user, **When** the restaurant has no content, assets, or asset requests, **Then** the Portal still identifies the restaurant and shows valid empty states.
+2. **Given** a signed-in user, **When** the restaurant has no content or assets, **Then** the Portal still identifies the restaurant and shows valid empty states.
 3. **Given** a signed-in user whose client link is missing or inactive, **When** the Portal opens, **Then** the user receives a clear access message and no other client's data is shown.
 
 ---
@@ -70,7 +70,7 @@ As a client Portal user, I can see which part failed and retry it, so I do not r
 - **FR-001**: The system MUST derive the signed-in user's client context from the existing trusted account-to-client relationship and must never accept a client identity chosen by the browser.
 - **FR-002**: The Portal MUST show the signed-in email and restaurant name as part of the initial signed-in experience.
 - **FR-003**: The initial work-board load MUST provide the restaurant context and only the information required to render the work board.
-- **FR-004**: The Portal MUST load image-library, asset-request, and full configuration data only when a user visits the feature that needs it.
+- **FR-004**: The Portal MUST load image-library and full configuration data only when a user visits the feature that needs it.
 - **FR-005**: A failure in non-essential page data MUST not prevent the user from using already loaded Portal features.
 - **FR-006**: Every Portal loading failure MUST identify the affected area, provide a retry action where safe, and include a non-sensitive support reference.
 - **FR-007**: The system MUST provide a readiness result that distinguishes an available application process from an unavailable required data dependency.
@@ -91,7 +91,7 @@ As a client Portal user, I can see which part failed and retry it, so I do not r
 
 - **SC-001**: In the normal local and staging environments, 95% of successful sign-ins show the signed-in email and restaurant name within 2 seconds of entering the Portal.
 - **SC-002**: In the normal local and staging environments, 95% of successful first work-board views show essential work data within 3 seconds of entering the Portal.
-- **SC-003**: A failure in image-library, asset-request, or full configuration data leaves the work board usable in 100% of tested cases.
+- **SC-003**: A failure in image-library or full configuration data leaves the work board usable in 100% of tested cases.
 - **SC-004**: Support can identify the corresponding server event for 100% of tested Portal loading failures using the displayed support reference.
 - **SC-005**: Automated authorization tests confirm that a Portal user cannot receive another client's context or work-board data.
 

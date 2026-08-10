@@ -1,31 +1,47 @@
 import logging
+import hashlib
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import selectinload, sessionmaker
 from datetime import datetime, timezone
 
 from app.core.db import engine
+from app.core.celery_app import celery_app
 from app.core.auth import get_current_auth, AuthContext, check_idempotency, save_idempotency
 from app.models.content import ContentItem, ContentPillar, WorkflowCycle
 from app.models.clients import Client, BrandSetting, BrandSettingHistory
 from app.models.llm_config import ClientLLMConfig
 from app.models.provider_credentials import ClientProviderCredential
 from app.core.model_catalog import eligible_models, validate_model_selection
-from app.models.assets import AssetRequest, BrandAsset
+from app.models.assets import BrandAsset, SemanticAssetRecord, VisualSelectionDecision
 from app.models.system import TaskLog
 from app.models.reviews import AgentMemory, HitlReview
 from app.services.a01_chat import list_a01_chat_history, parse_chat_task_type, run_a01_chat
-from app.services.storage import BRAND_ASSETS_BUCKET, ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES, client_asset_path, upload_file, get_signed_url
+from app.services.task_errors import classify_task_error, log_task_failure
+from app.services.asset_service import (
+    ImageUploadValidationError,
+    find_duplicate_source,
+    inspect_image_upload,
+)
+from app.services.storage import (
+    BRAND_ASSETS_BUCKET,
+    ALLOWED_IMAGE_TYPES,
+    MAX_IMAGE_BYTES,
+    client_asset_path,
+    delete_files,
+    upload_file,
+    get_signed_url,
+)
 from app.services.p01_lite import upsert_agent_memory, determine_agent_for_reject_reason
 from app.api.schemas import (
     ApiResponse, ErrorDetail, ContentItemOut, TaskLogOut,
     ApproveRequest, RejectRequest, MarkPostedRequest,
-    ConfirmPillarsRequest, ApproveWeekRequest, AssetSubmitRequest,
+    ConfirmPillarsRequest, ApproveWeekRequest,
     BrandVoiceUpdate, AgentConfigUpdate,
-    PillarOut, AssetRequestOut, BrandAssetOut,
+    PillarOut, BrandAssetOut,
     A01ChatRequest, A01ChatMessageOut,
     PortalBootstrapOut,
 )
@@ -37,6 +53,60 @@ AsyncSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_com
 async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
+
+
+async def _content_item_out(db: AsyncSession, item: ContentItem) -> ContentItemOut:
+    """Project a private derivative path to a short-lived URL at the API edge."""
+    output = ContentItemOut.model_validate(item)
+    decisions = (
+        await db.scalars(
+            select(VisualSelectionDecision)
+            .where(
+                VisualSelectionDecision.client_id == item.client_id,
+                VisualSelectionDecision.content_item_id == item.id,
+            )
+            .order_by(VisualSelectionDecision.run_number.asc())
+        )
+    ).all()
+    output = output.model_copy(update={
+        "image_provenance_history": [
+            {
+                "id": str(decision.id),
+                "run_number": decision.run_number,
+                "wake_reason": decision.wake_reason,
+                "source_asset_id": str(decision.source_asset_id) if decision.source_asset_id else None,
+                "derivative_asset_id": str(decision.derivative_asset_id),
+                "generation_mode": decision.generation_mode,
+                "selection_score": decision.selection_score,
+                "selection_rationale": decision.selection_rationale,
+                "candidates": decision.candidates or [],
+                "eligibility_exclusions": decision.eligibility_exclusions or [],
+                "prompt_summary": decision.prompt_summary,
+                "technical_validation": decision.technical_validation or {},
+                "created_at": decision.created_at.isoformat(),
+            }
+            for decision in decisions
+        ]
+    })
+    provenance = item.image_provenance or {}
+    derivative_id = provenance.get("derivative_asset_id")
+    if not derivative_id:
+        return output
+    try:
+        derivative_uuid = uuid.UUID(str(derivative_id))
+    except (TypeError, ValueError):
+        return output
+    derivative = await db.scalar(
+        select(BrandAsset).where(
+            BrandAsset.id == derivative_uuid,
+            BrandAsset.client_id == item.client_id,
+        )
+    )
+    if derivative and derivative.storage_path:
+        signed_url = get_signed_url(BRAND_ASSETS_BUCKET, derivative.storage_path)
+        if signed_url:
+            return output.model_copy(update={"image_url": signed_url})
+    return output
 
 
 @router.get("/bootstrap", response_model=ApiResponse[PortalBootstrapOut])
@@ -72,7 +142,7 @@ async def get_portal_bootstrap(
             .order_by(ContentItem.created_at.desc())
         )
         content_items = [
-            ContentItemOut.model_validate(item)
+            await _content_item_out(db, item)
             for item in content_result.scalars().all()
         ]
         pillar_result = await db.execute(
@@ -139,28 +209,56 @@ async def list_a01_messages(
 @router.post("/a01/messages", response_model=ApiResponse[A01ChatMessageOut])
 async def send_a01_message(
     req: A01ChatRequest,
+    request: Request,
     auth: AuthContext = Depends(get_current_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    cached = check_idempotency(req.idempotency_key)
+    cached = check_idempotency(
+        req.idempotency_key,
+        client_id=auth.client_id,
+        operation="a01_message",
+    )
     if cached:
         return ApiResponse(success=True, data=A01ChatMessageOut.model_validate(cached))
 
     try:
         memory, _ = await run_a01_chat(db, auth.client_id, req.message)
-    except Exception:
+    except Exception as exc:
         await db.rollback()
         logger.exception("A01 chat failed for client %s", auth.client_id)
+        error = classify_task_error(exc)
+        support_reference = getattr(request.state, "request_id", None)
+        try:
+            await log_task_failure(
+                db,
+                client_id=auth.client_id,
+                agent_code="A01",
+                task_type="portal_chat",
+                wake_reason="task_assigned",
+                exc=exc,
+            )
+        except Exception:
+            logger.exception("Could not persist A01 failure task log")
         return ApiResponse(
             success=False,
             error=ErrorDetail(
-                error_code="a01_temporarily_unavailable",
-                message="A01 đang tạm gián đoạn. Vui lòng thử lại sau ít phút.",
+                error_code=error.code,
+                message="A01 chưa thể xử lý yêu cầu. Hãy dùng mã hỗ trợ để kiểm tra chi tiết.",
+                details={
+                    "provider": error.provider,
+                    "provider_request_id": error.provider_request_id,
+                    "support_reference": support_reference,
+                },
             ),
         )
 
     data = _a01_chat_message(memory)
-    save_idempotency(req.idempotency_key, data.model_dump(mode="json"))
+    save_idempotency(
+        req.idempotency_key,
+        data.model_dump(mode="json"),
+        client_id=auth.client_id,
+        operation="a01_message",
+    )
     return ApiResponse(success=True, data=data)
 
 # ─── 1. Get Content Items ───────────────────────────────────────────────────
@@ -177,7 +275,7 @@ async def list_content_items(
     
     res = await db.execute(stmt)
     items = res.scalars().all()
-    out = [ContentItemOut.model_validate(i) for i in items]
+    out = [await _content_item_out(db, item) for item in items]
     return ApiResponse(success=True, data=out)
 
 
@@ -201,7 +299,12 @@ async def confirm_pillars(
     auth: AuthContext = Depends(get_current_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    cached = check_idempotency(req.idempotency_key)
+    cached = check_idempotency(
+        req.idempotency_key,
+        client_id=auth.client_id,
+        operation="confirm_pillars",
+        target_id=pillar_id,
+    )
     if cached:
         return ApiResponse(success=True, data=cached)
 
@@ -242,7 +345,13 @@ async def confirm_pillars(
     db.add(review)
     await db.commit()
     data = {"status": "approved", "next_agent": "B03", "cycle_id": str(anchor.cycle_id)}
-    save_idempotency(req.idempotency_key, data)
+    save_idempotency(
+        req.idempotency_key,
+        data,
+        client_id=auth.client_id,
+        operation="confirm_pillars",
+        target_id=pillar_id,
+    )
     return ApiResponse(success=True, data=data)
 
 
@@ -253,7 +362,12 @@ async def approve_week(
     auth: AuthContext = Depends(get_current_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    cached = check_idempotency(req.idempotency_key)
+    cached = check_idempotency(
+        req.idempotency_key,
+        client_id=auth.client_id,
+        operation="approve_week",
+        target_id=cycle_id,
+    )
     if cached:
         return ApiResponse(success=True, data=cached)
 
@@ -291,7 +405,13 @@ async def approve_week(
     db.add(review)
     await db.commit()
     data = {"items_transitioned": len(items), "next_agent": "D01", "cycle_id": str(cycle_id)}
-    save_idempotency(req.idempotency_key, data)
+    save_idempotency(
+        req.idempotency_key,
+        data,
+        client_id=auth.client_id,
+        operation="approve_week",
+        target_id=cycle_id,
+    )
     return ApiResponse(success=True, data=data)
 
 # ─── 2. Approve Content Item (Gate 2) ─────────────────────────────────────────
@@ -303,7 +423,12 @@ async def approve_content_item(
     db: AsyncSession = Depends(get_db)
 ):
     # Idempotency check
-    cached = check_idempotency(req.idempotency_key)
+    cached = check_idempotency(
+        req.idempotency_key,
+        client_id=auth.client_id,
+        operation="approve_content_item",
+        target_id=item_id,
+    )
     if cached:
         return ApiResponse(success=True, data=cached)
 
@@ -346,7 +471,13 @@ async def approve_content_item(
     await db.commit()
 
     res_data = {"status": "approved", "new_state": "approved_ready_to_post", "review_id": str(review.id)}
-    save_idempotency(req.idempotency_key, res_data)
+    save_idempotency(
+        req.idempotency_key,
+        res_data,
+        client_id=auth.client_id,
+        operation="approve_content_item",
+        target_id=item_id,
+    )
     return ApiResponse(success=True, data=res_data)
 
 # ─── 3. Reject Content Item (Gate 2) ──────────────────────────────────────────
@@ -357,7 +488,12 @@ async def reject_content_item(
     auth: AuthContext = Depends(get_current_auth),
     db: AsyncSession = Depends(get_db)
 ):
-    cached = check_idempotency(req.idempotency_key)
+    cached = check_idempotency(
+        req.idempotency_key,
+        client_id=auth.client_id,
+        operation="reject_content_item",
+        target_id=item_id,
+    )
     if cached:
         return ApiResponse(success=True, data=cached)
 
@@ -402,7 +538,13 @@ async def reject_content_item(
     await db.commit()
 
     res_data = {"status": "rejected", "new_state": "rejected", "review_id": str(review.id)}
-    save_idempotency(req.idempotency_key, res_data)
+    save_idempotency(
+        req.idempotency_key,
+        res_data,
+        client_id=auth.client_id,
+        operation="reject_content_item",
+        target_id=item_id,
+    )
     return ApiResponse(success=True, data=res_data)
 
 # ─── 4. Mark as Posted ───────────────────────────────────────────────────────
@@ -413,7 +555,12 @@ async def mark_posted(
     auth: AuthContext = Depends(get_current_auth),
     db: AsyncSession = Depends(get_db)
 ):
-    cached = check_idempotency(req.idempotency_key)
+    cached = check_idempotency(
+        req.idempotency_key,
+        client_id=auth.client_id,
+        operation="mark_posted",
+        target_id=item_id,
+    )
     if cached:
         return ApiResponse(success=True, data=cached)
 
@@ -442,7 +589,13 @@ async def mark_posted(
     await db.commit()
 
     res_data = {"status": "posted", "posted_at": item.posted_at.isoformat()}
-    save_idempotency(req.idempotency_key, res_data)
+    save_idempotency(
+        req.idempotency_key,
+        res_data,
+        client_id=auth.client_id,
+        operation="mark_posted",
+        target_id=item_id,
+    )
     return ApiResponse(success=True, data=res_data)
 
 # ─── 5. Task Logs ─────────────────────────────────────────────────────────────
@@ -459,26 +612,13 @@ async def list_task_logs(
     return ApiResponse(success=True, data=out)
 
 
-@router.get("/asset-requests", response_model=ApiResponse[List[AssetRequestOut]])
-async def list_asset_requests(
-    auth: AuthContext = Depends(get_current_auth),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(AssetRequest)
-        .where(AssetRequest.client_id == auth.client_id)
-        .order_by(AssetRequest.created_at.desc())
-    )
-    return ApiResponse(success=True, data=[AssetRequestOut.model_validate(r) for r in result.scalars().all()])
-
-
 @router.get("/assets", response_model=ApiResponse[List[BrandAssetOut]])
 async def list_assets(
     auth: AuthContext = Depends(get_current_auth),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(BrandAsset)
+        select(BrandAsset).options(selectinload(BrandAsset.semantic_record))
         .where(BrandAsset.client_id == auth.client_id)
         .order_by(BrandAsset.created_at.desc())
     )
@@ -486,9 +626,23 @@ async def list_assets(
     for asset in result.scalars().all():
         signed = get_signed_url(BRAND_ASSETS_BUCKET, asset.storage_path) if asset.storage_path else asset.url
         assets.append(BrandAssetOut(
-            id=asset.id, asset_request_id=asset.asset_request_id, url=signed or asset.url,
+            id=asset.id, url=signed or asset.url,
             file_name=asset.file_name, storage_path=asset.storage_path, tags=asset.tags,
-            source=asset.source, status=asset.status, created_at=asset.created_at,
+            source=asset.source, status=asset.status,
+            usage_rights=asset.usage_rights, dimensions=asset.dimensions,
+            indexing_status=asset.semantic_record.status if asset.semantic_record else "processing",
+            indexing_reason=asset.semantic_record.failure_reason if asset.semantic_record else None,
+            semantic_summary=asset.semantic_record.semantic_summary if asset.semantic_record else None,
+            suggested_tags=asset.semantic_record.suggested_tags if asset.semantic_record else None,
+            replaces_asset_id=asset.replaces_asset_id,
+            ready_for_d02=(
+                asset.status == "approved"
+                and bool(asset.usage_rights)
+                and asset.usage_rights not in {"unknown", "denied", "expired", "restricted", "none"}
+                and asset.semantic_record is not None
+                and asset.semantic_record.status == "ready"
+            ),
+            created_at=asset.created_at,
         ))
     return ApiResponse(success=True, data=assets)
 
@@ -496,81 +650,264 @@ async def list_assets(
 @router.post("/assets/upload", response_model=ApiResponse[BrandAssetOut])
 async def upload_portal_asset(
     request: Request,
-    asset_request_id: Optional[uuid.UUID] = Query(None),
     auth: AuthContext = Depends(get_current_auth),
     db: AsyncSession = Depends(get_db),
 ):
     content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
     file_name = request.headers.get("x-file-name") or "upload"
+    rights_attested = (
+        request.headers.get("x-asset-rights-attested") or ""
+    ).strip().lower() in {"1", "true", "yes"}
     if content_type not in ALLOWED_IMAGE_TYPES:
         return ApiResponse(success=False, error=ErrorDetail(error_code="invalid_file_type", message="Only JPEG, PNG and WebP images are supported"))
     body = await request.body()
     if not body or len(body) > MAX_IMAGE_BYTES:
         return ApiResponse(success=False, error=ErrorDetail(error_code="invalid_file_size", message="Image must be smaller than 50 MB"))
-    if asset_request_id:
-        asset_request = await db.scalar(select(AssetRequest).where(AssetRequest.id == asset_request_id, AssetRequest.client_id == auth.client_id))
-        if not asset_request:
-            return ApiResponse(success=False, error=ErrorDetail(error_code="404", message="Asset request not found"))
+    try:
+        inspection = inspect_image_upload(body, content_type)
+    except ImageUploadValidationError as exc:
+        return ApiResponse(
+            success=False,
+            error=ErrorDetail(error_code=exc.code, message=str(exc)),
+        )
+
+    content_sha256 = hashlib.sha256(body).hexdigest()
+    duplicate = await find_duplicate_source(
+        db,
+        client_id=auth.client_id,
+        content_sha256=content_sha256,
+    )
+    if duplicate is not None:
+        if rights_attested:
+            duplicate.status = "approved"
+            duplicate.usage_rights = "client_owned"
+        semantic_record = await db.scalar(
+            select(SemanticAssetRecord).where(
+                SemanticAssetRecord.client_id == auth.client_id,
+                SemanticAssetRecord.source_asset_id == duplicate.id,
+            )
+        )
+        if semantic_record is None:
+            semantic_record = SemanticAssetRecord(
+                client_id=auth.client_id,
+                source_asset_id=duplicate.id,
+                content_fingerprint=duplicate.content_sha256,
+                status="processing",
+            )
+            db.add(semantic_record)
+            await db.commit()
+        elif rights_attested:
+            await db.commit()
+        should_retry_index = semantic_record.status == "processing" or (
+            semantic_record.status == "failed"
+            and semantic_record.failure_reason in {
+                "semantic_index_dispatch_failed",
+                "semantic_indexing_retries_exhausted",
+                "storage_signed_url_unavailable",
+            }
+        ) or (
+            semantic_record.status == "needs_attention"
+            and semantic_record.failure_reason == "embedding_provider_unavailable"
+        )
+        if should_retry_index:
+            semantic_record.status = "processing"
+            semantic_record.failure_reason = None
+            await db.commit()
+            try:
+                celery_app.send_task(
+                    "assets.index_semantic",
+                    args=[str(auth.client_id), str(duplicate.id)],
+                )
+            except Exception:
+                semantic_record.status = "failed"
+                semantic_record.failure_reason = "semantic_index_dispatch_failed"
+                await db.commit()
+                logger.exception("Could not re-enqueue semantic indexing for asset=%s", duplicate.id)
+        return ApiResponse(success=True, data=BrandAssetOut(
+            id=duplicate.id,
+            url=get_signed_url(BRAND_ASSETS_BUCKET, duplicate.storage_path) or duplicate.url,
+            file_name=duplicate.file_name,
+            storage_path=duplicate.storage_path,
+            tags=duplicate.tags,
+            source=duplicate.source,
+            status=duplicate.status,
+            usage_rights=duplicate.usage_rights,
+            dimensions=duplicate.dimensions,
+            indexing_status=semantic_record.status if semantic_record else "processing",
+            indexing_reason=semantic_record.failure_reason if semantic_record else None,
+            semantic_summary=semantic_record.semantic_summary if semantic_record else None,
+            suggested_tags=semantic_record.suggested_tags if semantic_record else None,
+            duplicate_of_asset_id=duplicate.id,
+            ready_for_d02=(
+                duplicate.status == "approved"
+                and bool(duplicate.usage_rights)
+                and duplicate.usage_rights not in {"unknown", "denied", "expired", "restricted", "none"}
+                and semantic_record is not None
+                and semantic_record.status == "ready"
+            ),
+            created_at=duplicate.created_at,
+        ))
+
     asset_id = uuid.uuid4()
-    path = client_asset_path(str(auth.client_id), str(asset_id), content_type, str(asset_request_id) if asset_request_id else None)
+    path = client_asset_path(str(auth.client_id), str(asset_id), content_type)
     if not upload_file(BRAND_ASSETS_BUCKET, path, body, content_type):
         return ApiResponse(success=False, error=ErrorDetail(error_code="storage_unavailable", message="Could not upload image"))
+    initial_index_status = "processing" if inspection.is_d02_resolution else "needs_attention"
+    initial_index_reason = None if inspection.is_d02_resolution else "image_resolution_too_low"
     asset = BrandAsset(
-        id=asset_id, client_id=auth.client_id, asset_request_id=asset_request_id,
+        id=asset_id, client_id=auth.client_id,
         url=path, storage_path=path, file_name=file_name[:255], format=content_type,
-        source="real_photo", status="pending_review",
+        source="client_uploaded",
+        status="approved" if rights_attested else "pending_review",
+        usage_rights="client_owned" if rights_attested else "unknown",
+        dimensions=inspection.dimensions, content_sha256=content_sha256,
+    )
+    semantic_record = SemanticAssetRecord(
+        client_id=auth.client_id,
+        source_asset_id=asset_id,
+        content_fingerprint=asset.content_sha256,
+        status=initial_index_status,
+        failure_reason=initial_index_reason,
     )
     db.add(asset)
-    await db.commit()
+    db.add(semantic_record)
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        delete_files(BRAND_ASSETS_BUCKET, [path])
+        raise
+
+    if initial_index_status == "processing":
+        try:
+            celery_app.send_task("assets.index_semantic", args=[str(auth.client_id), str(asset_id)])
+        except Exception:
+            logger.exception("Could not enqueue semantic indexing for asset=%s", asset_id)
+            semantic_record.status = "failed"
+            semantic_record.failure_reason = "semantic_index_dispatch_failed"
+            await db.commit()
     return ApiResponse(success=True, data=BrandAssetOut(
-        id=asset.id, asset_request_id=asset.asset_request_id,
+        id=asset.id,
         url=get_signed_url(BRAND_ASSETS_BUCKET, path) or path,
         file_name=asset.file_name, storage_path=path, tags=asset.tags,
-        source=asset.source, status=asset.status, created_at=asset.created_at,
+        source=asset.source, status=asset.status,
+        usage_rights=asset.usage_rights, dimensions=asset.dimensions,
+        indexing_status=semantic_record.status,
+        indexing_reason=semantic_record.failure_reason,
+        ready_for_d02=False,
+        created_at=asset.created_at,
     ))
 
 
-@router.post("/asset-requests/{request_id}/submit", response_model=ApiResponse[dict])
-async def submit_asset_request(
-    request_id: uuid.UUID,
-    req: AssetSubmitRequest,
+@router.post("/assets/{source_asset_id}/replace", response_model=ApiResponse[BrandAssetOut])
+async def replace_portal_asset(
+    source_asset_id: uuid.UUID,
+    request: Request,
     auth: AuthContext = Depends(get_current_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    cached = check_idempotency(req.idempotency_key)
-    if cached:
-        return ApiResponse(success=True, data=cached)
-
-    asset_request = await db.scalar(
-        select(AssetRequest).where(
-            AssetRequest.id == request_id,
-            AssetRequest.client_id == auth.client_id,
+    """Create an immutable replacement; the old source is never overwritten or deleted."""
+    old_asset = await db.scalar(
+        select(BrandAsset).where(
+            BrandAsset.id == source_asset_id,
+            BrandAsset.client_id == auth.client_id,
+            BrandAsset.source.in_(("client_uploaded", "real_photo", "portal")),
+            BrandAsset.source_asset_id.is_(None),
         )
     )
-    if not asset_request:
-        return ApiResponse(success=False, error=ErrorDetail(error_code="404", message="Asset request not found"))
-    if asset_request.status != "pending":
-        return ApiResponse(success=False, error=ErrorDetail(error_code="409", message="Asset request is not pending"))
+    if old_asset is None:
+        raise HTTPException(status_code=404, detail="Source asset not found")
 
-    if not req.asset_ids:
-        return ApiResponse(success=False, error=ErrorDetail(error_code="validation_missing_assets", message="Upload at least one asset before submitting"))
-    result = await db.execute(select(BrandAsset).where(
-        BrandAsset.id.in_(req.asset_ids), BrandAsset.client_id == auth.client_id,
-        BrandAsset.asset_request_id == asset_request.id,
+    content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
+    file_name = request.headers.get("x-file-name") or "replacement"
+    rights_attested = (
+        request.headers.get("x-asset-rights-attested") or ""
+    ).strip().lower() in {"1", "true", "yes"}
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        return ApiResponse(success=False, error=ErrorDetail(
+            error_code="invalid_file_type", message="Only JPEG, PNG and WebP images are supported"
+        ))
+    body = await request.body()
+    if not body or len(body) > MAX_IMAGE_BYTES:
+        return ApiResponse(success=False, error=ErrorDetail(
+            error_code="invalid_file_size", message="Image must be smaller than 50 MB"
+        ))
+    try:
+        inspection = inspect_image_upload(body, content_type)
+    except ImageUploadValidationError as exc:
+        return ApiResponse(success=False, error=ErrorDetail(error_code=exc.code, message=str(exc)))
+
+    content_sha256 = hashlib.sha256(body).hexdigest()
+    if content_sha256 == old_asset.content_sha256:
+        return ApiResponse(success=False, error=ErrorDetail(
+            error_code="replacement_unchanged", message="Replacement bytes are identical to the current asset"
+        ))
+
+    replacement_id = uuid.uuid4()
+    path = client_asset_path(str(auth.client_id), str(replacement_id), content_type)
+    if not upload_file(BRAND_ASSETS_BUCKET, path, body, content_type):
+        return ApiResponse(success=False, error=ErrorDetail(
+            error_code="storage_unavailable", message="Could not upload replacement image"
+        ))
+
+    initial_status = "processing" if inspection.is_d02_resolution else "needs_attention"
+    initial_reason = None if inspection.is_d02_resolution else "image_resolution_too_low"
+    replacement = BrandAsset(
+        id=replacement_id,
+        client_id=auth.client_id,
+        url=path,
+        storage_path=path,
+        file_name=file_name[:255],
+        format=content_type,
+        source="client_uploaded",
+        status="approved" if rights_attested else "pending_review",
+        usage_rights="client_owned" if rights_attested else "unknown",
+        dimensions=inspection.dimensions,
+        content_sha256=content_sha256,
+        replaces_asset_id=old_asset.id,
+    )
+    semantic_record = SemanticAssetRecord(
+        client_id=auth.client_id,
+        source_asset_id=replacement.id,
+        content_fingerprint=content_sha256,
+        status=initial_status,
+        failure_reason=initial_reason,
+    )
+    db.add_all([replacement, semantic_record])
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        delete_files(BRAND_ASSETS_BUCKET, [path])
+        raise
+
+    if initial_status == "processing":
+        try:
+            celery_app.send_task(
+                "assets.index_semantic", args=[str(auth.client_id), str(replacement.id)]
+            )
+        except Exception:
+            semantic_record.status = "failed"
+            semantic_record.failure_reason = "semantic_index_dispatch_failed"
+            await db.commit()
+            logger.exception("Could not enqueue replacement indexing asset=%s", replacement.id)
+
+    return ApiResponse(success=True, data=BrandAssetOut(
+        id=replacement.id,
+        url=get_signed_url(BRAND_ASSETS_BUCKET, replacement.storage_path) or replacement.url,
+        file_name=replacement.file_name,
+        storage_path=replacement.storage_path,
+        tags=replacement.tags,
+        source=replacement.source,
+        status=replacement.status,
+        usage_rights=replacement.usage_rights,
+        dimensions=replacement.dimensions,
+        indexing_status=semantic_record.status,
+        indexing_reason=semantic_record.failure_reason,
+        replaces_asset_id=old_asset.id,
+        ready_for_d02=False,
+        created_at=replacement.created_at,
     ))
-    assets = result.scalars().all()
-    if len(assets) != len(set(req.asset_ids)):
-        return ApiResponse(success=False, error=ErrorDetail(error_code="validation_asset_scope", message="One or more assets do not belong to this request"))
-    for asset in assets:
-        asset.status = "pending_review"
-    asset_request.status = "fulfilled"
-    item = await db.get(ContentItem, asset_request.content_item_id)
-    if item and item.client_id == auth.client_id and item.status in {"waiting_asset", "asset_blocked"}:
-        item.status = "evaluating"
-    await db.commit()
-    data = {"status": "submitted", "asset_ids": [str(asset.id) for asset in assets]}
-    save_idempotency(req.idempotency_key, data)
-    return ApiResponse(success=True, data=data)
 
 
 @router.get("/settings", response_model=ApiResponse[dict])
@@ -640,7 +977,12 @@ async def update_brand_voice(
     auth: AuthContext = Depends(get_current_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    cached = check_idempotency(req.idempotency_key)
+    cached = check_idempotency(
+        req.idempotency_key,
+        client_id=auth.client_id,
+        operation="update_brand_voice",
+        target_id=auth.client_id,
+    )
     if cached:
         return ApiResponse(success=True, data=cached)
     current = await db.scalar(
@@ -673,7 +1015,13 @@ async def update_brand_voice(
             "personality_keywords": updated.personality_keywords,
             "writing_style": updated.writing_style,
         }
-        save_idempotency(req.idempotency_key, data)
+        save_idempotency(
+            req.idempotency_key,
+            data,
+            client_id=auth.client_id,
+            operation="update_brand_voice",
+            target_id=auth.client_id,
+        )
         return ApiResponse(success=True, data=data)
     db.add(
         BrandSettingHistory(
@@ -708,7 +1056,13 @@ async def update_brand_voice(
     db.add(updated)
     await db.commit()
     data = {"tone": updated.tone_of_voice, "personality_keywords": updated.personality_keywords, "writing_style": updated.writing_style}
-    save_idempotency(req.idempotency_key, data)
+    save_idempotency(
+        req.idempotency_key,
+        data,
+        client_id=auth.client_id,
+        operation="update_brand_voice",
+        target_id=auth.client_id,
+    )
     return ApiResponse(success=True, data=data)
 
 
@@ -718,7 +1072,12 @@ async def update_agent_config(
     auth: AuthContext = Depends(get_current_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    cached = check_idempotency(req.idempotency_key)
+    cached = check_idempotency(
+        req.idempotency_key,
+        client_id=auth.client_id,
+        operation="update_agent_config",
+        target_id=req.agent_code,
+    )
     if cached:
         return ApiResponse(success=True, data=cached)
     enabled_provider_rows = await db.scalars(
@@ -753,5 +1112,11 @@ async def update_agent_config(
     config.is_active = True
     await db.commit()
     data = {"agent_code": config.agent_code, "model": config.model, "tier": config.tier, "budget_usd_month": float(config.budget_usd)}
-    save_idempotency(req.idempotency_key, data)
+    save_idempotency(
+        req.idempotency_key,
+        data,
+        client_id=auth.client_id,
+        operation="update_agent_config",
+        target_id=req.agent_code,
+    )
     return ApiResponse(success=True, data=data)

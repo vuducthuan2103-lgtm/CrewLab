@@ -12,19 +12,13 @@ except ImportError:
             return func
         return decorator
 
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.db import engine
+from app.core.db import CeleryAsyncSessionLocal as AsyncSessionLocal
 from app.agents.d01.executor import execute_d01
 from app.agents.a01.dispatcher import handle_event
+from app.tasks.orchestrator_tasks import dispatch_instructions
+from app.services.task_errors import PermanentTaskInputError, log_task_failure
 
 logger = logging.getLogger(__name__)
-
-AsyncSessionLocal = sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False
-)
-
 
 def _run_async(coro):
     """Helper to run async code in Celery sync tasks."""
@@ -57,7 +51,7 @@ def run_d01(self, payload: dict):
     async def _run():
         async with AsyncSessionLocal() as session:
             # Execute D01
-            await execute_d01(
+            item = await execute_d01(
                 session=session,
                 client_id=client_id,
                 cycle_id=cycle_id,
@@ -69,17 +63,66 @@ def run_d01(self, payload: dict):
             )
 
             # Fire d01_complete → A01 dispatches D02
-            await handle_event(
+            if item is not None and (
+                getattr(item, "_workflow_reused", False)
+                or item.status != "visual_matching"
+                or not item.caption
+                or not item.image_brief
+            ):
+                logger.info(
+                    "[D01 Task] No downstream dispatch for reused/in-flight item=%s state=%s",
+                    content_item_id,
+                    item.status,
+                )
+                return
+
+            instructions = await handle_event(
                 session=session,
                 client_id=client_id,
                 event_type="d01_complete",
                 cycle_id=cycle_id,
                 content_item_id=content_item_id,
             )
+            dispatch_instructions(instructions)
 
     try:
         _run_async(_run())
         logger.info(f"[D01 Task] Done: item={content_item_id}")
+    except PermanentTaskInputError as exc:
+        logger.error(f"[D01 Task] Permanent input failure: item={content_item_id} error={exc}")
+
+        async def _log_input_failure():
+            async with AsyncSessionLocal() as failure_session:
+                await log_task_failure(
+                    failure_session,
+                    client_id=client_id,
+                    content_item_id=content_item_id,
+                    agent_code="D01",
+                    task_type="celery_task",
+                    wake_reason=wake_reason,
+                    exc=exc,
+                )
+
+        try:
+            _run_async(_log_input_failure())
+        except Exception:
+            logger.exception("[D01 Task] Failed to persist permanent input failure")
+        raise
     except Exception as exc:
         logger.error(f"[D01 Task] Failed: item={content_item_id} error={exc}")
+        async def _log_failure():
+            async with AsyncSessionLocal() as failure_session:
+                await log_task_failure(
+                    failure_session,
+                    client_id=client_id,
+                    content_item_id=content_item_id,
+                    agent_code="D01",
+                    task_type="celery_task",
+                    wake_reason=wake_reason,
+                    exc=exc,
+                )
+        try:
+            _run_async(_log_failure())
+        except Exception:
+            logger.exception("[D01 Task] Failed to persist failure log")
         raise self.retry(exc=exc)

@@ -1,23 +1,20 @@
-"""Pydantic schemas for D02 — Image Design & Matching agent."""
-from pydantic import BaseModel
+"""Validated LLM outputs for D02 image retrieval and vision ranking."""
+from pydantic import BaseModel, Field
 
 
 class D02TagOutput(BaseModel):
-    """Output của LLM call 1: enhance tags để query media library tốt hơn."""
-    enhanced_tags: list[str]      # Tags bổ sung + chuẩn hóa từ image_brief
-    search_priority: list[str]    # Tags quan trọng nhất, thử match trước
+    enhanced_tags: list[str]
+    search_priority: list[str]
 
 
 class D02SelectionOutput(BaseModel):
-    """Output của LLM call 2: chọn ảnh tốt nhất trong danh sách match."""
-    selected_asset_id: str        # UUID của ảnh được chọn
-    reason: str                   # Giải thích ngắn tại sao chọn ảnh này
-
-
-class AssetRequestData(BaseModel):
-    """Cấu trúc dữ liệu để tạo AssetRequest có cấu trúc cho client."""
-    note: str                       # Mô tả tổng quát cho client đọc
-    shot_list: list[dict]           # [{"angle": str, "description": str}]
-    reference_tags: list[str]       # Tags tham khảo từ image_brief
-    example_asset_ids: list[str]    # UUID[] ảnh ví dụ phong cách (có thể rỗng)
-    expires_days: int = 3           # Số ngày trước khi expire (configurable)
+    selected_asset_id: str | None = None
+    reason: str
+    score: float = Field(default=0, ge=0, le=100)
+    hard_gate_passed: bool = True
+    subject_product_match: float = Field(default=0, ge=0, le=40)
+    visual_intent_fit: float = Field(default=0, ge=0, le=25)
+    brand_setting_fit: float = Field(default=0, ge=0, le=15)
+    editability: float = Field(default=0, ge=0, le=10)
+    freshness: float = Field(default=0, ge=0, le=5)
+    rights_confidence: float = Field(default=0, ge=0, le=5)

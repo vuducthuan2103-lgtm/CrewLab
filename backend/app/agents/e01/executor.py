@@ -10,6 +10,7 @@ from app.agents.e01.prompts import SYSTEM_PROMPT_E01, build_e01_user_prompt
 from app.agents.e01.schemas import E01Output, VisualEval
 from app.core.llm import call_llm
 from app.models.content import ContentItem, ContentItemEvalAttempt, ContentItemStateLog
+from app.services.task_errors import InvalidModelOutputError
 from app.services.storage import BRAND_ASSETS_BUCKET, get_signed_url
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ async def _get_tenant_content_item(
     item_stmt = select(ContentItem).where(
         ContentItem.id == content_item_id,
         ContentItem.client_id == client_id,
-    )
+    ).with_for_update()
     item = (await session.execute(item_stmt)).scalar_one_or_none()
     if not item:
         raise ContentItemNotFoundError(
@@ -86,6 +87,15 @@ def _force_missing_image_failure(parsed: E01Output) -> E01Output:
     )
 
 
+def _text_only_visual_eval(parsed: E01Output) -> E01Output:
+    return E01Output(
+        caption_eval=parsed.caption_eval,
+        visual_eval=VisualEval(score=None, passed=True, not_applicable=True),
+        overall_passed=parsed.caption_eval.passed,
+        evaluation_reasoning=(f"{parsed.evaluation_reasoning}\nVisual evaluation is not applicable for this text-only post.").strip(),
+    )
+
+
 async def execute_e01(
     session: AsyncSession,
     client_id: uuid.UUID,
@@ -103,6 +113,19 @@ async def execute_e01(
         cycle_id=cycle_id,
         content_item_id=content_item_id,
     )
+
+    if wake_reason != "retry" and item.status in {
+        "evaluating",
+        "eval_failed",
+        "pending_content_approval",
+        "approved_ready_to_post",
+        "posted",
+        "rejected",
+        "archived",
+    }:
+        logger.info("E01 duplicate delivery reused state=%s for item=%s", item.status, content_item_id)
+        item._workflow_reused = True
+        return item
 
     if item.status == "evaluating":
         stmt_log = (
@@ -163,9 +186,11 @@ async def execute_e01(
         parsed = E01Output.model_validate_json(llm_response.content)
     except Exception as exc:
         logger.error("E01 parse failed: %s", exc)
-        raise ValueError(f"E01 LLM output parsing failed: {exc}") from exc
+        raise InvalidModelOutputError(f"E01 LLM output parsing failed: {exc}") from exc
 
-    if not resolved_image_url:
+    if (item.image_brief or {}).get("visual_mode") == "text_only":
+        parsed = _text_only_visual_eval(parsed)
+    elif not resolved_image_url:
         parsed = _force_missing_image_failure(parsed)
 
     item.eval_score_caption = parsed.caption_eval.score
@@ -187,8 +212,6 @@ async def execute_e01(
         )
     )
 
-    from app.agents.a01.dispatcher import handle_event
-
     if parsed.overall_passed:
         item.status = "pending_content_approval"
         item.failed_criteria = None
@@ -206,13 +229,6 @@ async def execute_e01(
             )
         )
         await session.commit()
-        await handle_event(
-            session=session,
-            client_id=client_id,
-            event_type="eval_passed",
-            cycle_id=cycle_id,
-            content_item_id=content_item_id,
-        )
     else:
         item.eval_retry_count += 1
         item.failed_criteria = all_failed
@@ -236,13 +252,6 @@ async def execute_e01(
             )
         )
         await session.commit()
-        await handle_event(
-            session=session,
-            client_id=client_id,
-            event_type="eval_failed",
-            cycle_id=cycle_id,
-            content_item_id=content_item_id,
-        )
 
     await session.refresh(item)
     return item

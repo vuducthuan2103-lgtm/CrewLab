@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { usePortal } from '@/lib/store';
 import { ContentItem, FSM_STATE_LABELS } from '@/lib/types';
 import ContentApprovalModal from '@/components/approval/ContentApprovalModal';
-import { TableProperties, Clock, ArrowDownUp, ChevronRight } from 'lucide-react';
+import { TableProperties, Clock, ArrowDownUp, CalendarRange, ChevronRight, ImageIcon } from 'lucide-react';
 
 const PILLAR_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   p01: { bg: 'bg-blue-500/10', text: 'text-blue-500 dark:text-blue-400', border: 'border-blue-500/20' },
@@ -42,7 +42,6 @@ function StateBadge({ state }: { state: ContentItem['state'] }) {
     approved_ready_to_post: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
     posted: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20',
     eval_failed: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
-    waiting_asset: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20',
     planned: 'bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border border-zinc-500/20',
     ready_for_generation: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20',
     evaluating: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20',
@@ -56,9 +55,9 @@ function StateBadge({ state }: { state: ContentItem['state'] }) {
 }
 
 function PlatformBadge({ platform }: { platform: ContentItem['platform'] }) {
-  if (platform === 'fb') return <span className="text-[10px] font-bold bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 rounded-full px-1.5 py-0.5">🟥 FB</span>;
-  if (platform === 'ig') return <span className="text-[10px] font-bold bg-blue-500/10 text-blue-500 dark:text-blue-400 border border-blue-500/20 rounded-full px-1.5 py-0.5">🟦 IG</span>;
-  return <span className="text-[10px] font-bold bg-purple-500/10 text-purple-500 dark:text-purple-400 border border-purple-500/20 rounded-full px-1.5 py-0.5">🟥🟦</span>;
+  if (platform === 'fb') return <span className="text-[10px] font-bold bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20 rounded-full px-1.5 py-0.5">FB</span>;
+  if (platform === 'ig') return <span className="text-[10px] font-bold bg-blue-500/10 text-blue-500 dark:text-blue-400 border border-blue-500/20 rounded-full px-1.5 py-0.5">IG</span>;
+  return <span className="text-[10px] font-bold bg-purple-500/10 text-purple-500 dark:text-purple-400 border border-purple-500/20 rounded-full px-1.5 py-0.5">FB · IG</span>;
 }
 
 // ─── TABLE VIEW ───────────────────────────────────────────────────────────────
@@ -96,7 +95,7 @@ function TableView({ items, onItemClick }: { items: ContentItem[]; onItemClick: 
                       <img src={item.imageUrl} alt="" className="w-9 h-9 rounded-lg object-cover border border-border" />
                     ) : (
                       <div className="w-9 h-9 rounded-lg bg-muted/50 flex items-center justify-center border border-border">
-                        <span className="text-sm">🎨</span>
+                        <ImageIcon size={14} className="text-muted-foreground" aria-hidden="true" />
                       </div>
                     )}
                   </td>
@@ -195,7 +194,7 @@ function TimelineView({ items, onItemClick }: { items: ContentItem[]; onItemClic
                       <img src={item.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover border border-border flex-shrink-0" />
                     ) : (
                       <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center border border-border flex-shrink-0">
-                        <span className="text-sm">🎨</span>
+                        <ImageIcon size={16} className="text-muted-foreground" aria-hidden="true" />
                       </div>
                     )}
 
@@ -255,24 +254,24 @@ export default function ContentPlanTable() {
           <button
             id="plan-view-table"
             onClick={() => setView('table')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
               view === 'table'
                 ? 'bg-lime-brand shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
           >
-            📊 Bảng
+            <TableProperties size={12} /> Bảng
           </button>
           <button
             id="plan-view-timeline"
             onClick={() => setView('timeline')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
               view === 'timeline'
                 ? 'bg-lime-brand shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
           >
-            📅 Timeline
+            <CalendarRange size={12} /> Timeline
           </button>
         </div>
       </div>

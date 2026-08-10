@@ -50,7 +50,7 @@ class ContentItem(Base):
     __table_args__ = (
         CheckConstraint(
             "status IN ('planned', 'ready_for_generation', 'caption_generating', 'visual_matching', "
-            "'waiting_asset', 'asset_blocked', 'visual_generating', 'evaluating', 'eval_failed', "
+            "'visual_generating', 'evaluating', 'eval_failed', "
             "'pending_content_approval', 'approved_ready_to_post', 'posted', 'rejected', 'archived')",
             name="ck_content_items_status"
         ),
@@ -87,7 +87,6 @@ class ContentItem(Base):
     client = relationship("Client", back_populates="items")
     cycle = relationship("WorkflowCycle", back_populates="items")
     pillar = relationship("ContentPillar", back_populates="items")
-    asset_requests = relationship("AssetRequest", back_populates="item")
     hitl_reviews = relationship("HitlReview", back_populates="item")
     state_logs = relationship("ContentItemStateLog", back_populates="item")
     eval_attempts = relationship(
@@ -95,6 +94,23 @@ class ContentItem(Base):
         back_populates="item",
         order_by="ContentItemEvalAttempt.created_at",
     )
+
+    @property
+    def image_provenance(self) -> dict | None:
+        """Stable API projection of D02's persisted selection decision."""
+        provenance = (self.image_brief or {}).get("d02_provenance")
+        if not isinstance(provenance, dict):
+            return None
+        return {
+            "source_asset_id": provenance.get("source_asset_id"),
+            "derivative_asset_id": provenance.get("derivative_asset_id"),
+            "generation_mode": provenance.get("generation_mode") or provenance.get("edit_mode"),
+            "selection_rationale": provenance.get("selection_rationale"),
+            "selection_score": provenance.get("selection_score"),
+            "candidates": provenance.get("candidates") or [],
+            "eligibility_exclusions": provenance.get("eligibility_exclusions") or [],
+            "technical_validation": provenance.get("technical_validation"),
+        }
 
 
 class ContentItemStateLog(Base):

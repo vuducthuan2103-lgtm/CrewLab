@@ -1,89 +1,63 @@
-"""Prompts for D02 — Image Design & Matching agent."""
+"""Prompts for D02 image retrieval and source selection."""
 from app.agents.d01.schemas import ImageBrief
 
 
-SYSTEM_PROMPT_D02_TAG = """Bạn là D02 — Image Matching Specialist của CrewLab.
-
-Nhiệm vụ: Phân tích Image Brief và tạo danh sách tags tối ưu để tìm kiếm ảnh trong thư viện.
-
-Nguyên tắc:
-- Tags phải thực tế, cụ thể — dùng để match với tags ảnh trong database
-- Bổ sung synonyms và từ khóa liên quan (VD: "cold brew" → thêm "cà phê đá", "iced coffee")
-- Ưu tiên tags mô tả ĐỐI TƯỢNG trong ảnh (sản phẩm, không gian, người) hơn cảm xúc chung
-- search_priority: sắp xếp theo độ quan trọng giảm dần — tag đầu tiên là đặc trưng nhất
-
-Output: JSON với enhanced_tags (list[str]) và search_priority (list[str])."""
+SYSTEM_PROMPT_D02_TAG = """You are D02, an image-retrieval specialist.
+Extract concrete searchable tags from the visual brief. Prioritize products,
+objects, setting and composition over generic mood. Include useful Vietnamese
+and English synonyms. Return JSON with enhanced_tags and search_priority."""
 
 
-SYSTEM_PROMPT_D02_SELECT = """Bạn là D02 — Image Matching Specialist của CrewLab.
-
-Nhiệm vụ: Chọn ảnh phù hợp nhất từ danh sách ảnh match với Image Brief đã cho.
-
-Nguyên tắc chọn ảnh:
-1. Phù hợp với mood/cảm xúc trong brief
-2. Phù hợp với composition_notes (bố cục, góc chụp)
-3. Không vi phạm avoid list
-4. Ưu tiên ảnh chưa được dùng nhiều (usage_count thấp)
-
-Output: JSON với selected_asset_id (UUID string) và reason (giải thích ngắn gọn ≤ 50 từ)."""
+SYSTEM_PROMPT_D02_SELECT = """You are D02, selecting the best client-owned
+source image for a visual brief. Inspect the actual candidate pixels. Apply a
+hard rejection for wrong product, prohibited content, unsafe/low-quality image,
+unusable rights or insufficient editability. Score the selected candidate using
+exactly: subject/product 0-40, Visual Intent fit 0-25, brand/setting 0-15,
+editability 0-10, freshness 0-5 and rights confidence 0-5. The six components
+must sum to score. Return the selected asset ID, concise reason, hard_gate_passed,
+score and all six component scores. Do not identify people or infer identity."""
 
 
 def build_d02_tag_prompt(image_brief: ImageBrief) -> str:
-    """Build prompt cho D02 LLM call 1: tag enhancement."""
     return (
-        f"## Image Brief\n"
-        f"Mô tả: {image_brief.description}\n"
-        f"Mood/phong cách: {image_brief.mood}\n"
-        f"Tags ban đầu: {', '.join(image_brief.suggested_tags)}\n"
-        f"Bố cục: {image_brief.composition_notes}\n"
-        f"Tránh: {', '.join(image_brief.avoid)}\n\n"
-        f"Hãy enhance danh sách tags và xác định search_priority.\n"
-        f'Output JSON: {{"enhanced_tags": [...], "search_priority": [...]}}'
+        "## Visual brief\n"
+        f"Description: {image_brief.description}\n"
+        f"Required subject: {image_brief.required_subject}\n"
+        f"Preferred setting: {image_brief.preferred_setting}\n"
+        f"Mood: {image_brief.mood}\n"
+        f"Initial tags: {', '.join(image_brief.suggested_tags)}\n"
+        f"Composition: {image_brief.composition_notes}\n"
+        f"Platform format: {image_brief.platform_format}\n"
+        f"Text treatment: {image_brief.desired_text_treatment}\n"
+        f"Avoid: {', '.join(image_brief.avoid)}\n\n"
+        'Return JSON: {"enhanced_tags": [...], "search_priority": [...]}'
     )
 
 
 def build_d02_select_prompt(assets: list[dict], image_brief: ImageBrief) -> str:
-    """Build prompt cho D02 LLM call 2: asset selection."""
     asset_list = "\n".join(
-        f"- ID: {a['id']} | Tags: {a.get('tags', [])} | Usage: {a.get('usage_count', 0)} lần"
-        for a in assets
+        (
+            f"- ID: {asset['id']} | Tags: {asset.get('tags', [])} | "
+            f"Semantic summary: {asset.get('semantic_summary', '')} | "
+            f"Hybrid retrieval: {asset.get('hybrid_score')} | "
+            f"Editability: {asset.get('editability', {})} | "
+            f"Rights: {asset.get('usage_rights')} | Usage: {asset.get('usage_count', 0)}"
+        )
+        for asset in assets
     )
     return (
-        f"## Image Brief\n"
-        f"Mô tả: {image_brief.description}\n"
+        "## Visual brief\n"
+        f"Description: {image_brief.description}\n"
+        f"Required subject: {image_brief.required_subject}\n"
+        f"Preferred setting: {image_brief.preferred_setting}\n"
         f"Mood: {image_brief.mood}\n"
-        f"Bố cục: {image_brief.composition_notes}\n"
-        f"Tránh: {', '.join(image_brief.avoid)}\n\n"
-        f"## Danh sách ảnh match\n{asset_list}\n\n"
-        f"Chọn ảnh phù hợp nhất.\n"
-        f'Output JSON: {{"selected_asset_id": "uuid", "reason": "..."}}'
+        f"Composition: {image_brief.composition_notes}\n"
+        f"Platform format: {image_brief.platform_format}\n"
+        f"Text treatment: {image_brief.desired_text_treatment}\n"
+        f"Avoid: {', '.join(image_brief.avoid)}\n\n"
+        f"## Candidates\n{asset_list}\n\n"
+        "Inspect the candidate images attached after this text. "
+        'Return JSON with selected_asset_id, reason, score, hard_gate_passed, '
+        "subject_product_match, visual_intent_fit, brand_setting_fit, editability, "
+        "freshness and rights_confidence."
     )
-
-
-def build_d02_asset_request_note(image_brief: ImageBrief, topic: str) -> tuple[str, list[dict]]:
-    """Tạo note và shot_list cho AssetRequest gửi cho client.
-
-    Returns:
-        (note_text, shot_list)
-    """
-    note = (
-        f"📸 Cần ảnh cho bài: {topic}\n\n"
-        f"Mô tả ảnh cần: {image_brief.description}\n"
-        f"Phong cách/cảm xúc: {image_brief.mood}\n"
-        f"Gợi ý bố cục: {image_brief.composition_notes}\n"
-        f"Tránh: {', '.join(image_brief.avoid)}"
-    )
-
-    # Tạo shot list từ image brief
-    shot_list = [
-        {
-            "angle": "Main shot",
-            "description": image_brief.description,
-        },
-        {
-            "angle": "Detail/close-up",
-            "description": f"Cận cảnh chi tiết — {image_brief.composition_notes}",
-        },
-    ]
-
-    return note, shot_list
