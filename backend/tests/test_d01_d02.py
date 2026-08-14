@@ -1,6 +1,7 @@
 """Integration tests for Spec 0007: D01 (Caption Writer) and D02 (Image Design & Matching)."""
 import os
 import uuid
+from types import SimpleNamespace
 import pytest
 from sqlalchemy.future import select
 
@@ -8,7 +9,7 @@ from sqlalchemy.future import select
 os.environ["CREWLAB_LLM_MOCK"] = "true"
 
 from app.agents.d01.executor import execute_d01
-from app.agents.d02.executor import execute_d02
+from app.agents.d02.executor import _resolve_selected_asset, execute_d02
 from app.agents.d02.tools import query_media_library
 from app.models.assets import BrandAsset
 from app.models.clients import BrandSetting, Client
@@ -17,6 +18,25 @@ from app.models.reviews import AgentMemory
 from app.services.context_packet import build_context_packet
 from app.services.task_errors import PermanentTaskInputError
 from scripts.seed_bardinh import seed_bardinh
+
+
+def test_d02_unknown_selector_id_falls_back_to_eligible_client_asset():
+    first = SimpleNamespace(id=uuid.uuid4())
+    second = SimpleNamespace(id=uuid.uuid4())
+
+    selected, note = _resolve_selected_asset("hallucinated-asset-id", [first, second])
+
+    assert selected is first
+    assert "highest-ranked eligible client asset" in note
+
+
+def test_d02_selector_fallback_keeps_a_real_image_available_for_guided_edit():
+    source = SimpleNamespace(id=uuid.uuid4())
+
+    selected, fallback_note = _resolve_selected_asset(None, [source])
+
+    assert selected is source
+    assert fallback_note is not None
 
 
 @pytest.mark.asyncio

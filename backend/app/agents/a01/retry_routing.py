@@ -14,17 +14,24 @@ VISUAL_CRITERIA = {
     "image_design_quality",
     "mobile_readability",
 }
+SYSTEM_RECOVERY_CRITERIA = {
+    "visual_generation_unavailable": "D02",
+    "vision_evaluator_unavailable": "E01",
+}
 
 
 def determine_retry_route(failed_criteria: Sequence[str]) -> str:
-    """Return D01 for caption failures and D02 for visual-only failures.
+    """Return the responsible agent for evaluation failures and provider recovery.
 
-    Invalid criteria are a data-integrity error and must not be silently routed.
+    System recovery criteria are emitted only for a non-retryable provider block;
+    they resume the exact blocked step after the provider becomes available.
+    Other invalid criteria remain a data-integrity error.
     """
     if not failed_criteria:
         raise ValueError("failed_criteria must contain at least one standard E01 criterion")
 
-    unknown_criteria = set(failed_criteria) - CAPTION_CRITERIA - VISUAL_CRITERIA
+    recovery_agents = {SYSTEM_RECOVERY_CRITERIA[criterion] for criterion in failed_criteria if criterion in SYSTEM_RECOVERY_CRITERIA}
+    unknown_criteria = set(failed_criteria) - CAPTION_CRITERIA - VISUAL_CRITERIA - set(SYSTEM_RECOVERY_CRITERIA)
     if unknown_criteria:
         raise ValueError(f"Unknown E01 failed criteria: {sorted(unknown_criteria)}")
 
@@ -32,4 +39,6 @@ def determine_retry_route(failed_criteria: Sequence[str]) -> str:
         return "D01"
     if any(criterion in VISUAL_CRITERIA for criterion in failed_criteria):
         return "D02"
+    if len(recovery_agents) == 1:
+        return recovery_agents.pop()
     raise ValueError("failed_criteria did not identify a retry target")

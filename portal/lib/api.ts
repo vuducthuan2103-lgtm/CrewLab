@@ -126,6 +126,28 @@ export function apiFetchSettings() {
   return fetchAPI('/api/v1/portal/settings');
 }
 
+export function apiUpdateWeeklySchedule(weeklyCycleDay: string, weeklyCycleTime: string) {
+  return fetchAPI('/api/v1/portal/settings/schedule', {
+    method: 'PATCH',
+    body: sideEffect({ weekly_cycle_day: weeklyCycleDay, weekly_cycle_time: weeklyCycleTime }),
+  });
+}
+
+export function apiStartWeeklyPreview() {
+  return fetchAPI('/api/v1/portal/cycles/weekly-preview', {
+    method: 'POST',
+    body: sideEffect({}),
+  });
+}
+
+export function apiResetWeeklyCycle() {
+  return fetchAPI('/api/v1/portal/cycles/reset-week', {
+    method: 'POST',
+    body: sideEffect({}),
+  });
+}
+
+
 export function apiApproveContent(itemId: string, editedCaption?: string) {
   return fetchAPI(`/api/v1/portal/content-items/${itemId}/approve`, {
     method: 'POST',
@@ -147,11 +169,11 @@ export function apiMarkAsPosted(itemId: string) {
   });
 }
 
-export function apiConfirmPillars(pillars: Array<{ pillar_id: string; percentage: number }>) {
+export function apiConfirmPillars(pillars: Array<{ pillar_id: string; name: string; description: string; percentage: number; angles: string[] }>) {
   if (!pillars.length) throw new Error('No pillars available to confirm');
   return fetchAPI(`/api/v1/portal/pillars/${pillars[0].pillar_id}/confirm`, {
     method: 'POST',
-    body: sideEffect({ pillars: pillars.map((p) => ({ id: p.pillar_id, weight: p.percentage, name: p.pillar_id })) }),
+    body: sideEffect({ pillars: pillars.map((p) => ({ id: p.pillar_id, weight: p.percentage, name: p.name, description: p.description, angles: p.angles })) }),
   });
 }
 
@@ -159,6 +181,13 @@ export function apiApproveWeek(cycleId: string) {
   return fetchAPI(`/api/v1/portal/cycles/${cycleId}/approve-week`, {
     method: 'POST',
     body: sideEffect({ content_plan_id: cycleId }),
+  });
+}
+
+export function apiUpdateContentSchedule(itemId: string, scheduledDate: string, scheduledTime: string) {
+  return fetchAPI(`/api/v1/portal/content-items/${itemId}/schedule`, {
+    method: 'PATCH',
+    body: sideEffect({ scheduled_date: scheduledDate, scheduled_time: scheduledTime }),
   });
 }
 

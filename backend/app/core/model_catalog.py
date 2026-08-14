@@ -33,11 +33,11 @@ class ModelCatalogEntry:
 MODEL_CATALOG = (
     ModelCatalogEntry(
         "gpt-5-mini", "GPT-5 mini", "openai", "standard",
-        frozenset({"text", "reasoning"}), TEXT_AGENTS,
+        frozenset({"text", "reasoning", "vision"}), TEXT_AGENTS,
     ),
     ModelCatalogEntry(
         "gpt-5", "GPT-5", "openai", "power",
-        frozenset({"text", "reasoning"}), TEXT_AGENTS,
+        frozenset({"text", "reasoning", "vision"}), TEXT_AGENTS,
     ),
     ModelCatalogEntry(
         "gpt-image-1-mini", "GPT Image 1 mini", "openai", "fast",

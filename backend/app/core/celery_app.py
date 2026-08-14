@@ -24,6 +24,8 @@ celery_app = Celery(
     backend=result_backend,
     include=[
         "app.tasks.orchestrator_tasks",
+        "app.tasks.b02_tasks",
+        "app.tasks.b03_tasks",
         "app.tasks.d01_tasks",
         "app.tasks.d02_tasks",
         "app.tasks.e01_tasks",

@@ -15,7 +15,8 @@ except ImportError:
 from app.agents.a01.dispatcher import handle_event
 from app.agents.e01.executor import E01TaskInputError, execute_e01
 from app.core.db import CeleryAsyncSessionLocal as AsyncSessionLocal
-from app.services.task_errors import log_task_failure
+from app.models.content import ContentItem, ContentItemStateLog
+from app.services.task_errors import classify_task_error, log_task_failure
 from app.tasks.orchestrator_tasks import dispatch_instructions
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,7 @@ def run_e01(self, payload: dict):
         raise
     except Exception as exc:
         logger.error(f"[E01 Task] Failed: item={content_item_id} error={exc}")
+        error = classify_task_error(exc)
         async def _log_failure():
             async with AsyncSessionLocal() as failure_session:
                 await log_task_failure(
@@ -100,4 +102,33 @@ def run_e01(self, payload: dict):
             _run_async(_log_failure())
         except Exception:
             logger.exception("[E01 Task] Failed to persist failure log")
+        if not error.retryable:
+            if error.code == "PROVIDER_CREDITS_EXHAUSTED":
+                async def _mark_evaluation_blocked():
+                    async with AsyncSessionLocal() as failure_session:
+                        item = await failure_session.get(ContentItem, content_item_id, with_for_update=True)
+                        if item is None or item.client_id != client_id or item.cycle_id != cycle_id:
+                            return
+                        previous_state = item.status
+                        item.status = "eval_failed"
+                        item.failed_criteria = ["vision_evaluator_unavailable"]
+                        item.fix_instructions = (
+                            "Không thể kiểm duyệt ảnh vì tài khoản OpenAI đã hết credit. "
+                            "Agency Admin cần nạp thêm credit rồi chạy lại kiểm duyệt."
+                        )
+                        failure_session.add(
+                            ContentItemStateLog(
+                                content_item_id=content_item_id,
+                                agent_code="E01",
+                                previous_state=previous_state,
+                                new_state="eval_failed",
+                                reason="E01 vision evaluation blocked: provider credits exhausted.",
+                            )
+                        )
+                        await failure_session.commit()
+                try:
+                    _run_async(_mark_evaluation_blocked())
+                except Exception:
+                    logger.exception("[E01 Task] Failed to record exhausted provider credits")
+            raise
         raise self.retry(exc=exc)

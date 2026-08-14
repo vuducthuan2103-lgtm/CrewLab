@@ -44,6 +44,17 @@ def test_validate_model_selection_derives_provider_server_side():
     assert entry.provider == "openai"
 
 
+def test_gpt_5_mini_is_marked_vision_capable_for_e01_evaluation():
+    entry = validate_model_selection(
+        model_id="gpt-5-mini",
+        tier="standard",
+        agent_code="E01",
+        enabled_providers={"openai"},
+    )
+
+    assert "vision" in entry.capabilities
+
+
 def test_validate_model_selection_rejects_disabled_provider():
     with pytest.raises(ValueError, match="not enabled"):
         validate_model_selection(

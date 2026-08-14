@@ -9,11 +9,18 @@ os.environ["CREWLAB_LLM_MOCK"] = "true"
 
 from app.agents.b02.executor import execute_b02
 from app.agents.b03.executor import execute_b03
+from app.tasks.b02_tasks import run_b02
+from app.tasks.b03_tasks import run_b03
 from app.models.content import ContentItem, ContentPillar
 from app.models.reviews import HitlReview
 from app.services.context_packet import build_context_packet
 from app.services.gate_service import approve_gate
 from scripts.seed_bardinh import seed_bardinh
+
+
+def test_b02_and_b03_are_registered_celery_tasks():
+    assert run_b02.name == "agents.b02.content_pillar"
+    assert run_b03.name == "agents.b03.content_plan"
 
 
 @pytest.mark.asyncio

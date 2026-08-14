@@ -7,7 +7,6 @@ from zoneinfo import ZoneInfo
 try:
     from celery import shared_task
 except ImportError:
-    # Fallback mock for Celery if not installed yet
     def shared_task(*args, **kwargs):
         def decorator(func):
             func.delay = lambda *a, **kw: None
@@ -25,8 +24,10 @@ from app.models.system import TaskLog
 from app.agents.a01.precheck import check_client_readiness
 from app.agents.a01.dispatcher import handle_event
 from app.services.task_errors import TaskDispatchError, classify_task_error, log_task_failure
+from app.services.weekly_schedule import is_weekly_schedule_due
 
 logger = logging.getLogger(__name__)
+
 
 async def create_weekly_cycle(session: AsyncSession, client_id: uuid.UUID) -> WorkflowCycle:
     """Create the active cycle that B02/B03 and the creative agents operate on."""
@@ -42,6 +43,7 @@ async def create_weekly_cycle(session: AsyncSession, client_id: uuid.UUID) -> Wo
     await session.commit()
     await session.refresh(cycle)
     return cycle
+
 
 def run_async(coro):
     """Helper to run async code in celery sync tasks."""
@@ -175,20 +177,12 @@ def check_scheduled_cycles():
     """
     async def _run():
         async with AsyncSessionLocal() as session:
-            tz = ZoneInfo('Asia/Ho_Chi_Minh')
-            now = datetime.now(tz)
-            
-            current_day = now.isoweekday()
-            current_time_str = now.strftime("%H:%M")
-            
             stmt = select(Client).where(Client.is_active == True)
             result = await session.execute(stmt)
             clients = result.scalars().all()
             
             for client in clients:
-                # Note: In production with 15min intervals, we'd check if schedule_time is within the last 15 mins.
-                # For MVP, we'll do an exact match or simple comparison.
-                if client.schedule_day == current_day and client.schedule_time == current_time_str:
+                if is_weekly_schedule_due(client, datetime.now(UTC)):
                     logger.info(f"Triggering beat_weekly for client {client.id}")
                     a01_handle_trigger.delay(
                         client_id=str(client.id),
@@ -298,4 +292,3 @@ def recover_stalled_agent_work():
             await recover_stalled_items(session)
 
     run_async(_run())
-

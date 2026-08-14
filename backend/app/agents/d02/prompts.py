@@ -14,8 +14,10 @@ hard rejection for wrong product, prohibited content, unsafe/low-quality image,
 unusable rights or insufficient editability. Score the selected candidate using
 exactly: subject/product 0-40, Visual Intent fit 0-25, brand/setting 0-15,
 editability 0-10, freshness 0-5 and rights confidence 0-5. The six components
-must sum to score. Return the selected asset ID, concise reason, hard_gate_passed,
-score and all six component scores. Do not identify people or infer identity."""
+must sum to score. selected_asset_id must be an exact ID from the supplied
+candidate list, or null if every candidate fails the hard gate. Return the
+selected asset ID, concise reason, hard_gate_passed, score and all six component
+scores. Do not identify people or infer identity."""
 
 
 def build_d02_tag_prompt(image_brief: ImageBrief) -> str:

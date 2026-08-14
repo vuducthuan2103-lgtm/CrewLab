@@ -15,7 +15,8 @@ except ImportError:
 from app.agents.a01.dispatcher import handle_event
 from app.agents.d02.executor import execute_d02
 from app.core.db import CeleryAsyncSessionLocal as AsyncSessionLocal
-from app.services.task_errors import PermanentTaskInputError, log_task_failure
+from app.models.content import ContentItem, ContentItemStateLog
+from app.services.task_errors import PermanentTaskInputError, classify_task_error, log_task_failure
 from app.tasks.orchestrator_tasks import dispatch_instructions
 
 logger = logging.getLogger(__name__)
@@ -95,6 +96,7 @@ def run_d02(self, payload: dict):
         raise
     except Exception as exc:
         logger.exception("D02 task failed for item=%s", content_item_id)
+        error = classify_task_error(exc)
 
         async def _log_failure():
             async with AsyncSessionLocal() as session:
@@ -109,4 +111,33 @@ def run_d02(self, payload: dict):
                 )
 
         _run_async(_log_failure())
+        if not error.retryable:
+            if error.code == "PROVIDER_CREDITS_EXHAUSTED":
+                async def _mark_visual_blocked():
+                    async with AsyncSessionLocal() as failure_session:
+                        item = await failure_session.get(ContentItem, content_item_id, with_for_update=True)
+                        if item is None or item.client_id != client_id or item.cycle_id != cycle_id:
+                            return
+                        previous_state = item.status
+                        item.status = "eval_failed"
+                        item.failed_criteria = ["visual_generation_unavailable"]
+                        item.fix_instructions = (
+                            "Không thể tạo/chỉnh sửa ảnh vì tài khoản OpenAI đã hết credit. "
+                            "Agency Admin cần nạp thêm credit rồi chạy lại tạo ảnh."
+                        )
+                        failure_session.add(
+                            ContentItemStateLog(
+                                content_item_id=content_item_id,
+                                agent_code="D02",
+                                previous_state=previous_state,
+                                new_state="eval_failed",
+                                reason="D02 visual generation blocked: provider credits exhausted.",
+                            )
+                        )
+                        await failure_session.commit()
+                try:
+                    _run_async(_mark_visual_blocked())
+                except Exception:
+                    logger.exception("D02 failed to record exhausted provider credits")
+            raise
         raise self.retry(exc=exc)
