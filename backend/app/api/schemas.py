@@ -262,3 +262,8 @@ class BrandAssetOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AssetUpdateRequest(BaseModel):
+    description: Optional[str] = None
+    tags: Optional[list[str]] = None

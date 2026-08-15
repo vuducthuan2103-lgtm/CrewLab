@@ -45,7 +45,7 @@ from app.api.schemas import (
     ApproveRequest, RejectRequest, MarkPostedRequest,
     ConfirmPillarsRequest, ApproveWeekRequest, WeeklyScheduleUpdate, StartWeeklyPreviewRequest, ContentScheduleUpdate,
     BrandVoiceUpdate, AgentConfigUpdate,
-    PillarOut, BrandAssetOut,
+    PillarOut, BrandAssetOut, AssetUpdateRequest,
     A01ChatRequest, A01ChatMessageOut,
     PortalBootstrapOut,
 )
@@ -1092,6 +1092,108 @@ async def replace_portal_asset(
         ready_for_d02=False,
         created_at=replacement.created_at,
     ))
+
+
+@router.patch("/assets/{asset_id}", response_model=ApiResponse[BrandAssetOut])
+async def update_portal_asset(
+    asset_id: uuid.UUID,
+    payload: AssetUpdateRequest,
+    auth: AuthContext = Depends(get_current_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    asset = await db.scalar(
+        select(BrandAsset)
+        .options(selectinload(BrandAsset.semantic_record))
+        .where(
+            BrandAsset.id == asset_id,
+            BrandAsset.client_id == auth.client_id,
+        )
+    )
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    semantic = asset.semantic_record
+
+    if payload.tags is not None:
+        clean_tags = [str(t).strip() for t in payload.tags if str(t).strip()]
+        seen = set()
+        deduped_tags = [t for t in clean_tags if not (t in seen or seen.add(t))]
+        asset.tags = deduped_tags
+        if semantic:
+            semantic.suggested_tags = deduped_tags
+
+    if payload.description is not None:
+        clean_desc = payload.description.strip()
+        if semantic:
+            semantic.semantic_summary = clean_desc if clean_desc else None
+
+    await db.commit()
+
+    signed = get_signed_url(BRAND_ASSETS_BUCKET, asset.storage_path) if asset.storage_path else asset.url
+    return ApiResponse(
+        success=True,
+        data=BrandAssetOut(
+            id=asset.id,
+            url=signed or asset.url,
+            file_name=asset.file_name,
+            storage_path=asset.storage_path,
+            tags=asset.tags,
+            source=asset.source,
+            status=asset.status,
+            usage_rights=asset.usage_rights,
+            dimensions=asset.dimensions,
+            indexing_status=semantic.status if semantic else "processing",
+            indexing_reason=semantic.failure_reason if semantic else None,
+            semantic_summary=semantic.semantic_summary if semantic else None,
+            suggested_tags=semantic.suggested_tags if semantic else None,
+            replaces_asset_id=asset.replaces_asset_id,
+            ready_for_d02=(
+                asset.status == "approved"
+                and bool(asset.usage_rights)
+                and asset.usage_rights not in {"unknown", "denied", "expired", "restricted", "none"}
+                and semantic is not None
+                and semantic.status == "ready"
+            ),
+            created_at=asset.created_at,
+        ),
+    )
+
+
+@router.delete("/assets/{asset_id}", response_model=ApiResponse[dict])
+async def delete_portal_asset(
+    asset_id: uuid.UUID,
+    auth: AuthContext = Depends(get_current_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    asset = await db.scalar(
+        select(BrandAsset).where(
+            BrandAsset.id == asset_id,
+            BrandAsset.client_id == auth.client_id,
+        )
+    )
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    storage_path = asset.storage_path
+
+    # Clean up dependent visual_selection_decisions if any
+    decisions = (await db.scalars(
+        select(VisualSelectionDecision).where(
+            (VisualSelectionDecision.source_asset_id == asset.id)
+            | (VisualSelectionDecision.derivative_asset_id == asset.id)
+        )
+    )).all()
+    for dec in decisions:
+        await db.delete(dec)
+
+    await db.delete(asset)
+    await db.commit()
+
+    if storage_path:
+        delete_files(BRAND_ASSETS_BUCKET, [storage_path])
+
+    return ApiResponse(success=True, data={"deleted_id": str(asset_id)})
+
 
 
 @router.get("/settings", response_model=ApiResponse[dict])
