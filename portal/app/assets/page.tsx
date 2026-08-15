@@ -34,7 +34,7 @@ export default function AssetsPage() {
         </div>
       </div>
 
-      {assetsStatus === 'loading' && (
+      {assetsStatus === 'loading' && mediaAssets.length === 0 && (
         <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
           <Loader2 size={14} className="animate-spin" /> Đang tải thư viện ảnh…
         </div>
@@ -50,7 +50,7 @@ export default function AssetsPage() {
           {assetsError.retryable && <Button variant="secondary" size="sm" onClick={() => void loadAssets(true)}><RefreshCw size={13} />Thử lại</Button>}
         </div>
       )}
-      {assetsStatus === 'ready' && <MediaLibraryGrid />}
+      <MediaLibraryGrid />
     </PortalLayout>
   );
 }

@@ -1,4 +1,5 @@
 import { AgentCode, ContentItem, ContentPillar, TaskCard } from './types';
+import { getISOWeekNumber } from './dateUtils';
 
 export interface AgentInfo {
   code: AgentCode;
@@ -180,6 +181,8 @@ export function getSubtasksForTask(
   const isDone = task.column === 'done';
   const isInProgress = task.column === 'in_progress';
   const isReview = task.column === 'review';
+  const isFailed = task.hasError || linkedItem?.state === 'eval_failed';
+  const isVisualBlocked = Array.isArray(linkedItem?.failedCriteria) && linkedItem.failedCriteria.includes('visual_generation_unavailable');
 
   switch (task.assigneeCode) {
     case 'B02':
@@ -253,13 +256,13 @@ export function getSubtasksForTask(
         {
           id: 'step-2',
           title: 'Soạn thảo Tiêu đề thu hút & Thân bài (Caption)',
-          status: isDone || isReview ? 'done' : 'in_progress',
+          status: isDone || isReview || linkedItem?.caption ? 'done' : isFailed ? 'failed' : 'in_progress',
           description: 'Ứng dụng Brand Voice, văn phong tự nhiên, đúng cá tính thương hiệu',
         },
         {
           id: 'step-3',
           title: 'Đính kèm Call-To-Action & Tối ưu Hashtags',
-          status: isDone || isReview ? 'done' : isInProgress ? 'in_progress' : 'pending',
+          status: isDone || isReview || linkedItem?.caption ? 'done' : isFailed ? 'failed' : isInProgress ? 'in_progress' : 'pending',
           description: 'Kêu gọi đặt bàn / ghé quán kèm bộ hashtag địa phương',
         },
       ];
@@ -274,19 +277,43 @@ export function getSubtasksForTask(
         },
         {
           id: 'step-2',
-          title: 'Truy vấn thư viện tư liệu món ăn của quán',
-          status: isDone || isReview ? 'done' : 'in_progress',
-          description: 'Chọn lọc ảnh chụp thực tế có độ nét cao',
+          title: 'Khởi tạo & Phối cảnh hình ảnh AI',
+          status: isDone || isReview || linkedItem?.imageUrl ? 'done' : isFailed ? 'failed' : isInProgress ? 'in_progress' : 'pending',
+          description: isFailed
+            ? (linkedItem?.fixInstructions || 'Tài khoản OpenAI đã hết credit tạo ảnh. Bạn có thể duyệt bài dạng text hoặc tự bổ sung ảnh.')
+            : 'Chọn lọc ảnh chụp thực tế hoặc tạo ảnh AI độ nét cao',
         },
         {
           id: 'step-3',
           title: 'Xử lý visual, căn chỉnh tỉ lệ & màu sắc nhận diện',
-          status: isDone || isReview ? 'done' : isInProgress ? 'in_progress' : 'pending',
+          status: isDone || isReview || linkedItem?.imageUrl ? 'done' : isFailed ? 'pending' : isInProgress ? 'in_progress' : 'pending',
           description: 'Tối ưu khung hình vuông/dọc cho Facebook & Instagram',
         },
       ];
 
     case 'E01':
+      if (isVisualBlocked) {
+        return [
+          {
+            id: 'step-1',
+            title: 'Sáng tạo nội dung Caption (D01)',
+            status: 'done',
+            description: 'Caption đã soạn thảo hoàn tất đạt chuẩn giọng điệu thương hiệu',
+          },
+          {
+            id: 'step-2',
+            title: 'Tạo hình ảnh AI (D02)',
+            status: 'failed',
+            description: linkedItem?.fixInstructions || 'Tài khoản OpenAI đã hết credit tạo ảnh. Bạn có thể duyệt bài viết này dạng text.',
+          },
+          {
+            id: 'step-3',
+            title: 'Sẵn sàng kiểm duyệt bài viết',
+            status: linkedItem?.caption ? 'done' : 'pending',
+            description: 'Nội dung đã hoàn tất để bạn kiểm tra và phê duyệt',
+          },
+        ];
+      }
       return [
         {
           id: 'step-1',
@@ -297,14 +324,16 @@ export function getSubtasksForTask(
         {
           id: 'step-2',
           title: 'Đánh giá độ khớp giọng điệu thương hiệu (Brand Voice Match)',
-          status: isDone || isReview ? 'done' : 'in_progress',
-          description: 'Chấm điểm tính tự nhiên, độ gần gũi và hấp dẫn',
+          status: isDone || isReview ? 'done' : isFailed ? 'failed' : 'in_progress',
+          description: isFailed
+            ? (linkedItem?.fixInstructions || 'Chưa đạt điểm chuẩn Brand Voice, cần điều chỉnh lại')
+            : 'Chấm điểm tính tự nhiên, độ gần gũi và hấp dẫn',
         },
         {
           id: 'step-3',
           title: 'Xuất điểm thẩm định & Đẩy lên hàng chờ khách duyệt',
           status: isDone || isReview ? 'done' : 'pending',
-          description: 'Thẩm định hoàn tất với kết quả đạt chuẩn chất lượng',
+          description: isFailed ? 'Tạm dừng xuất bản' : 'Thẩm định hoàn tất với kết quả đạt chuẩn chất lượng',
         },
       ];
 
@@ -391,6 +420,7 @@ export function generateUnifiedWorkBoardTasks(
       ? 'Đang phân tích Brand Voice...'
       : 'Chờ lên lịch',
     durationLabel: hasPillars ? 'Hoàn thành' : isB02Running ? 'Đang chạy' : undefined,
+    weekNumber: getISOWeekNumber(latestB02?.createdAt || new Date()),
   });
 
   // 2. Task Kế hoạch tuần B03
@@ -422,6 +452,7 @@ export function generateUnifiedWorkBoardTasks(
       ? 'Đang tính toán giờ vàng...'
       : 'Chờ hoàn thành Pillar',
     durationLabel: weekApproved ? 'Đã duyệt' : hasPlan ? 'Cần duyệt' : undefined,
+    weekNumber: getISOWeekNumber(latestB03?.createdAt || new Date()),
   });
 
   // 3. Các đầu việc tương ứng với từng Bài viết trong tuần
@@ -467,12 +498,24 @@ export function generateUnifiedWorkBoardTasks(
         break;
 
       case 'evaluating':
-      case 'eval_failed':
         assignee = 'E01';
         col = 'in_progress';
         title = `E01 đang thẩm định chất lượng: "${item.title}"`;
         timeLabel = 'Đang kiểm tra Brand Voice & tiêu chuẩn...';
         durationLabel = 'Thẩm định';
+        break;
+
+      case 'eval_failed':
+        const isVisualBlocked = Array.isArray(item.failedCriteria) && item.failedCriteria.includes('visual_generation_unavailable');
+        assignee = isVisualBlocked ? 'D02' : 'E01';
+        col = item.caption ? 'review' : 'todo';
+        title = isVisualBlocked
+          ? `Tạm dừng tạo ảnh AI (Hết credit): "${item.title}"`
+          : `Thẩm định cần điều chỉnh: "${item.title}"`;
+        timeLabel = isVisualBlocked
+          ? 'Hết credit AI tạo ảnh • Bạn có thể duyệt dùng caption'
+          : (item.fixInstructions || 'Chưa đạt chuẩn • Bấm để xem chi tiết');
+        durationLabel = isVisualBlocked ? 'Lỗi credit' : 'Chưa đạt';
         break;
 
       case 'pending_content_approval':
@@ -527,6 +570,7 @@ export function generateUnifiedWorkBoardTasks(
       durationLabel,
       pillarLabel: pillar?.label || 'Chung',
       platform: item.platform,
+      weekNumber: item.weekNumber || getISOWeekNumber(item.publishTime || new Date()),
     });
   });
 
@@ -548,19 +592,33 @@ export function getAgentStats(
   const inProgressTasks = agentTasks.filter((t) => t.column === 'in_progress');
   const todoTasks = agentTasks.filter((t) => t.column === 'todo');
 
-  const estimatedTokensPerTask = agentCode === 'B02' ? 3200 : agentCode === 'D01' ? 2400 : agentCode === 'D02' ? 1800 : agentCode === 'E01' ? 1600 : 1200;
-  const totalTokens = doneTasks.length * estimatedTokensPerTask + (inProgressTasks.length > 0 ? 800 : 0);
-  const tokensIn = Math.round(totalTokens * 0.4);
-  const tokensOut = Math.round(totalTokens * 0.6);
+  let realTokensIn = 0;
+  let realTokensOut = 0;
+  agentTasks.forEach((t) => {
+    realTokensIn += t.tokensIn || 0;
+    realTokensOut += t.tokensOut || 0;
+  });
 
-  const maxTokens = Math.max(100000, budgetUSD * 250000);
+  const totalTokens = (realTokensIn + realTokensOut) > 0
+    ? (realTokensIn + realTokensOut)
+    : (doneTasks.length * (agentCode === 'B02' ? 3200 : agentCode === 'D01' ? 2400 : agentCode === 'D02' ? 1800 : agentCode === 'E01' ? 1600 : 1200) + (inProgressTasks.length > 0 ? 800 : 0));
+
+  const tokensIn = realTokensIn > 0 ? realTokensIn : Math.round(totalTokens * 0.4);
+  const tokensOut = realTokensOut > 0 ? realTokensOut : Math.round(totalTokens * 0.6);
+
+  const budget = budgetUSD > 0 ? budgetUSD : 20;
+  const maxTokens = Math.max(50000, Math.round(budget * 200000));
   const usedPercent = Math.min(100, Math.round((totalTokens / maxTokens) * 100));
   const remainingPercent = Math.max(0, 100 - usedPercent);
 
+  // Lấy model từ cấu hình backend hoặc từ TaskLog thực tế
+  const latestTaskWithModel = agentTasks.find((t) => t.modelUsed);
+  const resolvedModel = modelName || latestTaskWithModel?.modelUsed || AGENT_REGISTRY[agentCode]?.defaultModel || 'gpt-4o-mini';
+
   return {
-    model: modelName || AGENT_REGISTRY[agentCode]?.defaultModel || 'gpt-4o-mini',
+    model: resolvedModel,
     tier: tierName || 'standard',
-    budgetUSD,
+    budgetUSD: budget,
     tokensIn,
     tokensOut,
     totalTokens,

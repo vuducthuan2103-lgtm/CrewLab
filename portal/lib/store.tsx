@@ -27,6 +27,7 @@ interface PortalState {
   weekApproved: boolean;
   isLoading: boolean;
   error: PortalLoadError | null;
+  brandLogoUrl: string | null;
   assetsStatus: PortalLoadStatus;
   assetsError: PortalLoadError | null;
   settingsStatus: PortalLoadStatus;
@@ -36,6 +37,8 @@ interface PortalState {
 interface PortalActions {
   markNotificationRead: (id: string) => void;
   unreadCount: number;
+  setBrandLogoUrl: (url: string | null) => void;
+  uploadBrandLogo: (file: File) => Promise<string>;
   approveContent: (id: string, editedCaption?: string, editedPublishTime?: Date) => Promise<void>;
   rejectContent: (id: string, reason: RejectionReason, feedback: string) => Promise<void>;
   markAsPosted: (id: string) => Promise<void>;
@@ -49,10 +52,12 @@ interface PortalActions {
   updateAgentModel: (agentCode: string, model: string, tier: string) => Promise<void>;
   updateAgentBudget: (agentCode: string, budget: number) => Promise<void>;
   uploadAsset: (file: File, rightsAttested: boolean) => Promise<void>;
-  refreshData: () => Promise<void>;
+  refreshData: (isManual?: boolean) => Promise<void>;
   loadAssets: (force?: boolean) => Promise<void>;
   loadSettings: (force?: boolean) => Promise<void>;
 }
+
+import { getISOWeekNumber } from './dateUtils';
 
 const EMPTY_BRAND_VOICE: BrandVoiceConfig = {
   brandName: '', category: '', tagline: '', mission: '', targetAudience: '', personalityKeywords: [],
@@ -61,34 +66,35 @@ const EMPTY_BRAND_VOICE: BrandVoiceConfig = {
   zaloTone: '', websiteTone: '', promotionalTone: '', customerServiceTone: '', benchmarkCaptions: [], referenceLinks: [],
 };
 
-function currentWeekNumber() {
-  const date = new Date();
-  const firstDay = new Date(date.getFullYear(), 0, 1);
-  return Math.ceil((((date.getTime() - firstDay.getTime()) / 86400000) + firstDay.getDay() + 1) / 7);
-}
-
 function mapContentItems(items: any[]): ContentItem[] {
-  return (items || []).map((item: any) => ({
-    id: item.id,
-    title: item.topic,
-    platform: item.platform === 'both' ? 'both' : item.platform === 'instagram' ? 'ig' : 'fb',
-    caption: item.client_edited_caption || item.caption || '',
-    imageUrl: item.image_url || null,
-    publishTime: item.scheduled_date
+  return (items || []).map((item: any) => {
+    const publishTime = item.scheduled_date
       ? new Date(`${String(item.scheduled_date).slice(0, 10)}T${item.scheduled_time || '00:00'}:00`)
-      : new Date(item.created_at),
-    state: item.status,
-    pillarId: item.pillar_id || 'general',
-    weekNumber: currentWeekNumber(),
-    needsRealPhoto: false,
-    imageProvenance: item.image_provenance ? {
-      sourceAssetId: item.image_provenance.source_asset_id || null,
-      derivativeAssetId: item.image_provenance.derivative_asset_id || null,
-      generationMode: item.image_provenance.generation_mode || null,
-      selectionRationale: item.image_provenance.selection_rationale || null,
-      selectionScore: item.image_provenance.selection_score ?? null,
-    } : undefined,
-  }));
+      : new Date(item.created_at || Date.now());
+    return {
+      id: item.id,
+      title: item.topic,
+      platform: item.platform === 'both' ? 'both' : item.platform === 'instagram' ? 'ig' : 'fb',
+      caption: item.client_edited_caption || item.caption || '',
+      imageUrl: item.image_url || null,
+      publishTime,
+      state: item.status,
+      pillarId: item.pillar_id || 'general',
+      weekNumber: getISOWeekNumber(publishTime),
+      needsRealPhoto: false,
+      failedCriteria: item.failed_criteria || undefined,
+      fixInstructions: item.fix_instructions || undefined,
+      evalScoreCaption: item.eval_score_caption ?? null,
+      evalScoreVisual: item.eval_score_visual ?? null,
+      imageProvenance: item.image_provenance ? {
+        sourceAssetId: item.image_provenance.source_asset_id || null,
+        derivativeAssetId: item.image_provenance.derivative_asset_id || null,
+        generationMode: item.image_provenance.generation_mode || null,
+        selectionRationale: item.image_provenance.selection_rationale || null,
+        selectionScore: item.image_provenance.selection_score ?? null,
+      } : undefined,
+    };
+  });
 }
 
 function mapTaskLogs(logs: any[]): TaskCard[] {
@@ -111,6 +117,10 @@ function mapTaskLogs(logs: any[]): TaskCard[] {
     createdAt: new Date(log.created_at),
     startedAt: new Date(log.created_at),
     completedAt: log.status === 'completed' || log.status === 'success' ? new Date(log.created_at) : null,
+    modelUsed: log.model_used || undefined,
+    tokensIn: log.tokens_in || 0,
+    tokensOut: log.tokens_out || 0,
+    latencyMs: log.latency_ms || 0,
   }));
 }
 
@@ -147,6 +157,93 @@ function mapAssets(assets: any[]): MediaAsset[] {
   }));
 }
 
+function getReadNotificationIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem('crewlab_read_notifications');
+    if (raw) return new Set(JSON.parse(raw));
+  } catch {}
+  return new Set();
+}
+
+function saveReadNotificationId(id: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const ids = getReadNotificationIds();
+    ids.add(id);
+    localStorage.setItem('crewlab_read_notifications', JSON.stringify(Array.from(ids)));
+  } catch {}
+}
+
+function generateRealNotifications(
+  contentItems: ContentItem[],
+  tasks: TaskCard[],
+  schedule: { cycle_id?: string | null; phase?: string } | undefined,
+  readIds: Set<string>
+): AppNotification[] {
+  const notifs: AppNotification[] = [];
+
+  // 1. Kế hoạch chiến lược tuần mới sẵn sàng chờ xác nhận
+  if (schedule?.phase === 'weekly_planning' || (!schedule?.phase && schedule?.cycle_id)) {
+    const id = `notif-strategy-${schedule.cycle_id || 'active'}`;
+    notifs.push({
+      id,
+      type: 'strategy_ready_for_approval',
+      title: 'Kế hoạch nội dung tuần mới đã sẵn sàng',
+      body: 'B02 & B03 đã hoàn thiện định hướng và lịch đăng tuần. Bạn vui lòng xem qua và xác nhận.',
+      read: readIds.has(id),
+      createdAt: new Date(),
+      actionUrl: '/planner',
+      linkedContentItemId: null,
+    });
+  }
+
+  // 2. Các mốc nội dung quan trọng (Chờ duyệt, Sẵn sàng đăng, Đã đăng)
+  for (const item of contentItems) {
+    if (item.state === 'pending_content_approval') {
+      const id = `notif-pending-${item.id}`;
+      notifs.push({
+        id,
+        type: 'content_ready_for_approval',
+        title: `Bài viết mới chờ bạn duyệt: "${item.title || 'Bài đăng'}"`,
+        body: item.caption
+          ? `Nội dung và hình ảnh đã sẵn sàng (${item.platform === 'both' ? 'Facebook & Instagram' : item.platform === 'ig' ? 'Instagram' : 'Facebook'}). Nhấn để xem và duyệt bài.`
+          : 'D01 & D02 đã hoàn thiện bài viết. Nhấn để kiểm tra và duyệt.',
+        read: readIds.has(id),
+        createdAt: item.publishTime || new Date(),
+        actionUrl: '/approval',
+        linkedContentItemId: item.id,
+      });
+    } else if (item.state === 'approved_ready_to_post') {
+      const id = `notif-ready-${item.id}`;
+      notifs.push({
+        id,
+        type: 'system',
+        title: `Bài viết đã duyệt sẵn sàng đăng: "${item.title || 'Bài đăng'}"`,
+        body: `Đã duyệt thành công. Lịch đăng vào ${item.publishTime.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} lúc ${item.publishTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}.`,
+        read: readIds.has(id),
+        createdAt: item.publishTime || new Date(),
+        actionUrl: '/content-hub',
+        linkedContentItemId: item.id,
+      });
+    } else if (item.state === 'posted') {
+      const id = `notif-posted-${item.id}`;
+      notifs.push({
+        id,
+        type: 'system',
+        title: `Bài viết đã xuất bản: "${item.title || 'Bài đăng'}"`,
+        body: `Đã ghi nhận bài viết xuất bản thành công trên ${item.platform === 'both' ? 'Facebook & Instagram' : item.platform === 'ig' ? 'Instagram' : 'Facebook'}.`,
+        read: readIds.has(id),
+        createdAt: item.publishTime || new Date(),
+        actionUrl: '/content-hub',
+        linkedContentItemId: item.id,
+      });
+    }
+  }
+
+  return notifs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
 const PortalContext = createContext<(PortalState & PortalActions) | null>(null);
 
 export function PortalProvider({ children }: { children: React.ReactNode }) {
@@ -162,6 +259,12 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   const [portalUserEmail, setPortalUserEmail] = useState('');
   const [cycleId, setCycleId] = useState<string | null>(null);
   const [weekApproved, setWeekApproved] = useState(false);
+  const [brandLogoUrl, setBrandLogoUrlState] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('crewlab_brand_logo') || null;
+    }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<PortalLoadError | null>(null);
   const [assetsStatus, setAssetsStatus] = useState<PortalLoadStatus>('idle');
@@ -195,26 +298,65 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     setSettingsStatus('idle');
   }, []);
 
-  const refreshData = useCallback(async () => {
+  const refreshData = useCallback(async (isManual = false) => {
     const generation = tenantGenerationRef.current;
-    setIsLoading(true);
-    setError(null);
+    if (isManual) {
+      setError(null);
+      setIsLoading(true);
+    }
     try {
-      const bootstrap = await apiFetchBootstrap();
+      const [bootstrap, settings] = await Promise.all([
+        apiFetchBootstrap(),
+        apiFetchSettings().catch(() => null),
+      ]);
       if (generation !== tenantGenerationRef.current) return;
       const board = bootstrap.work_board;
       setClientName(bootstrap.client.brand_name);
       if (bootstrap.viewer.email) setPortalUserEmail(bootstrap.viewer.email);
-      setContentItems(mapContentItems(board.content_items));
-      setTasks(mapTaskLogs(board.task_logs));
+      const mappedItems = mapContentItems(board.content_items);
+      const mappedTasks = mapTaskLogs(board.task_logs);
+      setContentItems(mappedItems);
+      setTasks(mappedTasks);
       setPillars(mapPillars(board.pillars));
       setCycleId(board.schedule.cycle_id);
       setWeekApproved(board.schedule.phase === 'content_production');
+
+      const readIds = getReadNotificationIds();
+      setNotifications(generateRealNotifications(mappedItems, mappedTasks, board.schedule, readIds));
+
+      if (settings) {
+        const serverBrand = settings.brand_voice || {};
+        setBrandVoice((current) => ({
+          ...current,
+          facebookTone: serverBrand.tone || current.facebookTone,
+          personalityKeywords: serverBrand.personality_keywords || current.personalityKeywords,
+          forbiddenWords: serverBrand.avoid_phrases || current.forbiddenWords,
+          sentenceStyle: serverBrand.writing_style || current.sentenceStyle,
+        }));
+        if (settings.agent_configs) {
+          setAgentModelConfigs(
+            settings.agent_configs.map((cfg: any) => ({
+              agentCode: cfg.agent_code,
+              selectedModel: cfg.model,
+              tier: cfg.tier,
+              budgetUSD: cfg.budget_usd_month,
+              isActive: cfg.is_active,
+            }))
+          );
+        }
+        if (settings.eligible_models) {
+          setEligibleModels(settings.eligible_models);
+        }
+      }
     } catch (cause) {
       if (generation !== tenantGenerationRef.current) return;
-      setError(toPortalLoadError(cause, 'bootstrap', 'Không tải được dữ liệu công việc.'));
+      if (isManual) {
+        setError(toPortalLoadError(cause, 'bootstrap', 'Không tải được dữ liệu công việc.'));
+      }
     } finally {
-      if (generation === tenantGenerationRef.current) setIsLoading(false);
+      if (generation === tenantGenerationRef.current && isManual) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -301,7 +443,18 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [clearTenantData, refreshData]);
 
+  // Live Background Polling: Tự động cập nhật ngầm không ảnh hưởng UI
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        void refreshData(false);
+      }
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [refreshData]);
+
   const markNotificationRead = useCallback((id: string) => {
+    saveReadNotificationId(id);
     setNotifications((previous) => previous.map((notification) => notification.id === id ? { ...notification, read: true } : notification));
   }, []);
 
@@ -369,6 +522,32 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     }, ...previous]);
   }, []);
 
+  const setBrandLogoUrl = useCallback((url: string | null) => {
+    setBrandLogoUrlState(url);
+    if (typeof window !== 'undefined') {
+      if (url) {
+        localStorage.setItem('crewlab_brand_logo', url);
+      } else {
+        localStorage.removeItem('crewlab_brand_logo');
+      }
+    }
+  }, []);
+
+  const uploadBrandLogo = useCallback(async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        setBrandLogoUrl(dataUrl);
+        // Also try background uploadAsset to save into Supabase asset collection
+        apiUploadAsset(file, true).catch(() => null);
+        resolve(dataUrl);
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  }, [setBrandLogoUrl]);
+
   const updateBrandVoice = useCallback(async (config: BrandVoiceConfig) => {
     await apiUpdateBrandVoice(config);
     setBrandVoice(config);
@@ -388,8 +567,9 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
 
   const value: PortalState & PortalActions = {
     tasks, contentItems, pillars, notifications, mediaAssets, brandVoice, agentModelConfigs, eligibleModels, clientName, portalUserEmail, weekApproved,
-    isLoading, error, assetsStatus, assetsError, settingsStatus, settingsError,
+    isLoading, error, brandLogoUrl, assetsStatus, assetsError, settingsStatus, settingsError,
     markNotificationRead, unreadCount: notifications.filter((n) => !n.read).length,
+    setBrandLogoUrl, uploadBrandLogo,
     approveContent, rejectContent, markAsPosted, updatePillarPercentage, updatePillarDraft, confirmPillars, resetPillarsToAI, approveWeek, updateContentSchedule,
     updateBrandVoice, updateAgentModel, updateAgentBudget, uploadAsset, refreshData, loadAssets, loadSettings,
   };
@@ -400,4 +580,8 @@ export function usePortal(): PortalState & PortalActions {
   const context = useContext(PortalContext);
   if (!context) throw new Error('usePortal must be used inside <PortalProvider>');
   return context;
+}
+
+export function useOptionalPortal(): (PortalState & PortalActions) | null {
+  return useContext(PortalContext);
 }

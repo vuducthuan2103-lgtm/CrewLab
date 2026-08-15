@@ -47,10 +47,10 @@ export default function AgentOverviewBar({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {AGENT_LIST.map((code) => {
           const agent = AGENT_REGISTRY[code];
-          const config = agentModelConfigs.find((c) => c.agentCode === code);
+          const config = (agentModelConfigs || []).find((c) => c.agentCode === code);
           const stats = getAgentStats(
             code,
-            tasks,
+            tasks || [],
             config?.selectedModel,
             config?.tier,
             config?.budgetUSD || 20
@@ -103,8 +103,8 @@ export default function AgentOverviewBar({
 
               {/* Bottom stats: Model & Quota */}
               <div className="pt-2 border-t border-zinc-800/60 flex items-center justify-between text-[10px] font-mono text-zinc-400">
-                <span className="truncate max-w-[70px] text-zinc-300">{stats.model}</span>
-                <span className="text-lime-brand font-semibold">{stats.remainingPercent}% Quota</span>
+                <span className="truncate flex-1 pr-1 text-zinc-300" title={stats.model}>{stats.model}</span>
+                <span className="text-lime-brand font-semibold shrink-0">{stats.remainingPercent}% Quota</span>
               </div>
 
               {/* Detail button */}

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -22,54 +22,79 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { clientName } = usePortal();
+  const { clientName, brandLogoUrl } = usePortal();
+  const [isHovered, setIsHovered] = useState(false);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
 
+  const handleNavClick = () => {
+    // Tự động đóng/thu gọn lại ngay khi chọn tab
+    setIsHovered(false);
+  };
+
+  const initialLetter = (clientName || 'B').slice(0, 1).toUpperCase();
+
   return (
-    <aside className="h-screen w-56 flex flex-col fixed left-0 top-0 border-r border-border bg-card z-40">
-      {/* Logo */}
-      <div className="px-4 py-5 border-b border-border">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-lime-brand flex items-center justify-center shadow-accent-glow">
-            <span className="text-white dark:text-black font-bold text-xs">CL</span>
-          </div>
-          <span className="font-bold text-sm tracking-wide text-foreground">CrewLab</span>
-        </div>
-      </div>
-
-      {/* Client Badge */}
-      <div className="px-4 py-3 border-b border-border">
-        <div className="rounded-lg bg-muted/50 px-3 py-2">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Quán đang xem</p>
-          <p className="text-xs font-semibold text-foreground mt-0.5 truncate">{clientName || 'Đang tải client…'}</p>
-          <p className="text-[10px] text-muted-foreground">Dữ liệu tài khoản của bạn</p>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(({ href, icon: Icon, label }) => (
-          <Link
-            key={href}
-            href={href}
-            id={`sidebar-nav-${label.toLowerCase().replace(/\s+/g, '-')}`}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group ${
-              isActive(href)
-                ? 'bg-accent-tint text-lime-brand border border-accent-tint shadow-accent-glow'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
-          >
-            <Icon
-              size={16}
-              className={isActive(href) ? 'text-lime-brand' : 'text-muted-foreground group-hover:text-foreground'}
+    <aside
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={`h-screen flex flex-col fixed left-0 top-0 border-r border-border bg-card/98 backdrop-blur-md z-50 transition-all duration-300 ease-in-out ${
+        isHovered ? 'w-60 shadow-2xl' : 'w-[68px]'
+      }`}
+    >
+      {/* Top Header: CrewLab Project Logo (No background, larger typography) */}
+      <div className={`py-4 border-b border-border flex items-center transition-all ${isHovered ? 'px-4' : 'px-3 justify-center'}`}>
+        <Link href="/" onClick={handleNavClick} className="flex items-center gap-3 min-w-0 group">
+          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105">
+            <img
+              src="/logo_crewlab_icon.png"
+              alt="CrewLab Logo"
+              className="w-full h-full object-contain drop-shadow-sm"
             />
-            {label}
-          </Link>
-        ))}
+          </div>
+          {isHovered && (
+            <div className="flex flex-col min-w-0 overflow-hidden animate-in fade-in duration-200">
+              <span className="font-extrabold text-lg tracking-wide text-foreground">
+                Crew<span className="text-lime-brand">Lab</span>
+              </span>
+            </div>
+          )}
+        </Link>
+      </div>
+
+      {/* Navigation Links */}
+      <nav className={`flex-1 py-3 space-y-1 overflow-y-auto transition-all ${isHovered ? 'px-3' : 'px-2'}`}>
+        {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
+          const active = isActive(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={handleNavClick}
+              id={`sidebar-nav-${label.toLowerCase().replace(/\s+/g, '-')}`}
+              className={`flex items-center rounded-lg text-sm font-medium transition-all duration-150 ${
+                isHovered
+                  ? 'gap-3 px-3 py-2.5'
+                  : 'w-10 h-10 mx-auto justify-center'
+              } ${
+                active
+                  ? 'bg-accent-tint text-lime-brand border border-accent-tint shadow-accent-glow font-semibold'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              }`}
+            >
+              <Icon
+                size={isHovered ? 16 : 18}
+                className={`flex-shrink-0 ${active ? 'text-lime-brand' : 'text-muted-foreground group-hover:text-foreground'}`}
+              />
+              {isHovered && (
+                <span className="truncate animate-in fade-in duration-150">{label}</span>
+              )}
+            </Link>
+          );
+        })}
       </nav>
     </aside>
   );

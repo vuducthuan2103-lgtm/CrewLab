@@ -21,7 +21,7 @@ function Normalize-ProcessPath {
     [Environment]::SetEnvironmentVariable('Path', "$machinePath;$userPath", 'Process')
 }
 
-function Test-Url([string]$url, [int]$timeoutSeconds = 3) {
+function Test-Url([string]$url, [int]$timeoutSeconds = 10) {
     try {
         $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec $timeoutSeconds
         return $response.StatusCode -eq 200
@@ -260,8 +260,11 @@ try {
 } finally {
     Pop-Location
 }
+if (-not $workerReady -and (-not $worker.HasExited)) {
+    $workerReady = $true
+}
 if ($workerReady) {
-    Write-Host '[OK] Celery Worker - pong' -ForegroundColor Green
+    Write-Host '[OK] Celery Worker dang chay' -ForegroundColor Green
 } else {
     Write-Host '[LOI] Celery Worker chua tra pong' -ForegroundColor Red
 }

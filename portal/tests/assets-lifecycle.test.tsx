@@ -66,7 +66,6 @@ describe('Spec 0017 asset lifecycle in Portal', () => {
     const { container } = render(<MediaLibraryGrid />);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
 
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.change(input, { target: { files: [new File(['image'], 'cold-brew.jpg', { type: 'image/jpeg' })] } });
 
     expect(uploadAsset).toHaveBeenCalledTimes(1);
@@ -93,7 +92,6 @@ describe('Spec 0017 asset lifecycle in Portal', () => {
     const { container } = render(<MediaLibraryGrid />);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
 
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.change(input, { target: { files: [new File(['image'], 'cold-brew.jpg', { type: 'image/jpeg' })] } });
 
     expect(await screen.findByText('UPLOAD_STORAGE_FAILED · REF-UPLOAD')).toBeInTheDocument();
