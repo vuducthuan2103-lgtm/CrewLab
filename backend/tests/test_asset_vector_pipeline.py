@@ -536,7 +536,7 @@ def test_visual_decision_rls_is_tenant_select_only():
 
 
 @pytest.mark.asyncio
-async def test_generate_image_routes_source_pixels_to_aimage_edit(monkeypatch):
+async def test_generate_image_routes_source_pixels_to_aimage_edit(db_session, monkeypatch):
     calls = {}
     config = types.SimpleNamespace(
         provider="openai", model="gpt-image-1", is_active=True
@@ -581,6 +581,7 @@ async def test_generate_image_routes_source_pixels_to_aimage_edit(monkeypatch):
         source_file_name="source.png",
         source_content_type="image/png",
         generation_mode="minimal_edit",
+        usage_session_factory=llm.independent_session_factory_for(db_session),
     )
     assert calls["image"].name == "source.png"
     assert calls["image"].read() == _png_bytes()
