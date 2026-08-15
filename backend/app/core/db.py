@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, declared_attr, sessionmaker
@@ -7,6 +8,10 @@ from sqlalchemy.pool import NullPool
 from sqlalchemy import Column, DateTime, String
 import sqlalchemy as sa
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+ENV_FILE_PATH = BACKEND_DIR / ".env"
+
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/crewlab"
@@ -21,7 +26,9 @@ class Settings(BaseSettings):
     CREWLAB_CREDENTIAL_ENCRYPTION_KEY: str = ""
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
     
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # Resolve against the backend package, not the process working directory.
+    # Local development is commonly launched from the monorepo root.
+    model_config = SettingsConfigDict(env_file=ENV_FILE_PATH, extra="ignore")
 
 settings = Settings()
 

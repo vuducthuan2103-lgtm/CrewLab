@@ -1,6 +1,6 @@
 from typing import Optional, Generic, TypeVar, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 T = TypeVar('T')
@@ -68,6 +68,7 @@ class ContentItemOut(BaseModel):
     status: str
     platform: str
     scheduled_date: Optional[datetime] = None
+    scheduled_time: Optional[str] = None
     posted_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
@@ -102,8 +103,22 @@ MVP_AGENT_CODES = {"A01", "B02", "B03", "D01", "D02", "E01"}
 
 class PillarItem(BaseModel):
     id: UUID
-    name: str
+    name: str = Field(min_length=1, max_length=120)
     weight: int = Field(ge=5, le=100)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    angles: Optional[list[str]] = None
+
+    @field_validator("angles")
+    @classmethod
+    def validate_angles(cls, value: Optional[list[str]]) -> Optional[list[str]]:
+        if value is None:
+            return value
+        cleaned = [angle.strip() for angle in value if angle.strip()]
+        if not cleaned:
+            raise ValueError("each pillar needs at least one angle")
+        if len(cleaned) > 8:
+            raise ValueError("each pillar can have at most 8 angles")
+        return cleaned
 
 
 class ConfirmPillarsRequest(BaseModel):
@@ -123,6 +138,40 @@ class ConfirmPillarsRequest(BaseModel):
 class ApproveWeekRequest(BaseModel):
     content_plan_id: UUID
     idempotency_key: str
+
+
+class WeeklyScheduleUpdate(BaseModel):
+    weekly_cycle_day: Literal["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    weekly_cycle_time: str = Field(min_length=5, max_length=5)
+    idempotency_key: str
+
+    @field_validator("weekly_cycle_time")
+    @classmethod
+    def validate_weekly_cycle_time(cls, value: str) -> str:
+        try:
+            datetime.strptime(value, "%H:%M")
+        except ValueError as exc:
+            raise ValueError("weekly_cycle_time must use HH:MM") from exc
+        return value
+
+
+class StartWeeklyPreviewRequest(BaseModel):
+    idempotency_key: str
+
+
+class ContentScheduleUpdate(BaseModel):
+    scheduled_date: date
+    scheduled_time: str = Field(min_length=5, max_length=5)
+    idempotency_key: str
+
+    @field_validator("scheduled_time")
+    @classmethod
+    def validate_scheduled_time(cls, value: str) -> str:
+        try:
+            datetime.strptime(value, "%H:%M")
+        except ValueError as exc:
+            raise ValueError("scheduled_time must use HH:MM") from exc
+        return value
 
 
 class BrandVoiceUpdate(BaseModel):
@@ -157,6 +206,7 @@ class PillarOut(BaseModel):
     name: str
     description: Optional[str] = None
     weight: int
+    angles: list[str] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

@@ -6,7 +6,7 @@ import {
   MediaAsset, PortalLoadError, PortalLoadStatus, RejectionReason, TaskCard,
 } from './types';
 import {
-  apiApproveContent, apiApproveWeek, apiConfirmPillars,
+  apiApproveContent, apiApproveWeek, apiConfirmPillars, apiUpdateContentSchedule,
   apiFetchAssets, apiFetchBootstrap, apiFetchSettings,
   apiMarkAsPosted, apiRejectContent, apiUpdateAgentBudget,
   apiUpdateAgentModel, apiUpdateBrandVoice, apiUploadAsset, toPortalLoadError,
@@ -40,9 +40,11 @@ interface PortalActions {
   rejectContent: (id: string, reason: RejectionReason, feedback: string) => Promise<void>;
   markAsPosted: (id: string) => Promise<void>;
   updatePillarPercentage: (pillarId: string, newPercentage: number) => void;
+  updatePillarDraft: (pillarId: string, changes: Partial<Pick<ContentPillar, 'label' | 'description' | 'angles'>>) => void;
   confirmPillars: () => Promise<void>;
   resetPillarsToAI: () => void;
   approveWeek: () => Promise<void>;
+  updateContentSchedule: (id: string, publishTime: Date) => Promise<void>;
   updateBrandVoice: (config: BrandVoiceConfig) => Promise<void>;
   updateAgentModel: (agentCode: string, model: string, tier: string) => Promise<void>;
   updateAgentBudget: (agentCode: string, budget: number) => Promise<void>;
@@ -72,7 +74,9 @@ function mapContentItems(items: any[]): ContentItem[] {
     platform: item.platform === 'both' ? 'both' : item.platform === 'instagram' ? 'ig' : 'fb',
     caption: item.client_edited_caption || item.caption || '',
     imageUrl: item.image_url || null,
-    publishTime: item.scheduled_date ? new Date(item.scheduled_date) : new Date(item.created_at),
+    publishTime: item.scheduled_date
+      ? new Date(`${String(item.scheduled_date).slice(0, 10)}T${item.scheduled_time || '00:00'}:00`)
+      : new Date(item.created_at),
     state: item.status,
     pillarId: item.pillar_id || 'general',
     weekNumber: currentWeekNumber(),
@@ -119,7 +123,7 @@ function mapPillars(pillars: any[]): ContentPillar[] {
     percentage: pillar.weight,
     fbRatio: 50,
     igRatio: 50,
-    angles: [],
+    angles: (pillar.angles || []).map((angle: string, index: number) => ({ id: `${pillar.id}-angle-${index}`, label: angle })),
   }));
 }
 
@@ -320,8 +324,18 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     setPillars((previous) => previous.map((pillar) => pillar.id === pillarId ? { ...pillar, percentage: Math.max(5, Math.min(85, newPercentage)) } : pillar));
   }, []);
 
+  const updatePillarDraft = useCallback((pillarId: string, changes: Partial<Pick<ContentPillar, 'label' | 'description' | 'angles'>>) => {
+    setPillars((previous) => previous.map((pillar) => pillar.id === pillarId ? { ...pillar, ...changes } : pillar));
+  }, []);
+
   const confirmPillars = useCallback(async () => {
-    await apiConfirmPillars(pillars.map((pillar) => ({ pillar_id: pillar.id, percentage: pillar.percentage })));
+    await apiConfirmPillars(pillars.map((pillar) => ({
+      pillar_id: pillar.id,
+      name: pillar.label,
+      description: pillar.description,
+      percentage: pillar.percentage,
+      angles: pillar.angles.map((angle) => angle.label),
+    })));
   }, [pillars]);
 
   const resetPillarsToAI = useCallback(() => { void refreshData(); }, [refreshData]);
@@ -332,6 +346,13 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     setWeekApproved(true);
     setContentItems((previous) => previous.map((item) => item.state === 'planned' ? { ...item, state: 'ready_for_generation' } : item));
   }, [cycleId]);
+
+  const updateContentSchedule = useCallback(async (id: string, publishTime: Date) => {
+    const scheduledDate = [publishTime.getFullYear(), String(publishTime.getMonth() + 1).padStart(2, '0'), String(publishTime.getDate()).padStart(2, '0')].join('-');
+    const scheduledTime = `${String(publishTime.getHours()).padStart(2, '0')}:${String(publishTime.getMinutes()).padStart(2, '0')}`;
+    await apiUpdateContentSchedule(id, scheduledDate, scheduledTime);
+    setContentItems((previous) => previous.map((item) => item.id === id ? { ...item, publishTime } : item));
+  }, []);
 
   const uploadAsset = useCallback(async (file: File, rightsAttested: boolean) => {
     const asset = await apiUploadAsset(file, rightsAttested);
@@ -369,7 +390,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     tasks, contentItems, pillars, notifications, mediaAssets, brandVoice, agentModelConfigs, eligibleModels, clientName, portalUserEmail, weekApproved,
     isLoading, error, assetsStatus, assetsError, settingsStatus, settingsError,
     markNotificationRead, unreadCount: notifications.filter((n) => !n.read).length,
-    approveContent, rejectContent, markAsPosted, updatePillarPercentage, confirmPillars, resetPillarsToAI, approveWeek,
+    approveContent, rejectContent, markAsPosted, updatePillarPercentage, updatePillarDraft, confirmPillars, resetPillarsToAI, approveWeek, updateContentSchedule,
     updateBrandVoice, updateAgentModel, updateAgentBudget, uploadAsset, refreshData, loadAssets, loadSettings,
   };
   return <PortalContext.Provider value={value}>{children}</PortalContext.Provider>;

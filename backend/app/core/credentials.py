@@ -7,7 +7,7 @@ ciphertext or a masked hint.
 
 import re
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 
 from app.core.db import settings
 
@@ -35,7 +35,12 @@ class CredentialCipher:
         return self._fernet.encrypt(plaintext.strip().encode("utf-8")).decode("utf-8")
 
     def decrypt(self, ciphertext: str) -> str:
-        return self._fernet.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
+        try:
+            return self._fernet.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
+        except InvalidToken as exc:
+            raise CredentialConfigurationError(
+                "CREWLAB_CREDENTIAL_ENCRYPTION_KEY does not match the stored provider credential"
+            ) from exc
 
 
 def get_credential_cipher() -> CredentialCipher:

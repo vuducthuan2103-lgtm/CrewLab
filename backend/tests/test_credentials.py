@@ -15,11 +15,13 @@ def test_encrypt_round_trip_never_contains_plaintext():
 
 
 def test_decrypt_rejects_ciphertext_from_another_master_key():
+    from app.core.credentials import CredentialConfigurationError
     first = CredentialCipher(Fernet.generate_key().decode())
     second = CredentialCipher(Fernet.generate_key().decode())
 
-    with pytest.raises(InvalidToken):
+    with pytest.raises(CredentialConfigurationError):
         second.decrypt(first.encrypt("sk-secret"))
+
 
 
 @pytest.mark.parametrize(

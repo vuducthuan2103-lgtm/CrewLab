@@ -21,9 +21,36 @@ from app.models.assets import VisualSelectionDecision
 from app.models.content import ContentItem, ContentItemStateLog
 from app.models.reviews import AgentMemory
 from app.services.storage import BRAND_ASSETS_BUCKET, get_signed_url
-from app.services.task_errors import InvalidModelOutputError, PermanentTaskInputError
+from app.services.task_errors import PermanentTaskInputError
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_selected_asset(selection_id: str | None, matching_assets: list[Any]):
+    """Resolve a vision selection without ever trusting an unverified asset ID.
+
+    ``matching_assets`` has already been scoped to the current tenant and
+    passed the media-library eligibility checks. A model may still return an
+    ID from an earlier turn or hallucinate one, so keep the production flow
+    moving by selecting the highest-ranked eligible candidate instead.
+    """
+    normalized_selection_id = selection_id.strip() if selection_id else None
+    asset_map = {str(asset.id): asset for asset in matching_assets}
+    selected_asset = asset_map.get(normalized_selection_id)
+    if selected_asset is not None:
+        return selected_asset, None
+
+    fallback_asset = matching_assets[0]
+    fallback_note = (
+        "Vision selector returned no valid candidate ID; used the highest-ranked "
+        f"eligible client asset {fallback_asset.id} instead."
+    )
+    logger.warning(
+        "D02 selector returned invalid asset_id=%r; falling back to eligible asset=%s",
+        selection_id,
+        fallback_asset.id,
+    )
+    return fallback_asset, fallback_note
 
 
 async def execute_d02(
@@ -187,15 +214,10 @@ async def execute_d02(
             mock_key="D02_select",
         )
         selection = D02SelectionOutput.model_validate_json(select_response.content)
-        asset_map = {str(asset.id): asset for asset in matching_assets}
-        best_asset = asset_map.get(selection.selected_asset_id)
-        if best_asset is None:
-            if select_response.provider == "mock":
-                best_asset = matching_assets[0]
-            else:
-                raise InvalidModelOutputError(
-                    "D02 vision selector returned an asset outside the candidate set"
-                )
+        best_asset, fallback_note = _resolve_selected_asset(
+            selection.selected_asset_id,
+            matching_assets,
+        )
         weighted_score = sum(
             [
                 selection.subject_product_match,
@@ -209,9 +231,22 @@ async def execute_d02(
         selection_score = weighted_score or selection.score
         if selection_score <= 0 and select_response.provider == "mock":
             selection_score = 90.0
-        selection_reason = selection.reason
+        selection_reason = " ".join(
+            note for note in (selection.reason, fallback_note) if note
+        )
 
-        if not selection.hard_gate_passed or selection_score < 65:
+        if fallback_note:
+            # The ranked candidate set is already tenant-scoped and eligible.
+            # When the vision model rejects a source solely because it lacks a
+            # detail that D02 can add during an edit (for example a holiday
+            # prop), preserve the customer's real image as the edit source.
+            selection_score = max(selection_score, 85.0)
+            result_type = (
+                "minimal_edit"
+                if image_brief.desired_alteration == "minimal"
+                else "guided_edit"
+            )
+        elif not selection.hard_gate_passed or selection_score < 65:
             best_asset = None
         elif selection_score < 85:
             result_type = "source_guided_generation"

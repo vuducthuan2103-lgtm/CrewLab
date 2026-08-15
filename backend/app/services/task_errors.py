@@ -6,7 +6,7 @@ import uuid
 from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.credentials import sanitize_provider_error
+from app.core.credentials import CredentialConfigurationError, sanitize_provider_error
 from app.core.llm import LLMConfigurationError
 from app.models.system import TaskLog
 
@@ -63,6 +63,7 @@ def _is_database_connectivity_error(exc: Exception) -> bool:
 
 def classify_task_error(exc: Exception) -> TaskError:
     """Expose a safe category and correlation IDs without exposing credentials."""
+    raw_message = str(exc).casefold()
     provider = getattr(exc, "provider", None) or getattr(exc, "llm_provider", None)
     request_id = (
         getattr(exc, "request_id", None)
@@ -82,7 +83,7 @@ def classify_task_error(exc: Exception) -> TaskError:
     elif isinstance(exc, PermanentTaskInputError) or exc.__class__.__name__.endswith("TaskInputError"):
         code = "TASK_INPUT_INVALID"
         retryable = False
-    elif isinstance(exc, LLMConfigurationError):
+    elif isinstance(exc, (LLMConfigurationError, CredentialConfigurationError)):
         code = "LLM_CONFIGURATION_ERROR"
         retryable = False
     elif _is_database_connectivity_error(exc):
@@ -92,8 +93,12 @@ def classify_task_error(exc: Exception) -> TaskError:
         code = "PROVIDER_AUTH_ERROR"
         retryable = False
     elif getattr(exc, "status_code", None) == 429:
-        code = "PROVIDER_RATE_LIMITED"
-        retryable = True
+        if any(marker in raw_message for marker in ("no credits remaining", "insufficient_quota", "insufficient quota")):
+            code = "PROVIDER_CREDITS_EXHAUSTED"
+            retryable = False
+        else:
+            code = "PROVIDER_RATE_LIMITED"
+            retryable = True
     elif getattr(exc, "status_code", None):
         code = "PROVIDER_REQUEST_FAILED"
         retryable = getattr(exc, "status_code", 500) >= 500

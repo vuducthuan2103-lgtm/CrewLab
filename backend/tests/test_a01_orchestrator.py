@@ -17,6 +17,17 @@ def test_determine_retry_route_mixed_issues():
     agent = determine_retry_route(failed_criteria)
     assert agent == "D01"
 
+
+@pytest.mark.parametrize(
+    ("failed_criteria", "agent"),
+    [
+        (["visual_generation_unavailable"], "D02"),
+        (["vision_evaluator_unavailable"], "E01"),
+    ],
+)
+def test_determine_retry_route_resumes_the_agent_blocked_by_provider_credits(failed_criteria, agent):
+    assert determine_retry_route(failed_criteria) == agent
+
 @pytest.mark.parametrize("failed_criteria", [[], ["unknown_issue"], ["grammar"]])
 def test_determine_retry_route_rejects_empty_or_unknown_criteria(failed_criteria):
     with pytest.raises(ValueError):

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, sessionmaker
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.core.db import engine
 from app.core.celery_app import celery_app
@@ -21,6 +21,10 @@ from app.models.system import TaskLog
 from app.models.reviews import AgentMemory, HitlReview
 from app.services.a01_chat import list_a01_chat_history, parse_chat_task_type, run_a01_chat
 from app.services.task_errors import classify_task_error, log_task_failure
+from app.services.gate_service import approve_gate
+from app.agents.a01.dispatcher import handle_event
+from app.tasks.orchestrator_tasks import dispatch_instructions
+from app.services.weekly_schedule import WEEKDAY_TO_ISO, serialize_weekly_schedule
 from app.services.asset_service import (
     ImageUploadValidationError,
     find_duplicate_source,
@@ -39,7 +43,7 @@ from app.services.p01_lite import upsert_agent_memory, determine_agent_for_rejec
 from app.api.schemas import (
     ApiResponse, ErrorDetail, ContentItemOut, TaskLogOut,
     ApproveRequest, RejectRequest, MarkPostedRequest,
-    ConfirmPillarsRequest, ApproveWeekRequest,
+    ConfirmPillarsRequest, ApproveWeekRequest, WeeklyScheduleUpdate, StartWeeklyPreviewRequest, ContentScheduleUpdate,
     BrandVoiceUpdate, AgentConfigUpdate,
     PillarOut, BrandAssetOut,
     A01ChatRequest, A01ChatMessageOut,
@@ -48,6 +52,29 @@ from app.api.schemas import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/portal", tags=["portal"])
+
+
+def _split_pillar_description(value: str | None) -> tuple[str, list[str]]:
+    base, marker, raw_angles = (value or "").partition("\nAngles:")
+    angles = [angle.strip() for angle in raw_angles.split(",") if angle.strip()] if marker else []
+    return base.strip(), angles
+
+
+def _format_pillar_description(description: str | None, angles: list[str]) -> str:
+    base, _ = _split_pillar_description(description)
+    return f"{base}\nAngles: {', '.join(angles)}".strip()
+
+
+def _pillar_out(pillar: ContentPillar) -> PillarOut:
+    description, angles = _split_pillar_description(pillar.description)
+    return PillarOut(
+        id=pillar.id,
+        cycle_id=pillar.cycle_id,
+        name=pillar.name,
+        description=description,
+        weight=pillar.weight,
+        angles=angles,
+    )
 AsyncSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 async def get_db():
@@ -153,7 +180,7 @@ async def get_portal_bootstrap(
             )
             .order_by(ContentPillar.created_at.asc())
         )
-        pillars = [PillarOut.model_validate(item) for item in pillar_result.scalars().all()]
+        pillars = [_pillar_out(item) for item in pillar_result.scalars().all()]
 
     return ApiResponse(
         success=True,
@@ -228,6 +255,11 @@ async def send_a01_message(
         logger.exception("A01 chat failed for client %s", auth.client_id)
         error = classify_task_error(exc)
         support_reference = getattr(request.state, "request_id", None)
+        message = "A01 chưa thể xử lý yêu cầu. Hãy dùng mã hỗ trợ để kiểm tra chi tiết."
+        if error.code == "LLM_CONFIGURATION_ERROR":
+            message = "Cấu hình AI của tài khoản cần được Agency Admin cập nhật lại API key."
+        elif error.code == "PROVIDER_CREDITS_EXHAUSTED":
+            message = "Tài khoản AI đã hết credit. Agency Admin cần nạp thêm credit rồi thử lại."
         try:
             await log_task_failure(
                 db,
@@ -243,7 +275,7 @@ async def send_a01_message(
             success=False,
             error=ErrorDetail(
                 error_code=error.code,
-                message="A01 chưa thể xử lý yêu cầu. Hãy dùng mã hỗ trợ để kiểm tra chi tiết.",
+                message=message,
                 details={
                     "provider": error.provider,
                     "provider_request_id": error.provider_request_id,
@@ -289,8 +321,99 @@ async def list_pillars(
     if cycle_id:
         stmt = stmt.where(ContentPillar.cycle_id == cycle_id)
     result = await db.execute(stmt.order_by(ContentPillar.created_at.asc()))
-    return ApiResponse(success=True, data=[PillarOut.model_validate(p) for p in result.scalars().all()])
+    return ApiResponse(success=True, data=[_pillar_out(p) for p in result.scalars().all()])
 
+
+@router.post("/cycles/weekly-preview", response_model=ApiResponse[dict])
+async def start_weekly_preview(
+    req: StartWeeklyPreviewRequest,
+    auth: AuthContext = Depends(get_current_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    cached = check_idempotency(
+        req.idempotency_key,
+        client_id=auth.client_id,
+        operation="start_weekly_preview",
+        target_id=auth.client_id,
+    )
+    if cached:
+        return ApiResponse(success=True, data=cached)
+
+    # If there are active cycles from before, mark them as completed so the user can freely create a new draft
+    active_cycles_res = await db.execute(
+        select(WorkflowCycle)
+        .where(WorkflowCycle.client_id == auth.client_id, WorkflowCycle.status == "active")
+    )
+    for old_cycle in active_cycles_res.scalars().all():
+        old_cycle.status = "completed"
+        old_cycle.phase = "done"
+
+    now = datetime.now(timezone.utc).date()
+    cycle = WorkflowCycle(
+        client_id=auth.client_id,
+        phase="strategy",
+        status="active",
+        start_date=now,
+        end_date=now + timedelta(days=6),
+    )
+    db.add(cycle)
+    await db.commit()
+    await db.refresh(cycle)
+    try:
+        celery_app.send_task(
+            "a01_handle_trigger",
+            kwargs={
+                "client_id": str(auth.client_id),
+                "event_type": "beat_weekly",
+                "cycle_id": str(cycle.id),
+            },
+        )
+    except Exception as exc:
+        cycle.phase = "done"
+        cycle.status = "completed"
+        await db.commit()
+        await log_task_failure(
+            db,
+            client_id=auth.client_id,
+            content_item_id=None,
+            agent_code="A01",
+            task_type="weekly_preview_dispatch",
+            wake_reason="portal_weekly_preview",
+            exc=exc,
+        )
+        return ApiResponse(
+            success=False,
+            error=ErrorDetail(error_code="DISPATCH_FAILED", message="Chưa thể tạo bản nháp tuần. Hãy thử lại sau ít phút."),
+        )
+
+    data = {"cycle_id": str(cycle.id), "phase": cycle.phase, "status": "queued_for_b02"}
+    save_idempotency(
+        req.idempotency_key,
+        data,
+        client_id=auth.client_id,
+        operation="start_weekly_preview",
+        target_id=auth.client_id,
+    )
+    return ApiResponse(success=True, data=data)
+
+
+@router.post("/cycles/reset-week", response_model=ApiResponse[dict])
+async def reset_weekly_cycle(
+    auth: AuthContext = Depends(get_current_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """Close/complete any currently active weekly cycle so the client can start fresh."""
+    active_cycles_res = await db.execute(
+        select(WorkflowCycle)
+        .where(WorkflowCycle.client_id == auth.client_id, WorkflowCycle.status == "active")
+    )
+    count = 0
+    for old_cycle in active_cycles_res.scalars().all():
+        old_cycle.status = "completed"
+        old_cycle.phase = "done"
+        count += 1
+    await db.commit()
+    return ApiResponse(success=True, data={"closed_cycles": count, "status": "idle"})
 
 @router.post("/pillars/{pillar_id}/confirm", response_model=ApiResponse[dict])
 async def confirm_pillars(
@@ -333,17 +456,28 @@ async def confirm_pillars(
         )
 
     for item in req.pillars:
-        current[item.id].weight = item.weight
+        pillar = current[item.id]
+        pillar.name = item.name.strip()
+        pillar.weight = item.weight
+        existing_description, existing_angles = _split_pillar_description(pillar.description)
+        angles = item.angles if item.angles is not None else existing_angles
+        if not angles:
+            return ApiResponse(
+                success=False,
+                error=ErrorDetail(error_code="validation_missing_angle", message="Mỗi trụ nội dung cần có ít nhất một angle."),
+            )
+        pillar.description = _format_pillar_description(item.description if item.description is not None else existing_description, angles)
 
-    review = HitlReview(
+    await db.commit()
+    _, instructions = await approve_gate(
+        session=db,
         client_id=auth.client_id,
-        gate_type="pillar",
-        target_id=anchor.cycle_id,
+        cycle_id=anchor.cycle_id,
+        gate_type="s2_pillar",
         reviewer_id=auth.user_id,
         action="approved",
     )
-    db.add(review)
-    await db.commit()
+    dispatch_instructions(instructions)
     data = {"status": "approved", "next_agent": "B03", "cycle_id": str(anchor.cycle_id)}
     save_idempotency(
         req.idempotency_key,
@@ -392,18 +526,21 @@ async def approve_week(
         )
     )
     items = result.scalars().all()
-    for item in items:
-        item.status = "ready_for_generation"
-    cycle.phase = "content_production"
-    review = HitlReview(
+    if not items:
+        return ApiResponse(success=False, error=ErrorDetail(error_code="weekly_plan_empty", message="Chưa có bài nào trong kế hoạch tuần để duyệt."))
+    _, instructions = await approve_gate(
+        session=db,
         client_id=auth.client_id,
-        gate_type="plan",
-        target_id=cycle_id,
+        cycle_id=cycle_id,
+        gate_type="s3_plan",
         reviewer_id=auth.user_id,
         action="approved",
     )
-    db.add(review)
+    for item in items:
+        item.status = "ready_for_generation"
+    cycle.phase = "content_production"
     await db.commit()
+    dispatch_instructions(instructions)
     data = {"items_transitioned": len(items), "next_agent": "D01", "cycle_id": str(cycle_id)}
     save_idempotency(
         req.idempotency_key,
@@ -411,6 +548,53 @@ async def approve_week(
         client_id=auth.client_id,
         operation="approve_week",
         target_id=cycle_id,
+    )
+    return ApiResponse(success=True, data=data)
+
+
+@router.patch("/content-items/{item_id}/schedule", response_model=ApiResponse[dict])
+async def update_content_schedule(
+    item_id: uuid.UUID,
+    req: ContentScheduleUpdate,
+    auth: AuthContext = Depends(get_current_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """Allow a client to adjust a B03 draft before approving Gate S3."""
+    cached = check_idempotency(
+        req.idempotency_key,
+        client_id=auth.client_id,
+        operation="update_content_schedule",
+        target_id=item_id,
+    )
+    if cached:
+        return ApiResponse(success=True, data=cached)
+    item = await db.scalar(
+        select(ContentItem).where(ContentItem.id == item_id, ContentItem.client_id == auth.client_id)
+    )
+    if item is None:
+        return ApiResponse(success=False, error=ErrorDetail(error_code="404", message="Content item not found"))
+    cycle = await db.scalar(
+        select(WorkflowCycle).where(WorkflowCycle.id == item.cycle_id, WorkflowCycle.client_id == auth.client_id)
+    )
+    if item.status != "planned" or cycle is None or cycle.phase != "strategy":
+        return ApiResponse(
+            success=False,
+            error=ErrorDetail(error_code="schedule_locked", message="The weekly plan is locked after S3 approval."),
+        )
+    item.scheduled_date = req.scheduled_date
+    item.scheduled_time = req.scheduled_time
+    await db.commit()
+    data = {
+        "content_item_id": str(item.id),
+        "scheduled_date": item.scheduled_date.isoformat(),
+        "scheduled_time": item.scheduled_time,
+    }
+    save_idempotency(
+        req.idempotency_key,
+        data,
+        client_id=auth.client_id,
+        operation="update_content_schedule",
+        target_id=item_id,
     )
     return ApiResponse(success=True, data=data)
 
@@ -963,12 +1147,46 @@ async def get_settings(
             "eligible_models": [
                 model.public_dict() for model in eligible_models(enabled_providers)
             ],
-            "schedule": {
-                "cycle_id": str(client.id) if client else None,
-                "phase": client.phase if client else None,
-            },
+            "schedule": serialize_weekly_schedule(client_record, client),
         },
     )
+
+
+@router.patch("/settings/schedule", response_model=ApiResponse[dict])
+async def update_weekly_schedule(
+    req: WeeklyScheduleUpdate,
+    auth: AuthContext = Depends(get_current_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    cached = check_idempotency(
+        req.idempotency_key,
+        client_id=auth.client_id,
+        operation="update_weekly_schedule",
+        target_id=auth.client_id,
+    )
+    if cached:
+        return ApiResponse(success=True, data=cached)
+    client = await db.get(Client, auth.client_id)
+    if client is None:
+        return ApiResponse(success=False, error=ErrorDetail(error_code="404", message="Client not found"))
+    client.schedule_day = WEEKDAY_TO_ISO[req.weekly_cycle_day]
+    client.schedule_time = req.weekly_cycle_time
+    await db.commit()
+    cycle = await db.scalar(
+        select(WorkflowCycle)
+        .where(WorkflowCycle.client_id == auth.client_id)
+        .order_by(WorkflowCycle.created_at.desc())
+        .limit(1)
+    )
+    data = serialize_weekly_schedule(client, cycle)
+    save_idempotency(
+        req.idempotency_key,
+        data,
+        client_id=auth.client_id,
+        operation="update_weekly_schedule",
+        target_id=auth.client_id,
+    )
+    return ApiResponse(success=True, data=data)
 
 
 @router.patch("/settings/brand-voice", response_model=ApiResponse[dict])
