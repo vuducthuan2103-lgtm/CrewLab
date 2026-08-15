@@ -25,12 +25,16 @@ function NotificationIcon({ type }: { type: NotificationType }) {
 }
 
 function NotificationItem({ notif, onClose }: { notif: AppNotification; onClose: () => void }) {
+  const router = useRouter();
   const { markNotificationRead } = usePortal();
   return (
     <div
       onClick={() => {
         markNotificationRead(notif.id);
         onClose();
+        if (notif.actionUrl) {
+          router.push(notif.actionUrl);
+        }
       }}
       className={`flex gap-3 p-3 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${!notif.read ? 'bg-muted/30' : ''}`}
     >
@@ -51,7 +55,7 @@ function NotificationItem({ notif, onClose }: { notif: AppNotification; onClose:
 
 export default function Header() {
   const router = useRouter();
-  const { notifications, unreadCount, clientName, portalUserEmail } = usePortal();
+  const { notifications, unreadCount, markNotificationRead, clientName, portalUserEmail, brandLogoUrl } = usePortal();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -61,10 +65,16 @@ export default function Header() {
     router.push('/login');
   };
 
+  const handleMarkAllRead = () => {
+    notifications.forEach((n) => {
+      if (!n.read) markNotificationRead(n.id);
+    });
+  };
+
   const initialLetter = (clientName || portalUserEmail || 'B').slice(0, 1).toUpperCase();
 
   return (
-    <header className="fixed top-0 left-56 right-0 h-14 z-30 border-b border-border bg-background/95 backdrop-blur-sm flex items-center px-6 gap-4 justify-between">
+    <header className="fixed top-0 left-[68px] right-0 h-14 z-30 border-b border-border bg-background/95 backdrop-blur-sm flex items-center px-6 gap-4 justify-between">
       {/* Left side spacer */}
       <div className="flex-1" />
 
@@ -98,24 +108,35 @@ export default function Header() {
                   <div className="flex items-center gap-2">
                     <Bell size={14} className="text-lime-brand" />
                     <span className="text-sm font-semibold">Thông báo</span>
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] bg-lime-brand/20 text-lime-brand px-1.5 py-0.5 rounded-full font-bold">
+                        {unreadCount} mới
+                      </span>
+                    )}
                   </div>
-                  <button onClick={() => setNotifOpen(false)} className="text-muted-foreground hover:text-foreground">
-                    <X size={14} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllRead}
+                        className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Đã đọc tất cả
+                      </button>
+                    )}
+                    <button onClick={() => setNotifOpen(false)} className="text-muted-foreground hover:text-foreground">
+                      <X size={14} />
+                    </button>
+                  </div>
                 </div>
                 <div className="max-h-80 overflow-y-auto p-2 space-y-0.5">
                   {notifications.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-6">Không có thông báo mới</p>
+                    <p className="text-xs text-muted-foreground text-center py-6">Không có thông báo nào</p>
                   ) : (
                     notifications.map((n) => (
                       <NotificationItem key={n.id} notif={n} onClose={() => setNotifOpen(false)} />
                     ))
                   )}
-                </div>
-                <div className="px-4 py-2.5 border-t border-border">
-                  <button className="text-[11px] text-lime-brand hover:underline flex items-center gap-1">
-                    Xem tất cả thông báo <ChevronRight size={11} />
-                  </button>
                 </div>
               </div>
             </>
@@ -136,8 +157,12 @@ export default function Header() {
             className="flex items-center gap-2.5 p-1.5 pl-2 rounded-xl hover:bg-muted/50 border border-transparent hover:border-border transition-all duration-150 text-left"
           >
             {/* Avatar */}
-            <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-200">
-              {initialLetter}
+            <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-200 overflow-hidden shrink-0">
+              {brandLogoUrl ? (
+                <img src={brandLogoUrl} alt={clientName || 'Quán'} className="w-full h-full object-cover" />
+              ) : (
+                initialLetter
+              )}
             </div>
 
             {/* User Info (hidden on very small screens) */}
@@ -161,8 +186,12 @@ export default function Header() {
                 {/* Header User Card */}
                 <div className="p-3.5 border-b border-border bg-muted/30">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-100 shrink-0">
-                      {initialLetter}
+                    <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-100 shrink-0 overflow-hidden">
+                      {brandLogoUrl ? (
+                        <img src={brandLogoUrl} alt={clientName || 'Quán'} className="w-full h-full object-cover" />
+                      ) : (
+                        initialLetter
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-foreground truncate">

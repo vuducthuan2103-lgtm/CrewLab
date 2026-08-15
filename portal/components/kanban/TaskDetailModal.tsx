@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { CircleAlert } from 'lucide-react';
 import { TaskCard, ContentItem } from '@/lib/types';
 import { AGENT_REGISTRY, humanizeTaskTitle, getSubtasksForTask } from '@/lib/taskHumanizer';
 import { usePortal } from '@/lib/store';
@@ -25,7 +26,7 @@ export default function TaskDetailModal({ task, onClose }: TaskDetailModalProps)
   const humanTitle = humanizeTaskTitle(task.assigneeCode, task.title, linkedItem);
   const subtasks = getSubtasksForTask(task, linkedItem);
 
-  const isReview = task.column === 'review' || linkedItem?.state === 'pending_content_approval';
+  const canReview = task.column === 'review' || linkedItem?.state === 'pending_content_approval' || (Boolean(linkedItem?.caption) && linkedItem?.state === 'eval_failed');
 
   const handleApprove = async () => {
     if (!linkedItem) return;
@@ -70,6 +71,8 @@ export default function TaskDetailModal({ task, onClose }: TaskDetailModalProps)
                     ? 'bg-cyan-950/60 text-cyan-300 border-cyan-800/60'
                     : task.column === 'review'
                     ? 'bg-lime-500/15 text-lime-brand border-lime-500/30'
+                    : task.hasError || linkedItem?.state === 'eval_failed'
+                    ? 'bg-amber-950/60 text-amber-300 border-amber-800/60'
                     : 'bg-zinc-800 text-zinc-400 border-zinc-700'
                 }`}
               >
@@ -79,6 +82,8 @@ export default function TaskDetailModal({ task, onClose }: TaskDetailModalProps)
                   ? 'Đang xử lý'
                   : task.column === 'review'
                   ? 'Chờ duyệt'
+                  : task.hasError || linkedItem?.state === 'eval_failed'
+                  ? 'Tạm dừng / Lỗi AI'
                   : 'Chờ thực hiện'}
               </span>
             </div>
@@ -95,6 +100,24 @@ export default function TaskDetailModal({ task, onClose }: TaskDetailModalProps)
 
         {/* Modal Content */}
         <div className="p-6 overflow-y-auto space-y-6">
+          {/* Alert Banner if Task Failed or Paused */}
+          {(linkedItem?.state === 'eval_failed' || task.hasError) && (
+            <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-600/40 space-y-2">
+              <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                <CircleAlert size={14} />
+                <span>Thông báo trạng thái AI</span>
+              </div>
+              <p className="text-xs text-amber-200/90 leading-relaxed">
+                {linkedItem?.fixInstructions || task.errorMessage || 'Tác vụ tạo ảnh AI tạm dừng do tài khoản nhà cung cấp hết credit.'}
+              </p>
+              {linkedItem?.caption && (
+                <p className="text-[11px] text-zinc-400 italic">
+                  💡 Caption bài viết đã được soạn thảo hoàn tất bên dưới. Bạn có thể bấm <strong>Phê duyệt & Sẵn sàng đăng bài</strong> để sử dụng bài viết này ngay (đăng dạng text hoặc tự bổ sung ảnh sau).
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Section: Quy trình các bước thực hiện (Subtasks Timeline) */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
@@ -109,6 +132,8 @@ export default function TaskDetailModal({ task, onClose }: TaskDetailModalProps)
                       ? 'bg-zinc-900/40 border-zinc-800 text-zinc-200'
                       : step.status === 'in_progress'
                       ? 'bg-cyan-950/20 border-cyan-800/60 text-cyan-200'
+                      : step.status === 'failed'
+                      ? 'bg-amber-950/25 border-amber-800/70 text-amber-200'
                       : 'bg-zinc-950/40 border-zinc-900 text-zinc-500'
                   }`}
                 >
@@ -120,6 +145,8 @@ export default function TaskDetailModal({ task, onClose }: TaskDetailModalProps)
                             ? 'bg-emerald-950 text-emerald-400 border border-emerald-700'
                             : step.status === 'in_progress'
                             ? 'bg-cyan-950 text-cyan-400 border border-cyan-700'
+                            : step.status === 'failed'
+                            ? 'bg-amber-950 text-amber-400 border border-amber-700'
                             : 'bg-zinc-900 text-zinc-600 border border-zinc-800'
                         }`}
                       >
@@ -133,6 +160,8 @@ export default function TaskDetailModal({ task, onClose }: TaskDetailModalProps)
                         <span className="text-emerald-400">Xong</span>
                       ) : step.status === 'in_progress' ? (
                         <span className="text-cyan-400">Đang chạy...</span>
+                      ) : step.status === 'failed' ? (
+                        <span className="text-amber-400 font-bold">Chưa đạt / Tạm dừng</span>
                       ) : (
                         <span className="text-zinc-600">Chờ</span>
                       )}
@@ -183,15 +212,15 @@ export default function TaskDetailModal({ task, onClose }: TaskDetailModalProps)
             </div>
           )}
 
-          {/* Section: Giao diện Phê duyệt nếu là Task Review */}
-          {isReview && linkedItem && (
+          {/* Section: Giao diện Phê duyệt nếu là Task Review hoặc bài viết có Caption */}
+          {canReview && linkedItem && (
             <div className="p-4 rounded-xl bg-lime-950/20 border border-lime-500/30 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-lime-brand uppercase tracking-wider">
-                  Yêu cầu bạn kiểm duyệt bài viết
+                  {linkedItem.state === 'eval_failed' ? 'Kiểm duyệt bài viết (Dạng Text)' : 'Yêu cầu bạn kiểm duyệt bài viết'}
                 </span>
                 <span className="text-[11px] text-zinc-400 font-medium">
-                  Đã thẩm định chuẩn Brand Voice
+                  {linkedItem.state === 'eval_failed' ? 'Duyệt dùng Caption đã hoàn tất' : 'Đã thẩm định chuẩn Brand Voice'}
                 </span>
               </div>
 

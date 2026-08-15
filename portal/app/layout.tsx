@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { PortalProvider } from '@/lib/store';
+import { ToastProvider } from '@/components/ui/Toast';
 
 export const metadata: Metadata = {
   title: 'CrewLab Portal',
@@ -19,7 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-background text-foreground font-sans antialiased min-h-screen">
-        <PortalProvider>{children}</PortalProvider>
+        <PortalProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </PortalProvider>
       </body>
     </html>
   );

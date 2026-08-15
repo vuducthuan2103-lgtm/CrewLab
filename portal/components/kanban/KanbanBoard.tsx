@@ -2,9 +2,12 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { RotateCw } from 'lucide-react';
 import { usePortal } from '@/lib/store';
+import { toast } from '@/components/ui/Toast';
 import { AgentCode, KanbanColumn, TaskCard as TaskCardType } from '@/lib/types';
 import { generateUnifiedWorkBoardTasks } from '@/lib/taskHumanizer';
+import { getISOWeekNumber, getWeekDateRange } from '@/lib/dateUtils';
 import AgentOverviewBar from './AgentOverviewBar';
 import TaskCardComponent from './TaskCard';
 
@@ -39,44 +42,48 @@ const COLUMNS: { key: KanbanColumn; label: string; subLabel: string; colorClass:
   },
 ];
 
-function getInitialWeekNumber(): number {
-  const now = new Date();
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  return Math.ceil((((now.getTime() - startOfYear.getTime()) / 86400000) + startOfYear.getDay() + 1) / 7);
-}
-
-function getWeekDateRange(weekNum: number, year: number = new Date().getFullYear()): string {
-  const jan1 = new Date(year, 0, 1);
-  const daysOffset = (weekNum - 1) * 7 - jan1.getDay() + 1;
-  const startDate = new Date(year, 0, 1 + daysOffset);
-  const endDate = new Date(year, 0, 1 + daysOffset + 6);
-
-  const format = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-  return `${format(startDate)} – ${format(endDate)}`;
-}
-
 export default function KanbanBoard() {
-  const { tasks, contentItems, pillars, weekApproved } = usePortal();
-  const currentWeek = useMemo(() => getInitialWeekNumber(), []);
+  const { tasks, contentItems, pillars, weekApproved, refreshData, isLoading } = usePortal();
+  const currentWeek = useMemo(() => getISOWeekNumber(), []);
   const [selectedWeek, setSelectedWeek] = useState<number>(currentWeek);
   const [selectedAgent, setSelectedAgent] = useState<AgentCode | null>(null);
   const [onlyReview, setOnlyReview] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshSuccess, setRefreshSuccess] = useState(false);
 
   const dateRangeStr = useMemo(() => getWeekDateRange(selectedWeek), [selectedWeek]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setRefreshSuccess(false);
+    try {
+      await refreshData(true);
+      setRefreshSuccess(true);
+      toast.success('Đã làm mới dữ liệu!', 'Bảng công việc đã đồng bộ với máy chủ.');
+      setTimeout(() => setRefreshSuccess(false), 2000);
+    } catch {
+      toast.error('Không thể làm mới dữ liệu. Vui lòng thử lại.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Tạo danh sách công việc marketing hợp nhất, lọc sạch log thừa
   const unifiedTasks = useMemo(() => {
     return generateUnifiedWorkBoardTasks(tasks, contentItems, pillars, weekApproved);
   }, [tasks, contentItems, pillars, weekApproved]);
 
-  // Lọc theo Agent hoặc chỉ bài Review
+  // Lọc theo Tuần (selectedWeek), Agent hoặc chỉ bài Review
   const filteredTasks = useMemo(() => {
     return unifiedTasks.filter((t) => {
+      // Lọc chính xác theo tuần được chọn
+      if (t.weekNumber !== undefined && t.weekNumber !== selectedWeek) return false;
+      if (t.weekNumber === undefined && selectedWeek !== currentWeek) return false;
       if (selectedAgent && t.assigneeCode !== selectedAgent) return false;
       if (onlyReview && t.column !== 'review') return false;
       return true;
     });
-  }, [unifiedTasks, selectedAgent, onlyReview]);
+  }, [unifiedTasks, selectedWeek, currentWeek, selectedAgent, onlyReview]);
 
   const tasksByColumn = useMemo(() => {
     return COLUMNS.reduce((acc, col) => {
@@ -85,7 +92,11 @@ export default function KanbanBoard() {
     }, {} as Record<KanbanColumn, TaskCardType[]>);
   }, [filteredTasks]);
 
-  const totalReview = unifiedTasks.filter((t) => t.column === 'review').length;
+  const totalReview = useMemo(() => {
+    return unifiedTasks.filter(
+      (t) => (t.weekNumber === undefined || t.weekNumber === selectedWeek) && t.column === 'review'
+    ).length;
+  }, [unifiedTasks, selectedWeek]);
 
   return (
     <div className="space-y-6">
@@ -112,8 +123,27 @@ export default function KanbanBoard() {
           </p>
         </div>
 
-        {/* Action Controls: Chat A01 + Week Navigator */}
-        <div className="flex items-center gap-3">
+        {/* Action Controls: Refresh + Chat A01 + Week Navigator */}
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-all ${
+              refreshSuccess
+                ? 'bg-lime-950/60 border-lime-500/50 text-lime-brand'
+                : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800'
+            }`}
+            title="Làm mới dữ liệu từ máy chủ"
+          >
+            <RotateCw
+              size={13}
+              className={
+                isRefreshing ? 'animate-spin text-lime-brand' : refreshSuccess ? 'text-lime-brand' : ''
+              }
+            />
+            <span>{isRefreshing ? 'Đang tải...' : refreshSuccess ? 'Đã làm mới!' : 'Làm mới'}</span>
+          </button>
+
           <Link
             href="/a01-chat"
             className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-lime-brand px-4 text-xs font-bold text-black shadow hover:opacity-90 transition-opacity"
@@ -131,7 +161,7 @@ export default function KanbanBoard() {
               &larr;
             </button>
 
-            <div className="px-2 text-center">
+            <div className="px-2 text-center min-w-[120px]">
               <span className="text-xs font-bold text-white font-mono">Tuần {selectedWeek}</span>
               <span className="text-[10px] text-zinc-400 block font-mono">({dateRangeStr})</span>
             </div>
@@ -147,7 +177,8 @@ export default function KanbanBoard() {
             {selectedWeek !== currentWeek && (
               <button
                 onClick={() => setSelectedWeek(currentWeek)}
-                className="ml-1 px-2 py-1 text-[10px] rounded bg-zinc-800 text-zinc-300 hover:text-white font-semibold"
+                className="ml-1 px-2 py-1 text-[10px] rounded bg-zinc-800 text-zinc-300 hover:text-white font-semibold transition-colors"
+                title={`Quay về tuần hiện tại (Tuần ${currentWeek})`}
               >
                 Tuần này
               </button>
@@ -187,6 +218,34 @@ export default function KanbanBoard() {
           >
             Xóa bộ lọc
           </button>
+        </div>
+      )}
+
+      {/* Empty Week Helper Banner */}
+      {filteredTasks.length === 0 && (
+        <div className="p-6 text-center rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-2 animate-in fade-in duration-200">
+          <p className="text-sm font-semibold text-zinc-300">
+            Chưa có bài viết hay công việc nào trong <span className="text-lime-brand font-bold">Tuần {selectedWeek}</span> ({dateRangeStr})
+          </p>
+          <p className="text-xs text-zinc-500 max-w-md mx-auto">
+            Bạn có thể chuyển về Tuần hiện tại để xem các công việc đang chạy, hoặc trò chuyện cùng A01 để lập kế hoạch phát hành cho tuần này.
+          </p>
+          <div className="flex items-center justify-center gap-2.5 pt-2">
+            {selectedWeek !== currentWeek && (
+              <button
+                onClick={() => setSelectedWeek(currentWeek)}
+                className="px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white transition-colors"
+              >
+                ← Quay lại Tuần {currentWeek} (Tuần này)
+              </button>
+            )}
+            <Link
+              href="/a01-chat"
+              className="px-3.5 py-1.5 rounded-lg bg-lime-brand text-black text-xs font-bold hover:opacity-90 transition-opacity"
+            >
+              Lên kế hoạch với A01
+            </Link>
+          </div>
         </div>
       )}
 

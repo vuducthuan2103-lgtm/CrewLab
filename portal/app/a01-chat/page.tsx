@@ -5,7 +5,7 @@ import PortalLayout from '@/components/layout/PortalLayout';
 
 export default function A01ChatPage() {
   return (
-    <PortalLayout>
+    <PortalLayout noPadding>
       <A01Chat />
     </PortalLayout>
   );

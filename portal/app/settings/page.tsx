@@ -28,11 +28,38 @@ import {
 
 // ─── Tab 1: Brand Voice (6 Structured Sections) ──────────────────────────────
 function BrandVoiceForm() {
-  const { brandVoice, updateBrandVoice } = usePortal();
+  const { brandVoice, updateBrandVoice, brandLogoUrl, uploadBrandLogo, setBrandLogoUrl, clientName } = usePortal();
   const [form, setForm] = useState({ ...brandVoice });
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<'foundation' | 'tone' | 'dos_donts' | 'mechanics' | 'variations' | 'references'>('foundation');
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setLogoError('Dung lượng ảnh tối đa 5MB');
+      return;
+    }
+
+    try {
+      setIsUploadingLogo(true);
+      setLogoError(null);
+      await uploadBrandLogo(file);
+    } catch {
+      setLogoError('Không thể tải ảnh lên. Vui lòng thử lại.');
+    } finally {
+      setIsUploadingLogo(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setBrandLogoUrl(null);
+  };
 
   // Input helpers for lists
   const [newKeyword, setNewKeyword] = useState('');
@@ -96,6 +123,54 @@ function BrandVoiceForm() {
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             1. Brand Foundation (Nền tảng thương hiệu)
           </h3>
+
+          {/* Logo & Avatar quán */}
+          <div className="p-4 bg-muted/30 border border-border rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-14 h-14 rounded-xl overflow-hidden bg-zinc-800 border border-border flex items-center justify-center shadow-md flex-shrink-0">
+                {brandLogoUrl ? (
+                  <img src={brandLogoUrl} alt={clientName || 'Logo quán'} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xl font-black text-lime-brand">
+                    {(clientName || form.brandName || 'B').slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-foreground">Ảnh đại diện & Logo quán</h4>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Hiển thị đồng bộ làm ảnh đại diện thương hiệu trên thanh điều hướng bên trái và góc tài khoản.
+                </p>
+                {logoError && <p className="text-[10px] text-red-400 mt-1">{logoError}</p>}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                  disabled={isUploadingLogo}
+                />
+                <span className="flex items-center gap-1.5 px-3.5 py-2 bg-lime-brand text-black text-xs font-bold rounded-lg hover:opacity-90 transition-opacity shadow-sm cursor-pointer">
+                  {isUploadingLogo ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
+                  {isUploadingLogo ? 'Đang tải…' : 'Đổi ảnh logo'}
+                </span>
+              </label>
+              {brandLogoUrl && (
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="px-3 py-2 border border-border hover:border-red-500/40 text-muted-foreground hover:text-red-400 rounded-lg text-xs transition-colors"
+                >
+                  Gỡ ảnh
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-muted-foreground mb-1">Tên Thương Hiệu</label>

@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { usePortal } from '@/lib/store';
+import { toast } from '@/components/ui/Toast';
 import { ContentItem, ContentPillar, FSM_STATE_LABELS } from '@/lib/types';
-import ContentApprovalModal from '@/components/approval/ContentApprovalModal';
+import ContentApprovalModal, { FacebookLogo, InstagramLogo } from '@/components/approval/ContentApprovalModal';
 import MetaPlannerTimeline from '@/components/content-hub/MetaPlannerTimeline';
 import {
   CalendarDays,
@@ -43,20 +44,23 @@ function getPillarMeta(item: ContentItem, pillars: ContentPillar[]) {
 }
 
 function StateBadge({ state }: { state: ContentItem['state'] }) {
-  const stateStyles: Record<string, string> = {
-    pending_content_approval: 'bg-accent-tint-15 text-lime-brand border border-accent-tint',
-    approved_ready_to_post: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
-    posted: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
-    eval_failed: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
-    planned: 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/20',
-    ready_for_generation: 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20',
-    evaluating: 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20',
+  const configs: Record<string, { class: string }> = {
+    pending_content_approval: {
+      class: 'bg-accent-tint-15 text-lime-brand border-accent-tint shadow-accent-glow',
+    },
+    approved_ready_to_post: {
+      class: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    },
+    posted: { class: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+    eval_failed: { class: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+    planned: { class: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' },
+    ready_for_generation: { class: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
+    evaluating: { class: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
   };
+  const cfg = configs[state] ?? { class: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' };
   return (
     <span
-      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
-        stateStyles[state] ?? stateStyles.planned
-      }`}
+      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cfg.class} tracking-wide`}
     >
       {FSM_STATE_LABELS[state] ?? state}
     </span>
@@ -66,19 +70,23 @@ function StateBadge({ state }: { state: ContentItem['state'] }) {
 function PlatformBadge({ platform }: { platform: ContentItem['platform'] }) {
   if (platform === 'fb')
     return (
-      <span className="text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full px-2 py-0.5">
+      <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20 rounded-full px-2 py-0.5">
+        <FacebookLogo className="w-3 h-3" />
         Facebook
       </span>
     );
   if (platform === 'ig')
     return (
-      <span className="text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-full px-2 py-0.5">
+      <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20 rounded-full px-2 py-0.5">
+        <InstagramLogo className="w-3 h-3" />
         Instagram
       </span>
     );
   return (
-    <span className="text-[10px] font-bold bg-lime-brand/10 text-lime-brand border border-lime-brand/20 rounded-full px-2 py-0.5">
-      FB · IG
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-full px-2 py-0.5">
+      <FacebookLogo className="w-3 h-3" />
+      <span className="text-zinc-500">+</span>
+      <InstagramLogo className="w-3 h-3" />
     </span>
   );
 }
@@ -260,9 +268,14 @@ export default function ContentPlanTable() {
   );
 
   const handleApproveWeek = async () => {
-    await approveWeek();
-    setApprovedAnimation(true);
-    setTimeout(() => setApprovedAnimation(false), 2000);
+    try {
+      await approveWeek();
+      setApprovedAnimation(true);
+      toast.success('Đã duyệt kế hoạch tuần!', 'Toàn bộ bài viết trong tuần đã sẵn sàng xuất bản.');
+      setTimeout(() => setApprovedAnimation(false), 2000);
+    } catch {
+      toast.error('Không thể duyệt kế hoạch tuần. Vui lòng thử lại.');
+    }
   };
 
   const exportTablePlan = () => {
@@ -287,6 +300,7 @@ export default function ContentPlanTable() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.info('Đã xuất bảng kế hoạch ra file CSV!');
   };
 
   return (

@@ -58,10 +58,15 @@ export interface TaskCard {
   createdAt: Date;
   startedAt: Date | null;
   completedAt: Date | null;
+  modelUsed?: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  latencyMs?: number;
   timeLabel?: string;
   durationLabel?: string;
   pillarLabel?: string;
   platform?: 'fb' | 'ig' | 'both';
+  weekNumber?: number;
 }
 
 // ─── Content Items ───────────────────────────────────────────────────────────
@@ -77,6 +82,10 @@ export interface ContentItem {
   pillarId: string;
   weekNumber: number;
   needsRealPhoto: boolean;
+  failedCriteria?: string[];
+  fixInstructions?: string;
+  evalScoreCaption?: number | null;
+  evalScoreVisual?: number | null;
   rejectionReason?: RejectionReason;
   rejectionFeedback?: string;
   imageProvenance?: {
@@ -147,6 +156,7 @@ export interface BrandVoiceConfig {
   tagline: string;
   mission: string;
   targetAudience: string;
+  logoUrl?: string;
 
   // 2. Tone & Personality
   personalityKeywords: string[]; // 3-5 tính từ

@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { usePortal } from '@/lib/store';
+import { toast } from '@/components/ui/Toast';
 import { MediaAsset, AssetSource } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { X, Tag, Info, Search, Upload, Loader2 } from 'lucide-react';
@@ -113,7 +114,6 @@ export default function MediaLibraryGrid() {
   const [selectedAsset, setSelectedAsset] = useState<MediaAsset | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [rightsAttested, setRightsAttested] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = mediaAssets.filter((a) => {
@@ -137,11 +137,13 @@ export default function MediaLibraryGrid() {
     const invalidType = selectedFiles.find((file) => !ACCEPTED_IMAGE_TYPES.includes(file.type));
     if (invalidType) {
       setUploadError('Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP.');
+      toast.error('Định dạng không hợp lệ', 'Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP.');
       return;
     }
     const tooLarge = selectedFiles.find((file) => file.size > MAX_UPLOAD_BYTES);
     if (tooLarge) {
       setUploadError('Mỗi ảnh tối đa 50 MB.');
+      toast.error('Dung lượng quá lớn', 'Mỗi ảnh tối đa 50 MB.');
       return;
     }
 
@@ -149,9 +151,12 @@ export default function MediaLibraryGrid() {
     setUploadError(null);
     void (async () => {
       try {
-        for (const file of selectedFiles) await uploadAsset(file, rightsAttested);
+        for (const file of selectedFiles) await uploadAsset(file, true);
+        toast.success(`Đã tải lên ${selectedFiles.length} hình ảnh!`, 'Ảnh đã sẵn sàng đưa vào pipeline AI D02.');
       } catch (cause) {
-        setUploadError(cause instanceof Error ? cause.message : 'Không thể tải ảnh lên.');
+        const msg = cause instanceof Error ? cause.message : 'Không thể tải ảnh lên.';
+        setUploadError(msg);
+        toast.error('Tải ảnh thất bại', msg);
       } finally {
         setUploading(false);
       }
@@ -206,20 +211,12 @@ export default function MediaLibraryGrid() {
             event.target.value = '';
           }}
         />
-        <label className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={rightsAttested}
-            onChange={(event) => setRightsAttested(event.target.checked)}
-            className="h-3.5 w-3.5 accent-lime-brand"
-          />
-          Tôi có quyền sử dụng và cho phép D02 chỉnh sửa ảnh
-        </label>
         <Button
           id="media-library-upload-btn"
           size="sm"
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading || !rightsAttested}
+          disabled={uploading}
+          className="ml-auto"
         >
           {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
           {uploading ? 'Đang tải...' : 'Tải ảnh lên'}
