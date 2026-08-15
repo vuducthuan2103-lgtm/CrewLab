@@ -30,34 +30,34 @@
       },
       "fontFamily": {
         "headline-display": [
-          "Montserrat"
+          "Inter"
         ],
         "headline-xl": [
-          "Montserrat"
+          "Inter"
         ],
         "headline-lg": [
-          "Montserrat"
+          "Inter"
         ],
         "headline-md": [
-          "Montserrat"
+          "Inter"
         ],
         "headline-sm": [
-          "Montserrat"
+          "Inter"
         ],
         "body-lg": [
-          "Montserrat"
+          "Inter"
         ],
         "body-md": [
-          "Montserrat"
+          "Inter"
         ],
         "body-sm": [
-          "Montserrat"
+          "Inter"
         ],
         "label-lg": [
-          "Montserrat"
+          "Inter"
         ],
         "label-md": [
-          "Montserrat"
+          "Inter"
         ],
         "label-mono": [
           "JetBrains Mono"

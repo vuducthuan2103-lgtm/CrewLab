@@ -4,26 +4,81 @@ import React, { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import PortalLayout from '@/components/layout/PortalLayout';
 import PillarSlider from '@/components/content-hub/PillarSlider';
-import ContentCalendar from '@/components/content-hub/ContentCalendar';
 import ContentPlanTable from '@/components/content-hub/ContentPlanTable';
-import WeeklyPlanningPanel from '@/components/content-hub/WeeklyPlanningPanel';
-import { BookOpen } from 'lucide-react';
+import WeeklySchedulePopover from '@/components/content-hub/WeeklySchedulePopover';
+import { CalendarDays } from 'lucide-react';
 
-type Tab = 'pillar' | 'calendar' | 'plan-table';
+type Tab = 'pillar' | 'plan';
+
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'pillar', label: 'Trụ nội dung' }, { key: 'calendar', label: 'Lịch nội dung' }, { key: 'plan-table', label: 'Bảng kế hoạch' },
+  { key: 'pillar', label: 'Trụ nội dung' },
+  { key: 'plan', label: 'Bảng kế hoạch' },
 ];
 
 function ContentHubInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tab = (searchParams.get('tab') as Tab) || 'calendar';
-  return <PortalLayout>
-    <div className="flex items-center gap-3 mb-6"><div className="w-8 h-8 rounded-lg bg-accent-tint border border-accent-tint flex items-center justify-center"><BookOpen size={15} className="text-lime-brand" /></div><div><h1 className="text-lg font-bold text-foreground">Kế hoạch nội dung</h1><p className="text-xs text-muted-foreground">Tạo, điều chỉnh và duyệt kế hoạch đăng bài hằng tuần</p></div></div>
-    <WeeklyPlanningPanel />
-    <div className="flex gap-0.5 mb-6 border-b border-border">{TABS.map(({ key, label }) => <button key={key} id={`content-hub-tab-${key}`} onClick={() => router.push(`/content-hub?tab=${key}`)} className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px ${tab === key ? 'border-lime-brand text-lime-brand' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{label}</button>)}</div>
-    {tab === 'pillar' && <PillarSlider />}{tab === 'calendar' && <ContentCalendar />}{tab === 'plan-table' && <ContentPlanTable />}
-  </PortalLayout>;
+  const rawTab = searchParams.get('tab');
+
+  // Normalize legacy tab keys
+  const activeTab: Tab =
+    rawTab === 'pillar'
+      ? 'pillar'
+      : rawTab === 'plan' || rawTab === 'plan-table' || rawTab === 'calendar'
+      ? 'plan'
+      : 'plan';
+
+  return (
+    <PortalLayout>
+      {/* ─── Header Toolbar ─────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 pb-4 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-accent-tint border border-accent-tint flex items-center justify-center shadow-accent-glow shrink-0">
+            <CalendarDays size={18} className="text-lime-brand" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-foreground tracking-tight">
+              Công cụ lập kế hoạch
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Lập lịch, quản lý trụ nội dung và theo dõi kế hoạch đăng bài tuần/tháng
+            </p>
+          </div>
+        </div>
+
+        {/* Compact Weekly Schedule Popover on the top right */}
+        <WeeklySchedulePopover />
+      </div>
+
+      {/* ─── Level 1 Primary Tabs ────────────────────────────────────────────── */}
+      <div className="flex gap-1 mb-6 border-b border-border">
+        {TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            id={`content-hub-tab-${key}`}
+            onClick={() => router.push(`/content-hub?tab=${key}`)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all -mb-px ${
+              activeTab === key
+                ? 'border-lime-brand text-lime-brand'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ─── Tab Contents ────────────────────────────────────────────────────── */}
+      {activeTab === 'pillar' && <PillarSlider />}
+      {activeTab === 'plan' && <ContentPlanTable />}
+    </PortalLayout>
+  );
 }
 
-export default function ContentHubPage() { return <Suspense><ContentHubInner /></Suspense>; }
+export default function ContentHubPage() {
+  return (
+    <Suspense>
+      <ContentHubInner />
+    </Suspense>
+  );
+}
