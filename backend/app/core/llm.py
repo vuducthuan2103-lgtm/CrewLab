@@ -18,6 +18,7 @@ import hashlib
 import io
 import math
 import re
+from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from typing import Optional, Type
@@ -33,6 +34,18 @@ from app.models.system import TaskLog
 from app.core.db import settings, utcnow
 from app.core.credentials import get_credential_cipher, sanitize_provider_error
 from app.core.model_catalog import catalog_entry, chat_model_for
+from app.services.usage_ledger import (
+    BeginUsageEventCommand,
+    BillingClassification,
+    FinalizeUsageEventCommand,
+    SessionFactory,
+    UsageCategory,
+    UsageEventStatus,
+    begin_usage_event,
+    finalize_usage_event,
+    independent_session_factory_for,
+    sanitize_error_category,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +61,10 @@ class LLMResponse(BaseModel):
 
 class LLMConfigurationError(RuntimeError):
     """Raised when a client has no usable model/credential configuration."""
+
+
+class LLMUsageReplayError(RuntimeError):
+    """Raised when a stable event identity has already been admitted."""
 
 
 class ImageGenerationResponse(BaseModel):
@@ -158,7 +175,7 @@ def _mock_llm_response(
     mock_key: Optional[str] = None,
 ) -> LLMResponse:
     """Return a hardcoded mock response for testing without API keys.
-    
+
     mock_key overrides agent_code for lookup — allows same agent (e.g. D02)
     to have multiple distinct mock responses (D02_tags, D02_select).
     """
@@ -265,6 +282,201 @@ def _mock_llm_response(
     )
 
 
+def _usage_environment() -> tuple[str, bool]:
+    environment = (
+        os.environ.get("CREWLAB_ENVIRONMENT")
+        or os.environ.get("ENVIRONMENT")
+        or "local"
+    ).strip().casefold()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,31}", environment):
+        environment = "local"
+    return environment, environment == "production"
+
+
+def _usage_factory(
+    session: Optional[AsyncSession], override: SessionFactory | None
+) -> SessionFactory | None:
+    if override is not None:
+        return override
+    if session is not None:
+        return independent_session_factory_for(session)
+    return None
+
+
+def _new_usage_event_key(prefix: str) -> str:
+    return f"{prefix}:{uuid.uuid4()}"
+
+
+def _provider_value(value: object, name: str) -> object | None:
+    if isinstance(value, dict):
+        return value.get(name)
+    return getattr(value, name, None)
+
+
+def _provider_evidence(value: object) -> object:
+    response = _provider_value(value, "response") or _provider_value(
+        value, "litellm_response"
+    )
+    return response if response is not None else value
+
+
+def _provider_request_id(value: object) -> str | None:
+    evidence = _provider_evidence(value)
+    hidden = _provider_value(evidence, "_hidden_params")
+    candidates = [
+        _provider_value(evidence, "id"),
+        _provider_value(evidence, "request_id"),
+        _provider_value(hidden, "response_id") if hidden is not None else None,
+    ]
+    for candidate in candidates:
+        normalized = str(candidate or "").strip()
+        if normalized and len(normalized) <= 255 and re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9._:/-]*", normalized
+        ):
+            return normalized
+    return None
+
+
+def _provider_reported_cost(value: object) -> Decimal | None:
+    evidence = _provider_evidence(value)
+    usage = _provider_value(evidence, "usage")
+    hidden = _provider_value(evidence, "_hidden_params")
+    candidates = [
+        _provider_value(evidence, "response_cost"),
+        _provider_value(usage, "cost") if usage is not None else None,
+        _provider_value(hidden, "response_cost") if hidden is not None else None,
+    ]
+    for candidate in candidates:
+        if candidate is None or isinstance(candidate, bool):
+            continue
+        try:
+            cost = Decimal(str(candidate))
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+        if cost.is_finite() and cost >= 0:
+            return cost
+    return None
+
+
+def _usage_count(usage: object, *names: str) -> int:
+    for name in names:
+        value = _provider_value(usage, name)
+        try:
+            count = int(value or 0)
+        except (TypeError, ValueError):
+            continue
+        if count >= 0:
+            return count
+    return 0
+
+
+def _text_usage_units(value: object) -> dict[str, int]:
+    usage = _provider_value(_provider_evidence(value), "usage")
+    return {
+        "input_tokens": _usage_count(usage, "prompt_tokens", "input_tokens"),
+        "output_tokens": _usage_count(
+            usage, "completion_tokens", "output_tokens"
+        ),
+    }
+
+
+def _message_usage_category(messages: list[dict]) -> UsageCategory:
+    def contains_image(value: object) -> bool:
+        if isinstance(value, dict):
+            payload_type = str(value.get("type") or "").casefold()
+            if payload_type in {"image", "image_url", "input_image"}:
+                return True
+            if "image_url" in value:
+                return True
+            return any(contains_image(item) for item in value.values())
+        if isinstance(value, list):
+            return any(contains_image(item) for item in value)
+        return False
+
+    return UsageCategory.VISION if contains_image(messages) else UsageCategory.TEXT
+
+
+async def _admit_usage_request(
+    *,
+    event_key: str,
+    session_factory: SessionFactory | None,
+    client_id: uuid.UUID,
+    content_item_id: Optional[uuid.UUID],
+    parent_event_id: Optional[uuid.UUID],
+    trace_id: Optional[str],
+    agent_code: str,
+    task_type: str,
+    wake_reason: str,
+    provider: str,
+    model: str,
+    usage_category: UsageCategory,
+    request_mode: str | None = None,
+):
+    environment, is_production = _usage_environment()
+    if provider.casefold() == "mock":
+        is_production = False
+    admission = await begin_usage_event(
+        BeginUsageEventCommand(
+            event_key=event_key,
+            client_id=client_id,
+            content_item_id=content_item_id,
+            parent_event_id=parent_event_id,
+            trace_id=trace_id,
+            agent_code=agent_code,
+            task_type=task_type,
+            wake_reason=wake_reason,
+            provider=provider,
+            model=model,
+            usage_category=usage_category,
+            request_mode=request_mode,
+            environment=environment,
+            is_production=is_production,
+            billing_classification=(
+                BillingClassification.CUSTOMER_BILLABLE
+                if is_production
+                else BillingClassification.INTERNAL_NON_BILLABLE
+            ),
+        ),
+        session_factory=session_factory,
+    )
+    if not admission.should_call_provider:
+        raise LLMUsageReplayError(
+            "Usage event was already admitted; provider call was suppressed"
+        )
+    return admission
+
+
+async def _finalize_usage_request(
+    *,
+    usage_event_id: uuid.UUID,
+    session_factory: SessionFactory | None,
+    evidence: object,
+    status: UsageEventStatus,
+    usage_units: dict[str, int],
+    latency_ms: int,
+    error_code: str | None = None,
+) -> None:
+    await finalize_usage_event(
+        FinalizeUsageEventCommand(
+            usage_event_id=usage_event_id,
+            provider_request_id=_provider_request_id(evidence),
+            status=status,
+            usage_units=usage_units,
+            latency_ms=max(latency_ms, 0),
+            provider_reported_cost_usd=_provider_reported_cost(evidence),
+            error_code=error_code,
+        ),
+        session_factory=session_factory,
+    )
+
+
+def _mark_reconciliation_required(
+    error: BaseException, usage_event_id: uuid.UUID
+) -> None:
+    setattr(error, "reconciliation_required", True)
+    setattr(error, "usage_event_id", usage_event_id)
+
+
 async def call_llm(
     client_id: uuid.UUID,
     agent_code: str,
@@ -276,10 +488,14 @@ async def call_llm(
     wake_reason: str = "task_assigned",
     content_item_id: Optional[uuid.UUID] = None,
     mock_key: Optional[str] = None,
+    usage_event_key: Optional[str] = None,
+    parent_usage_event_id: Optional[uuid.UUID] = None,
+    trace_id: Optional[str] = None,
+    usage_session_factory: SessionFactory | None = None,
 ) -> LLMResponse:
     """
     Central LLM call function. All agents use this — never import provider SDKs directly.
-    
+
     Args:
         client_id: UUID of the client
         agent_code: Agent identifier (A01, B02, B03, D01, D02, E01)
@@ -292,17 +508,51 @@ async def call_llm(
         content_item_id: Optional, for task_logs linking
         mock_key: Override key for mock lookup (e.g. "D02_tags", "D02_select").
                   Default=None uses agent_code. Only used in CREWLAB_LLM_MOCK=true mode.
-    
+
     Returns:
         LLMResponse with content, usage stats, and provider info
     """
 
+    ledger_factory = _usage_factory(session, usage_session_factory)
+    root_event_key = usage_event_key or _new_usage_event_key("llm")
+    usage_trace_id = trace_id or (
+        f"content-item:{content_item_id}" if content_item_id is not None else None
+    )
+    request_usage_category = _message_usage_category(messages)
+
     # --- Mock mode ---
     if os.environ.get("CREWLAB_LLM_MOCK", "").lower() in ("true", "1", "yes"):
         logger.info(f"[LLM MOCK] agent={agent_code} mock_key={mock_key or agent_code} client={client_id}")
+        admission = await _admit_usage_request(
+            event_key=root_event_key,
+            session_factory=ledger_factory,
+            client_id=client_id,
+            content_item_id=content_item_id,
+            parent_event_id=parent_usage_event_id,
+            trace_id=usage_trace_id,
+            agent_code=agent_code,
+            task_type="llm_call",
+            wake_reason=wake_reason,
+            provider="mock",
+            model="mock-model",
+            usage_category=request_usage_category,
+        )
         response = _mock_llm_response(agent_code, messages, response_format, mock_key=mock_key)
+        await _finalize_usage_request(
+            usage_event_id=admission.usage_event_id,
+            session_factory=ledger_factory,
+            evidence=response,
+            status=UsageEventStatus.SUCCEEDED,
+            usage_units={
+                "input_tokens": response.tokens_in,
+                "output_tokens": response.tokens_out,
+            },
+            latency_ms=response.latency_ms,
+        )
         if session:
-            await _log_task(session, client_id, agent_code, response, wake_reason, content_item_id)
+            await _log_workflow_task(
+                session, client_id, agent_code, response, wake_reason, content_item_id
+            )
         return response
 
     # --- Real mode: resolve both model and credential inside the tenant. ---
@@ -346,6 +596,20 @@ async def call_llm(
         f"{provider}/{provider_call_model}" if provider != "openai" else provider_call_model
     )
 
+    admission = await _admit_usage_request(
+        event_key=root_event_key,
+        session_factory=ledger_factory,
+        client_id=client_id,
+        content_item_id=content_item_id,
+        parent_event_id=parent_usage_event_id,
+        trace_id=usage_trace_id,
+        agent_code=agent_code,
+        task_type="llm_call",
+        wake_reason=wake_reason,
+        provider=provider,
+        model=provider_call_model,
+        usage_category=request_usage_category,
+    )
     start_ms = int(time.time() * 1000)
     try:
         request_messages = list(messages)
@@ -389,6 +653,23 @@ async def call_llm(
             **completion_kwargs,
         )
     except Exception as e:
+        failed_at_ms = int(time.time() * 1000)
+        try:
+            await _finalize_usage_request(
+                usage_event_id=admission.usage_event_id,
+                session_factory=ledger_factory,
+                evidence=e,
+                status=UsageEventStatus.FAILED,
+                usage_units=_text_usage_units(e),
+                latency_ms=failed_at_ms - start_ms,
+                error_code=sanitize_error_category(e),
+            )
+        except Exception:
+            _mark_reconciliation_required(e, admission.usage_event_id)
+            logger.exception(
+                "Usage ledger finalization failed after provider error: event=%s",
+                admission.usage_event_id,
+            )
         safe_error = sanitize_provider_error(str(e), api_key)
         logger.error(
             "LLM call failed: agent=%s model=%s error=%s",
@@ -399,6 +680,14 @@ async def call_llm(
         raise
 
     end_ms = int(time.time() * 1000)
+    await _finalize_usage_request(
+        usage_event_id=admission.usage_event_id,
+        session_factory=ledger_factory,
+        evidence=litellm_response,
+        status=UsageEventStatus.SUCCEEDED,
+        usage_units=_text_usage_units(litellm_response),
+        latency_ms=end_ms - start_ms,
+    )
 
     content = litellm_response.choices[0].message.content or ""
     if response_format is not None:
@@ -427,27 +716,77 @@ async def call_llm(
                 "messages": repair_messages,
                 "max_tokens": max(max_tokens, 2048),
             }
-            litellm_response = await litellm.acompletion(**repair_kwargs)
+            repair_admission = await _admit_usage_request(
+                event_key=_new_usage_event_key("llm-repair"),
+                session_factory=ledger_factory,
+                client_id=client_id,
+                content_item_id=content_item_id,
+                parent_event_id=admission.usage_event_id,
+                trace_id=usage_trace_id,
+                agent_code=agent_code,
+                task_type="llm_structured_repair",
+                wake_reason=wake_reason,
+                provider=provider,
+                model=provider_call_model,
+                usage_category=request_usage_category,
+                request_mode="structured_repair",
+            )
+            repair_start_ms = int(time.time() * 1000)
+            try:
+                litellm_response = await litellm.acompletion(**repair_kwargs)
+            except Exception as repair_error:
+                repair_failed_at_ms = int(time.time() * 1000)
+                try:
+                    await _finalize_usage_request(
+                        usage_event_id=repair_admission.usage_event_id,
+                        session_factory=ledger_factory,
+                        evidence=repair_error,
+                        status=UsageEventStatus.FAILED,
+                        usage_units=_text_usage_units(repair_error),
+                        latency_ms=repair_failed_at_ms - repair_start_ms,
+                        error_code=sanitize_error_category(repair_error),
+                    )
+                except Exception:
+                    _mark_reconciliation_required(
+                        repair_error, repair_admission.usage_event_id
+                    )
+                    logger.exception(
+                        "Usage ledger finalization failed after repair error: event=%s",
+                        repair_admission.usage_event_id,
+                    )
+                raise
+            repair_end_ms = int(time.time() * 1000)
+            await _finalize_usage_request(
+                usage_event_id=repair_admission.usage_event_id,
+                session_factory=ledger_factory,
+                evidence=litellm_response,
+                status=UsageEventStatus.SUCCEEDED,
+                usage_units=_text_usage_units(litellm_response),
+                latency_ms=repair_end_ms - repair_start_ms,
+            )
             content = litellm_response.choices[0].message.content or ""
             content = response_format.model_validate_json(content).model_dump_json()
 
+    returned_units = _text_usage_units(litellm_response)
     response = LLMResponse(
         content=content,
         model_used=provider_call_model,
-        tokens_in=litellm_response.usage.prompt_tokens if litellm_response.usage else 0,
-        tokens_out=litellm_response.usage.completion_tokens if litellm_response.usage else 0,
+        tokens_in=returned_units["input_tokens"],
+        tokens_out=returned_units["output_tokens"],
         latency_ms=end_ms - start_ms,
         provider=provider,
     )
 
     # --- Auto-log to task_logs (Observability, MVP Scope §1d) ---
     if session:
-        await _log_task(session, client_id, agent_code, response, wake_reason, content_item_id)
+        await _log_workflow_task(
+            session, client_id, agent_code, response, wake_reason, content_item_id
+        )
 
     return response
 
 
-async def _log_task(
+async def _log_workflow_task(
     session: AsyncSession,
     client_id: uuid.UUID,
     agent_code: str,
@@ -455,7 +794,7 @@ async def _log_task(
     wake_reason: str,
     content_item_id: Optional[uuid.UUID] = None,
 ) -> None:
-    """Write observability record to task_logs table."""
+    """Keep the transition workflow log; this is not the financial ledger."""
     try:
         log_entry = TaskLog(
             client_id=client_id,
@@ -472,7 +811,7 @@ async def _log_task(
         session.add(log_entry)
         # Don't commit here — let the caller's transaction handle it
     except Exception as e:
-        logger.error(f"Failed to log task: {e}")
+        logger.error("Failed to write workflow task log: %s", type(e).__name__)
 
 
 async def create_asset_embedding(
@@ -483,6 +822,10 @@ async def create_asset_embedding(
     source_image_bytes: bytes | None = None,
     content_item_id: Optional[uuid.UUID] = None,
     wake_reason: str = "semantic_asset_indexing",
+    usage_event_key: Optional[str] = None,
+    parent_usage_event_id: Optional[uuid.UUID] = None,
+    trace_id: Optional[str] = None,
+    usage_session_factory: SessionFactory | None = None,
 ) -> EmbeddingResponse:
     """Create a query-compatible semantic or semantic+visual representation.
 
@@ -494,9 +837,28 @@ async def create_asset_embedding(
     normalized_text = " ".join(text_value.split())
     if not normalized_text:
         raise ValueError("Cannot embed an empty semantic representation")
+    ledger_factory = _usage_factory(session, usage_session_factory)
+    root_event_key = usage_event_key or _new_usage_event_key("embedding")
+    usage_trace_id = trace_id or (
+        f"content-item:{content_item_id}" if content_item_id is not None else None
+    )
 
     if os.environ.get("CREWLAB_LLM_MOCK", "").lower() in ("true", "1", "yes"):
-        return EmbeddingResponse(
+        admission = await _admit_usage_request(
+            event_key=root_event_key,
+            session_factory=ledger_factory,
+            client_id=client_id,
+            content_item_id=content_item_id,
+            parent_event_id=parent_usage_event_id,
+            trace_id=usage_trace_id,
+            agent_code="D02",
+            task_type="asset_embedding",
+            wake_reason=wake_reason,
+            provider="mock",
+            model="mock-feature-hash",
+            usage_category=UsageCategory.EMBEDDING,
+        )
+        response = EmbeddingResponse(
             embedding=_compose_asset_embedding(
                 _mock_embedding(normalized_text), source_image_bytes
             ),
@@ -507,6 +869,18 @@ async def create_asset_embedding(
                 f"{ASSET_EMBEDDING_REPRESENTATION}"
             ),
         )
+        await _finalize_usage_request(
+            usage_event_id=admission.usage_event_id,
+            session_factory=ledger_factory,
+            evidence=response,
+            status=UsageEventStatus.SUCCEEDED,
+            usage_units={
+                "input_tokens": max(len(normalized_text) // 4, 1),
+                "dimensions": ASSET_EMBEDDING_DIMENSIONS,
+            },
+            latency_ms=0,
+        )
+        return response
 
     provider_priority = case(
         (ClientProviderCredential.provider == "openai", 0),
@@ -534,6 +908,20 @@ async def create_asset_embedding(
     api_key = get_credential_cipher().decrypt(credential.encrypted_api_key)
     import litellm
 
+    admission = await _admit_usage_request(
+        event_key=root_event_key,
+        session_factory=ledger_factory,
+        client_id=client_id,
+        content_item_id=content_item_id,
+        parent_event_id=parent_usage_event_id,
+        trace_id=usage_trace_id,
+        agent_code="D02",
+        task_type="asset_embedding",
+        wake_reason=wake_reason,
+        provider=provider,
+        model=model,
+        usage_category=UsageCategory.EMBEDDING,
+    )
     start_ms = int(time.time() * 1000)
     try:
         result = await litellm.aembedding(
@@ -543,6 +931,23 @@ async def create_asset_embedding(
             api_key=api_key,
         )
     except Exception as exc:
+        failed_at_ms = int(time.time() * 1000)
+        try:
+            await _finalize_usage_request(
+                usage_event_id=admission.usage_event_id,
+                session_factory=ledger_factory,
+                evidence=exc,
+                status=UsageEventStatus.FAILED,
+                usage_units={"input_tokens": 0, "dimensions": ASSET_EMBEDDING_DIMENSIONS},
+                latency_ms=failed_at_ms - start_ms,
+                error_code=sanitize_error_category(exc),
+            )
+        except Exception:
+            _mark_reconciliation_required(exc, admission.usage_event_id)
+            logger.exception(
+                "Usage ledger finalization failed after embedding error: event=%s",
+                admission.usage_event_id,
+            )
         logger.error(
             "Embedding call failed: client=%s provider=%s model=%s error=%s",
             client_id,
@@ -552,20 +957,51 @@ async def create_asset_embedding(
         )
         raise
 
-    first = result.data[0]
-    values = getattr(first, "embedding", None)
-    if values is None and isinstance(first, dict):
-        values = first.get("embedding")
-    embedding = [float(value) for value in (values or [])]
-    if len(embedding) != ASSET_EMBEDDING_DIMENSIONS:
-        raise ValueError(
-            f"Embedding model returned {len(embedding)} dimensions; "
-            f"expected {ASSET_EMBEDDING_DIMENSIONS}"
+    try:
+        first = result.data[0]
+        values = getattr(first, "embedding", None)
+        if values is None and isinstance(first, dict):
+            values = first.get("embedding")
+        embedding = [float(value) for value in (values or [])]
+        if len(embedding) != ASSET_EMBEDDING_DIMENSIONS:
+            raise ValueError(
+                f"Embedding model returned {len(embedding)} dimensions; "
+                f"expected {ASSET_EMBEDDING_DIMENSIONS}"
+            )
+        composed_embedding = _compose_asset_embedding(embedding, source_image_bytes)
+    except Exception as exc:
+        failed_at_ms = int(time.time() * 1000)
+        usage = _provider_value(result, "usage")
+        tokens_in = _usage_count(usage, "prompt_tokens", "input_tokens")
+        await _finalize_usage_request(
+            usage_event_id=admission.usage_event_id,
+            session_factory=ledger_factory,
+            evidence=result,
+            status=UsageEventStatus.FAILED,
+            usage_units={
+                "input_tokens": tokens_in,
+                "dimensions": ASSET_EMBEDDING_DIMENSIONS,
+            },
+            latency_ms=failed_at_ms - start_ms,
+            error_code=sanitize_error_category(exc),
         )
+        raise
 
-    usage = getattr(result, "usage", None)
-    tokens_in = int(getattr(usage, "prompt_tokens", 0) or 0)
-    await _log_task(
+    usage = _provider_value(result, "usage")
+    tokens_in = _usage_count(usage, "prompt_tokens", "input_tokens")
+    latency_ms = int(time.time() * 1000) - start_ms
+    await _finalize_usage_request(
+        usage_event_id=admission.usage_event_id,
+        session_factory=ledger_factory,
+        evidence=result,
+        status=UsageEventStatus.SUCCEEDED,
+        usage_units={
+            "input_tokens": max(tokens_in, 0),
+            "dimensions": ASSET_EMBEDDING_DIMENSIONS,
+        },
+        latency_ms=latency_ms,
+    )
+    await _log_workflow_task(
         session,
         client_id,
         "D02",
@@ -574,14 +1010,14 @@ async def create_asset_embedding(
             model_used=model,
             tokens_in=tokens_in,
             tokens_out=0,
-            latency_ms=int(time.time() * 1000) - start_ms,
+            latency_ms=latency_ms,
             provider=provider,
         ),
         wake_reason,
         content_item_id,
     )
     return EmbeddingResponse(
-        embedding=_compose_asset_embedding(embedding, source_image_bytes),
+        embedding=composed_embedding,
         model_used=model,
         provider=provider,
         version=(
@@ -602,15 +1038,53 @@ async def generate_image(
     source_file_name: str = "source.png",
     source_content_type: str = "image/png",
     generation_mode: str = "new_generation",
+    usage_event_key: Optional[str] = None,
+    parent_usage_event_id: Optional[uuid.UUID] = None,
+    trace_id: Optional[str] = None,
+    usage_session_factory: SessionFactory | None = None,
 ) -> ImageGenerationResponse:
     """Generate D02's final visual through the configured per-client image model."""
+    ledger_factory = _usage_factory(session, usage_session_factory)
+    root_event_key = usage_event_key or _new_usage_event_key("image")
+    usage_trace_id = trace_id or (
+        f"content-item:{content_item_id}" if content_item_id is not None else None
+    )
     if os.environ.get("CREWLAB_LLM_MOCK", "").lower() in ("true", "1", "yes"):
-        return ImageGenerationResponse(
+        admission = await _admit_usage_request(
+            event_key=root_event_key,
+            session_factory=ledger_factory,
+            client_id=client_id,
+            content_item_id=content_item_id,
+            parent_event_id=parent_usage_event_id,
+            trace_id=usage_trace_id,
+            agent_code="D02",
+            task_type="image_generation",
+            wake_reason="visual_generation",
+            provider="mock",
+            model="mock-image-model",
+            usage_category=UsageCategory.IMAGE,
+            request_mode=generation_mode,
+        )
+        response = ImageGenerationResponse(
             image_url=f"mock://generated/{uuid.uuid4()}.png",
             image_bytes=None,
             model_used="mock-image-model",
             provider="mock",
         )
+        await _finalize_usage_request(
+            usage_event_id=admission.usage_event_id,
+            session_factory=ledger_factory,
+            evidence=response,
+            status=UsageEventStatus.SUCCEEDED,
+            usage_units={
+                "images": 1,
+                "source_images": 1 if source_image_bytes is not None else 0,
+                "image_edits": 1 if source_image_bytes is not None else 0,
+                "image_generations": 0 if source_image_bytes is not None else 1,
+            },
+            latency_ms=0,
+        )
+        return response
 
     config = await session.scalar(
         select(ClientLLMConfig).where(
@@ -636,6 +1110,23 @@ async def generate_image(
     import litellm
 
     provider_model = f"{config.provider}/{config.model}" if config.provider != "openai" else config.model
+    admission = await _admit_usage_request(
+        event_key=root_event_key,
+        session_factory=ledger_factory,
+        client_id=client_id,
+        content_item_id=content_item_id,
+        parent_event_id=parent_usage_event_id,
+        trace_id=usage_trace_id,
+        agent_code="D02",
+        task_type="image_generation",
+        wake_reason="visual_generation",
+        provider=config.provider,
+        model=config.model,
+        usage_category=UsageCategory.IMAGE,
+        request_mode=generation_mode,
+    )
+    start_ms = int(time.time() * 1000)
+    result = None
     try:
         common_kwargs = {
             "model": provider_model,
@@ -679,10 +1170,58 @@ async def generate_image(
             image_bytes = await asyncio.to_thread(_download)
         if not image_bytes:
             raise ValueError("Image provider returned no retrievable image bytes")
-    except Exception:
+    except Exception as exc:
+        failed_at_ms = int(time.time() * 1000)
+        has_provider_evidence = result is not None
+        try:
+            await _finalize_usage_request(
+                usage_event_id=admission.usage_event_id,
+                session_factory=ledger_factory,
+                evidence=result if result is not None else exc,
+                status=UsageEventStatus.FAILED,
+                usage_units={
+                    "images": 1 if has_provider_evidence else 0,
+                    "source_images": (
+                        1
+                        if has_provider_evidence and source_image_bytes is not None
+                        else 0
+                    ),
+                    "image_edits": (
+                        1
+                        if has_provider_evidence and source_image_bytes is not None
+                        else 0
+                    ),
+                    "image_generations": (
+                        1
+                        if has_provider_evidence and source_image_bytes is None
+                        else 0
+                    ),
+                },
+                latency_ms=failed_at_ms - start_ms,
+                error_code=sanitize_error_category(exc),
+            )
+        except Exception:
+            _mark_reconciliation_required(exc, admission.usage_event_id)
+            logger.exception(
+                "Usage ledger finalization failed after image error: event=%s",
+                admission.usage_event_id,
+            )
         logger.exception("D02 image generation failed for client=%s model=%s", client_id, config.model)
         raise
 
+    await _finalize_usage_request(
+        usage_event_id=admission.usage_event_id,
+        session_factory=ledger_factory,
+        evidence=result,
+        status=UsageEventStatus.SUCCEEDED,
+        usage_units={
+            "images": 1,
+            "source_images": 1 if source_image_bytes is not None else 0,
+            "image_edits": 1 if source_image_bytes is not None else 0,
+            "image_generations": 0 if source_image_bytes is not None else 1,
+        },
+        latency_ms=int(time.time() * 1000) - start_ms,
+    )
     return ImageGenerationResponse(
         image_url=image_url or "provider-binary://generated",
         image_bytes=image_bytes,

@@ -6,6 +6,12 @@ from .system import TaskLog, AuditLog
 from .llm_config import ClientLLMConfig
 from .provider_credentials import ClientProviderCredential
 from .portal_accounts import ClientPortalAdmin
+from .usage import (
+    ChargeMultiplierConfig,
+    PricingSnapshot,
+    UsageCostAdjustment,
+    UsageEvent,
+)
 
 __all__ = [
     "Client", "BrandSetting", "BrandSettingHistory",
@@ -15,5 +21,7 @@ __all__ = [
     "TaskLog", "AuditLog",
     "ClientLLMConfig", "ClientProviderCredential",
     "ClientPortalAdmin",
+    "UsageEvent", "PricingSnapshot", "ChargeMultiplierConfig",
+    "UsageCostAdjustment",
 ]
 
