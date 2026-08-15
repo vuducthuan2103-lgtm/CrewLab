@@ -1,158 +1,247 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePortal } from '@/lib/store';
-import { TaskCard as TaskCardType, TeamDesk, KanbanColumn } from '@/lib/types';
-import Swimlane from './Swimlane';
-import {
-  AlertCircle,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  CircleUserRound,
-  Clock3,
-  LayoutDashboard,
-  ListTodo,
-  LoaderCircle,
-  MessageSquareText,
-} from 'lucide-react';
+import { AgentCode, KanbanColumn, TaskCard as TaskCardType } from '@/lib/types';
+import { generateUnifiedWorkBoardTasks } from '@/lib/taskHumanizer';
+import AgentOverviewBar from './AgentOverviewBar';
+import TaskCardComponent from './TaskCard';
 
-const DESKS: { desk: TeamDesk; label: string }[] = [
-  { desk: 'strategy', label: 'STRATEGY DESK' },
-  { desk: 'creative', label: 'CREATIVE DESK' },
-  { desk: 'qa', label: 'QA DESK' },
+const COLUMNS: { key: KanbanColumn; label: string; subLabel: string; colorClass: string; badgeClass: string }[] = [
+  {
+    key: 'todo',
+    label: 'Chờ thực hiện',
+    subLabel: 'To Do & Lên lịch',
+    colorClass: 'text-zinc-200',
+    badgeClass: 'bg-zinc-800 text-zinc-300 border-zinc-700',
+  },
+  {
+    key: 'in_progress',
+    label: 'Đang xử lý',
+    subLabel: 'AI đang chạy',
+    colorClass: 'text-cyan-400',
+    badgeClass: 'bg-cyan-950/80 text-cyan-300 border-cyan-800',
+  },
+  {
+    key: 'review',
+    label: 'Chờ bạn duyệt',
+    subLabel: 'Cần khách hàng xác nhận',
+    colorClass: 'text-lime-brand',
+    badgeClass: 'bg-lime-500/15 text-lime-brand border-lime-500/30',
+  },
+  {
+    key: 'done',
+    label: 'Hoàn thành',
+    subLabel: 'Đã hoàn tất',
+    colorClass: 'text-emerald-400',
+    badgeClass: 'bg-emerald-950/80 text-emerald-300 border-emerald-800',
+  },
 ];
 
-const COLUMNS: KanbanColumn[] = ['todo', 'in_progress', 'review', 'done'];
+function getInitialWeekNumber(): number {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  return Math.ceil((((now.getTime() - startOfYear.getTime()) / 86400000) + startOfYear.getDay() + 1) / 7);
+}
 
-type FilterType = 'all' | 'pending_approval' | 'human_only' | 'has_error';
+function getWeekDateRange(weekNum: number, year: number = new Date().getFullYear()): string {
+  const jan1 = new Date(year, 0, 1);
+  const daysOffset = (weekNum - 1) * 7 - jan1.getDay() + 1;
+  const startDate = new Date(year, 0, 1 + daysOffset);
+  const endDate = new Date(year, 0, 1 + daysOffset + 6);
+
+  const format = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return `${format(startDate)} – ${format(endDate)}`;
+}
 
 export default function KanbanBoard() {
-  const { tasks } = usePortal();
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const { tasks, contentItems, pillars, weekApproved } = usePortal();
+  const currentWeek = useMemo(() => getInitialWeekNumber(), []);
+  const [selectedWeek, setSelectedWeek] = useState<number>(currentWeek);
+  const [selectedAgent, setSelectedAgent] = useState<AgentCode | null>(null);
+  const [onlyReview, setOnlyReview] = useState(false);
 
-  const totalReview = tasks.filter((t) => t.column === 'review').length;
+  const dateRangeStr = useMemo(() => getWeekDateRange(selectedWeek), [selectedWeek]);
 
-  const filteredTasks = tasks.filter((t) => {
-    if (activeFilter === 'pending_approval') return t.column === 'review';
-    if (activeFilter === 'human_only') return t.assigneeType === 'human';
-    if (activeFilter === 'has_error') return t.hasError;
-    return true;
-  });
+  // Tạo danh sách công việc marketing hợp nhất, lọc sạch log thừa
+  const unifiedTasks = useMemo(() => {
+    return generateUnifiedWorkBoardTasks(tasks, contentItems, pillars, weekApproved);
+  }, [tasks, contentItems, pillars, weekApproved]);
 
-  function getStats(desk: TeamDesk, allTasks: TaskCardType[]) {
-    const deskTasks = allTasks.filter((t) => t.desk === desk);
-    return COLUMNS.reduce(
-      (acc, col) => {
-        acc[col] = deskTasks.filter((t) => t.column === col).length;
-        return acc;
-      },
-      { todo: 0, in_progress: 0, review: 0, done: 0 } as Record<KanbanColumn, number>
-    );
-  }
+  // Lọc theo Agent hoặc chỉ bài Review
+  const filteredTasks = useMemo(() => {
+    return unifiedTasks.filter((t) => {
+      if (selectedAgent && t.assigneeCode !== selectedAgent) return false;
+      if (onlyReview && t.column !== 'review') return false;
+      return true;
+    });
+  }, [unifiedTasks, selectedAgent, onlyReview]);
+
+  const tasksByColumn = useMemo(() => {
+    return COLUMNS.reduce((acc, col) => {
+      acc[col.key] = filteredTasks.filter((t) => t.column === col.key);
+      return acc;
+    }, {} as Record<KanbanColumn, TaskCardType[]>);
+  }, [filteredTasks]);
+
+  const totalReview = unifiedTasks.filter((t) => t.column === 'review').length;
 
   return (
-    <div>
-      {/* Page Title + Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
-            <LayoutDashboard size={15} className="text-lime-brand" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-foreground">Bảng công việc</h1>
-            <p className="text-xs text-muted-foreground">Văn phòng AI 6 agents — Tuần 25 (16–22/06)</p>
-          </div>
-          {totalReview > 0 && (
-            <span
-              onClick={() => setActiveFilter('pending_approval')}
-              className="ml-2 text-xs bg-primary/15 text-lime-brand border border-primary/30 rounded-full px-3 py-1 font-bold shadow-sm cursor-pointer hover:scale-105 transition-transform animate-pulse"
-            >
-              <Clock3 size={12} className="mr-1 inline" />
-              {totalReview} task chờ bạn xử lý
-            </span>
-          )}
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex items-center gap-2">
-          <Link
-            href="/a01-chat"
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-lime-brand px-4 text-xs font-bold text-white shadow-accent-glow transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-black"
-          >
-            <MessageSquareText size={15} />
-            Trò chuyện với A01
-          </Link>
-          {/* Filter toggle */}
-          <div className="flex items-center gap-1 border border-border rounded-lg p-1 bg-muted/30">
-            {[
-              { key: 'all', label: 'Tất cả', icon: LayoutDashboard },
-              { key: 'pending_approval', label: `Cần duyệt (${totalReview})`, icon: Clock3 },
-              { key: 'human_only', label: 'Cần tôi', icon: CircleUserRound },
-              { key: 'has_error', label: 'Có lỗi', icon: AlertCircle },
-            ].map(({ key, label, icon: FilterIcon }) => (
+    <div className="space-y-6">
+      {/* Top Header Row */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-zinc-800/80">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold text-white tracking-tight">Bảng công việc</h1>
+            {totalReview > 0 && (
               <button
-                key={key}
-                id={`kanban-filter-${key}`}
-                onClick={() => setActiveFilter(key as FilterType)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                  activeFilter === key
-                    ? 'bg-lime-brand text-black font-bold shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                onClick={() => setOnlyReview(!onlyReview)}
+                className={`text-xs px-3 py-1 rounded-full font-semibold border transition-all ${
+                  onlyReview
+                    ? 'bg-lime-brand text-black border-lime-brand font-bold'
+                    : 'bg-lime-500/10 text-lime-brand border-lime-500/30 hover:bg-lime-500/20'
                 }`}
               >
-                <FilterIcon size={12} />
-                {label}
+                {totalReview} bài chờ bạn duyệt {onlyReview ? '(Đang lọc)' : ''}
               </button>
-            ))}
+            )}
           </div>
+          <p className="text-xs text-zinc-400">
+            Văn phòng AI 6 agents — Quản lý tiến độ sản xuất và lịch phát hành nội dung
+          </p>
+        </div>
 
-          {/* Week nav */}
-          <div className="flex items-center gap-1 border border-border rounded-lg px-2 py-1.5 bg-background">
-            <button className="text-muted-foreground hover:text-foreground p-0.5 transition-colors">
-              <ChevronLeft size={14} />
+        {/* Action Controls: Chat A01 + Week Navigator */}
+        <div className="flex items-center gap-3">
+          <Link
+            href="/a01-chat"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-lime-brand px-4 text-xs font-bold text-black shadow hover:opacity-90 transition-opacity"
+          >
+            Trò chuyện với A01
+          </Link>
+
+          {/* Week Navigator */}
+          <div className="flex items-center gap-1.5 p-1 rounded-lg bg-zinc-900 border border-zinc-800">
+            <button
+              onClick={() => setSelectedWeek((prev) => Math.max(1, prev - 1))}
+              className="w-7 h-7 rounded flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors text-xs font-mono font-bold"
+              title="Tuần trước"
+            >
+              &larr;
             </button>
-            <span className="text-xs font-semibold text-foreground px-1">Tuần 25</span>
-            <button className="text-muted-foreground hover:text-foreground p-0.5 transition-colors">
-              <ChevronRight size={14} />
+
+            <div className="px-2 text-center">
+              <span className="text-xs font-bold text-white font-mono">Tuần {selectedWeek}</span>
+              <span className="text-[10px] text-zinc-400 block font-mono">({dateRangeStr})</span>
+            </div>
+
+            <button
+              onClick={() => setSelectedWeek((prev) => Math.min(52, prev + 1))}
+              className="w-7 h-7 rounded flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors text-xs font-mono font-bold"
+              title="Tuần sau"
+            >
+              &rarr;
             </button>
+
+            {selectedWeek !== currentWeek && (
+              <button
+                onClick={() => setSelectedWeek(currentWeek)}
+                className="ml-1 px-2 py-1 text-[10px] rounded bg-zinc-800 text-zinc-300 hover:text-white font-semibold"
+              >
+                Tuần này
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Column Headers (global, above swimlanes) */}
-      <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr] mb-2 px-0">
-        <div className="w-0" /> {/* placeholder for swimlane label width */}
-        <div className="pl-3 pr-2 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <ListTodo size={13} />
-          <span>CHỜ LÀM (TODO)</span>
-        </div>
-        <div className="px-2 py-1.5 text-xs font-bold text-cyan-500 dark:text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
-          <LoaderCircle size={13} />
-          <span>ĐANG CHẠY (IN PROGRESS)</span>
-        </div>
-        <div className="px-2 py-1.5 text-xs font-bold text-lime-brand uppercase tracking-wider flex items-center gap-1.5">
-          <Clock3 size={13} />
-          <span>CHỜ DUYỆT (REVIEW)</span>
-        </div>
-        <div className="pl-2 pr-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-          <CheckCircle2 size={13} />
-          <span>HOÀN THÀNH (DONE)</span>
-        </div>
-      </div>
+      {/* 6 AI Agents Overview Bar */}
+      <AgentOverviewBar
+        selectedAgent={selectedAgent}
+        onSelectAgent={setSelectedAgent}
+      />
 
-      {/* Swimlanes */}
-      <div className="space-y-4">
-        {DESKS.map(({ desk, label }) => (
-          <Swimlane
-            key={desk}
-            desk={desk}
-            deskLabel={label}
-            tasks={filteredTasks.filter((t) => t.desk === desk)}
-            stats={getStats(desk, tasks)}
-          />
-        ))}
+      {/* Filter Status Note if Active */}
+      {(selectedAgent || onlyReview) && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/60 border border-zinc-800 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-400">Đang lọc theo:</span>
+            {selectedAgent && (
+              <span className="font-bold text-white font-mono bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">
+                Agent: {selectedAgent}
+              </span>
+            )}
+            {onlyReview && (
+              <span className="font-bold text-lime-brand bg-lime-950/60 px-2 py-0.5 rounded border border-lime-800/60">
+                Chỉ bài cần duyệt
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              setSelectedAgent(null);
+              setOnlyReview(false);
+            }}
+            className="text-zinc-400 hover:text-white underline font-medium"
+          >
+            Xóa bộ lọc
+          </button>
+        </div>
+      )}
+
+      {/* Unified 4-Column Kanban Board */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {COLUMNS.map((col) => {
+          const colTasks = tasksByColumn[col.key] || [];
+
+          return (
+            <div
+              key={col.key}
+              className="flex flex-col rounded-2xl bg-zinc-950/60 border border-zinc-800/90 overflow-hidden"
+            >
+              {/* Column Header */}
+              <div className="p-3.5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-xs font-bold uppercase tracking-wider ${col.colorClass}`}
+                      style={{ fontWeight: 700 }}
+                    >
+                      {col.label}
+                    </span>
+                    <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border ${col.badgeClass}`}>
+                      {colTasks.length}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 font-medium">{col.subLabel}</span>
+                </div>
+              </div>
+
+              {/* Task Cards Column Body */}
+              <div className="p-3 space-y-3 flex-1 min-h-[360px] overflow-y-auto">
+                {colTasks.map((task) => (
+                  <TaskCardComponent key={task.id} task={task} />
+                ))}
+
+                {colTasks.length === 0 && (
+                  <div className="h-40 rounded-xl border border-dashed border-zinc-800/80 flex flex-col items-center justify-center p-4 text-center">
+                    <p className="text-xs font-medium text-zinc-500">Chưa có công việc</p>
+                    <p className="text-[10px] text-zinc-600 mt-1">
+                      {col.key === 'todo'
+                        ? 'Các bài lên lịch sẽ xuất hiện ở đây'
+                        : col.key === 'in_progress'
+                        ? 'Không có tác vụ nào đang chạy'
+                        : col.key === 'review'
+                        ? 'Tất cả bài viết đã được duyệt xong'
+                        : 'Các tác vụ hoàn thành sẽ hiển thị ở đây'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

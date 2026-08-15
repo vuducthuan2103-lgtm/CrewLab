@@ -30,37 +30,48 @@
       },
       "fontFamily": {
         "headline-display": [
-          "Inter"
+          "Inter",
+          "sans-serif"
         ],
         "headline-xl": [
-          "Inter"
+          "Inter",
+          "sans-serif"
         ],
         "headline-lg": [
-          "Inter"
+          "Inter",
+          "sans-serif"
         ],
         "headline-md": [
-          "Inter"
+          "Inter",
+          "sans-serif"
         ],
         "headline-sm": [
-          "Inter"
+          "Inter",
+          "sans-serif"
         ],
         "body-lg": [
-          "Inter"
+          "Inter",
+          "sans-serif"
         ],
         "body-md": [
-          "Inter"
+          "Inter",
+          "sans-serif"
         ],
         "body-sm": [
-          "Inter"
+          "Inter",
+          "sans-serif"
         ],
         "label-lg": [
-          "Inter"
+          "Inter",
+          "sans-serif"
         ],
         "label-md": [
-          "Inter"
+          "Inter",
+          "sans-serif"
         ],
         "label-mono": [
-          "JetBrains Mono"
+          "JetBrains Mono",
+          "monospace"
         ]
       },
       "fontSize": {

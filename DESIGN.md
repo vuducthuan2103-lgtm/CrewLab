@@ -191,7 +191,7 @@ Không hardcode màu trong component mới. Dùng shadcn semantic variables, Tai
 
 ## Typography
 
-- **Primary sans:** `Montserrat, Inter, sans-serif`. Montserrat là font hiển thị thực tế của cả Portal và Internal App; Inter chỉ là fallback.
+- **Primary sans:** `Inter, sans-serif`. Inter là font hiển thị thực tế của cả Portal và Internal App.
 - **Monospace:** `JetBrains Mono, monospace`, chỉ dùng cho mã agent, trạng thái kỹ thuật, timestamp, model name và log.
 - **Headlines:** weight 600–700; letter-spacing âm nhẹ chỉ ở size từ 40px trở lên.
 - **Body:** dùng `body-lg` 16px cho nội dung đọc dài; `body-md` 14px cho dashboard và bảng dữ liệu; không dùng 12px cho paragraph chính.
