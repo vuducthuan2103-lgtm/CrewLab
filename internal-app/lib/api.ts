@@ -13,7 +13,7 @@ export interface AdminClient {
   created_at: string;
 }
 
-export type ProviderName = 'openai' | 'anthropic' | 'google' | 'deepseek';
+export type ProviderName = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'qwen';
 
 export interface ProviderConfig {
   provider: ProviderName;

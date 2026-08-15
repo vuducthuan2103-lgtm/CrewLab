@@ -34,6 +34,17 @@ from app.models.system import TaskLog
 from app.core.db import settings, utcnow
 from app.core.credentials import get_credential_cipher, sanitize_provider_error
 from app.core.model_catalog import catalog_entry, chat_model_for
+from app.services.budget_enforcement import (
+    BudgetAdmissionError,
+    BudgetReservation,
+    ReservationStore,
+    admit_budget,
+    estimate_customer_charge,
+    finalize_budget_reservation,
+    maximum_embedding_units,
+    maximum_image_units,
+    maximum_text_units,
+)
 from app.services.usage_ledger import (
     BeginUsageEventCommand,
     BillingClassification,
@@ -455,8 +466,8 @@ async def _finalize_usage_request(
     usage_units: dict[str, int],
     latency_ms: int,
     error_code: str | None = None,
-) -> None:
-    await finalize_usage_event(
+) -> object:
+    return await finalize_usage_event(
         FinalizeUsageEventCommand(
             usage_event_id=usage_event_id,
             provider_request_id=_provider_request_id(evidence),
@@ -468,6 +479,115 @@ async def _finalize_usage_request(
         ),
         session_factory=session_factory,
     )
+
+
+def _is_customer_billable(provider: str) -> bool:
+    _environment, is_production = _usage_environment()
+    return is_production and provider.casefold() != "mock"
+
+
+async def _admit_budgeted_usage_request(
+    *,
+    event_key: str,
+    session_factory: SessionFactory | None,
+    client_id: uuid.UUID,
+    content_item_id: Optional[uuid.UUID],
+    parent_event_id: Optional[uuid.UUID],
+    trace_id: Optional[str],
+    agent_code: str,
+    task_type: str,
+    wake_reason: str,
+    provider: str,
+    model: str,
+    usage_category: UsageCategory,
+    maximum_units: dict[str, int],
+    budget_reservation_store: ReservationStore | None,
+    request_mode: str | None = None,
+) -> tuple[object, BudgetReservation | None]:
+    admission = await _admit_usage_request(
+        event_key=event_key,
+        session_factory=session_factory,
+        client_id=client_id,
+        content_item_id=content_item_id,
+        parent_event_id=parent_event_id,
+        trace_id=trace_id,
+        agent_code=agent_code,
+        task_type=task_type,
+        wake_reason=wake_reason,
+        provider=provider,
+        model=model,
+        usage_category=usage_category,
+        request_mode=request_mode,
+    )
+    if not _is_customer_billable(provider):
+        return admission, None
+    if session_factory is None:
+        raise LLMConfigurationError(
+            "Billable usage requires an independent ledger session factory"
+        )
+    try:
+        async with session_factory() as budget_session:
+            estimate = await estimate_customer_charge(
+                budget_session,
+                provider=provider,
+                model=model,
+                usage_category=usage_category.value,
+                maximum_units=maximum_units,
+                multiplier=admission.multiplier_snapshot,
+            )
+            reservation = await admit_budget(
+                budget_session,
+                usage_event_id=admission.usage_event_id,
+                client_id=client_id,
+                agent_code=agent_code,
+                estimated_customer_charge_usd=estimate,
+                store=budget_reservation_store,
+                content_item_id=content_item_id,
+            )
+        return admission, reservation
+    except Exception as error:
+        error_code = (
+            error.code
+            if isinstance(error, BudgetAdmissionError)
+            else "budget_admission_unavailable"
+        )
+        try:
+            await _finalize_usage_request(
+                usage_event_id=admission.usage_event_id,
+                session_factory=session_factory,
+                evidence=error,
+                status=UsageEventStatus.CANCELLED,
+                usage_units={},
+                latency_ms=0,
+                error_code=error_code,
+            )
+        except Exception:
+            _mark_reconciliation_required(error, admission.usage_event_id)
+            logger.exception(
+                "Usage ledger finalization failed after budget rejection: event=%s",
+                admission.usage_event_id,
+            )
+        raise
+
+
+async def _finalize_budgeted_usage_request(
+    *,
+    reservation: BudgetReservation | None,
+    budget_reservation_store: ReservationStore | None,
+    **finalize_kwargs,
+) -> object:
+    result = await _finalize_usage_request(**finalize_kwargs)
+    if reservation is not None:
+        try:
+            await finalize_budget_reservation(
+                budget_reservation_store, reservation
+            )
+        except Exception:
+            logger.exception(
+                "Budget reservation release failed; TTL recovery is required: id=%s",
+                reservation.reservation_id,
+            )
+    return result
 
 
 def _mark_reconciliation_required(
@@ -492,6 +612,7 @@ async def call_llm(
     parent_usage_event_id: Optional[uuid.UUID] = None,
     trace_id: Optional[str] = None,
     usage_session_factory: SessionFactory | None = None,
+    budget_reservation_store: ReservationStore | None = None,
 ) -> LLMResponse:
     """
     Central LLM call function. All agents use this — never import provider SDKs directly.
@@ -592,11 +713,49 @@ async def call_llm(
 
     # litellm uses "provider/model" format for routing
     provider_call_model = chat_model_for(model)
-    litellm_model = (
-        f"{provider}/{provider_call_model}" if provider != "openai" else provider_call_model
-    )
+    if provider == "openai":
+        litellm_model = provider_call_model
+    elif provider == "qwen":
+        litellm_model = f"dashscope/{provider_call_model}"
+    else:
+        litellm_model = f"{provider}/{provider_call_model}"
 
-    admission = await _admit_usage_request(
+    request_messages = list(messages)
+    completion_kwargs = {
+        "model": litellm_model,
+        "messages": request_messages,
+        "max_tokens": max_tokens,
+        "api_key": api_key,
+    }
+    if provider == "qwen":
+        completion_kwargs["api_base"] = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    # D02 image models use a GPT-5 chat companion for semantic analysis.
+    # GPT-5 rejects CrewLab's generic custom temperature (0.7), so let the
+    # provider use its supported default unless the caller explicitly uses 1.
+    if not provider_call_model.casefold().startswith("gpt-5") or temperature == 1:
+        completion_kwargs["temperature"] = temperature
+    if response_format is not None:
+        if provider in ("deepseek", "qwen"):
+            schema = json.dumps(
+                response_format.model_json_schema(),
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            request_messages.insert(
+                0,
+                {
+                    "role": "system",
+                    "content": (
+                        "Return only one valid JSON object matching this JSON schema. "
+                        f"Do not add markdown or prose outside the JSON object: {schema}"
+                    ),
+                },
+            )
+            completion_kwargs["response_format"] = {"type": "json_object"}
+        else:
+            completion_kwargs["response_format"] = response_format
+
+    admission, reservation = await _admit_budgeted_usage_request(
         event_key=root_event_key,
         session_factory=ledger_factory,
         client_id=client_id,
@@ -609,45 +768,11 @@ async def call_llm(
         provider=provider,
         model=provider_call_model,
         usage_category=request_usage_category,
+        maximum_units=maximum_text_units(request_messages, max_tokens),
+        budget_reservation_store=budget_reservation_store,
     )
     start_ms = int(time.time() * 1000)
     try:
-        request_messages = list(messages)
-        completion_kwargs = {
-            "model": litellm_model,
-            "messages": request_messages,
-            "max_tokens": max_tokens,
-            "api_key": api_key,
-        }
-        # D02 image models use a GPT-5 chat companion for semantic analysis.
-        # GPT-5 rejects CrewLab's generic custom temperature (0.7), so let the
-        # provider use its supported default unless the caller explicitly uses 1.
-        if not provider_call_model.casefold().startswith("gpt-5") or temperature == 1:
-            completion_kwargs["temperature"] = temperature
-        if response_format is not None:
-            if provider == "deepseek":
-                # DeepSeek supports JSON object mode, but not the JSON Schema
-                # response_format that LiteLLM derives from a Pydantic class.
-                # Give the model the schema in the prompt and validate the
-                # returned JSON below before any workflow code can use it.
-                schema = json.dumps(
-                    response_format.model_json_schema(),
-                    ensure_ascii=False,
-                    separators=(",", ":"),
-                )
-                request_messages.insert(
-                    0,
-                    {
-                        "role": "system",
-                        "content": (
-                            "Return only one valid JSON object matching this JSON schema. "
-                            f"Do not add markdown or prose outside the JSON object: {schema}"
-                        ),
-                    },
-                )
-                completion_kwargs["response_format"] = {"type": "json_object"}
-            else:
-                completion_kwargs["response_format"] = response_format
 
         litellm_response = await litellm.acompletion(
             **completion_kwargs,
@@ -655,7 +780,9 @@ async def call_llm(
     except Exception as e:
         failed_at_ms = int(time.time() * 1000)
         try:
-            await _finalize_usage_request(
+            await _finalize_budgeted_usage_request(
+                reservation=reservation,
+                budget_reservation_store=budget_reservation_store,
                 usage_event_id=admission.usage_event_id,
                 session_factory=ledger_factory,
                 evidence=e,
@@ -680,7 +807,9 @@ async def call_llm(
         raise
 
     end_ms = int(time.time() * 1000)
-    await _finalize_usage_request(
+    await _finalize_budgeted_usage_request(
+        reservation=reservation,
+        budget_reservation_store=budget_reservation_store,
         usage_event_id=admission.usage_event_id,
         session_factory=ledger_factory,
         evidence=litellm_response,
@@ -716,7 +845,7 @@ async def call_llm(
                 "messages": repair_messages,
                 "max_tokens": max(max_tokens, 2048),
             }
-            repair_admission = await _admit_usage_request(
+            repair_admission, repair_reservation = await _admit_budgeted_usage_request(
                 event_key=_new_usage_event_key("llm-repair"),
                 session_factory=ledger_factory,
                 client_id=client_id,
@@ -729,6 +858,10 @@ async def call_llm(
                 provider=provider,
                 model=provider_call_model,
                 usage_category=request_usage_category,
+                maximum_units=maximum_text_units(
+                    repair_messages, repair_kwargs["max_tokens"]
+                ),
+                budget_reservation_store=budget_reservation_store,
                 request_mode="structured_repair",
             )
             repair_start_ms = int(time.time() * 1000)
@@ -737,7 +870,9 @@ async def call_llm(
             except Exception as repair_error:
                 repair_failed_at_ms = int(time.time() * 1000)
                 try:
-                    await _finalize_usage_request(
+                    await _finalize_budgeted_usage_request(
+                        reservation=repair_reservation,
+                        budget_reservation_store=budget_reservation_store,
                         usage_event_id=repair_admission.usage_event_id,
                         session_factory=ledger_factory,
                         evidence=repair_error,
@@ -756,7 +891,9 @@ async def call_llm(
                     )
                 raise
             repair_end_ms = int(time.time() * 1000)
-            await _finalize_usage_request(
+            await _finalize_budgeted_usage_request(
+                reservation=repair_reservation,
+                budget_reservation_store=budget_reservation_store,
                 usage_event_id=repair_admission.usage_event_id,
                 session_factory=ledger_factory,
                 evidence=litellm_response,
@@ -826,6 +963,7 @@ async def create_asset_embedding(
     parent_usage_event_id: Optional[uuid.UUID] = None,
     trace_id: Optional[str] = None,
     usage_session_factory: SessionFactory | None = None,
+    budget_reservation_store: ReservationStore | None = None,
 ) -> EmbeddingResponse:
     """Create a query-compatible semantic or semantic+visual representation.
 
@@ -908,7 +1046,7 @@ async def create_asset_embedding(
     api_key = get_credential_cipher().decrypt(credential.encrypted_api_key)
     import litellm
 
-    admission = await _admit_usage_request(
+    admission, reservation = await _admit_budgeted_usage_request(
         event_key=root_event_key,
         session_factory=ledger_factory,
         client_id=client_id,
@@ -921,6 +1059,10 @@ async def create_asset_embedding(
         provider=provider,
         model=model,
         usage_category=UsageCategory.EMBEDDING,
+        maximum_units=maximum_embedding_units(
+            normalized_text, ASSET_EMBEDDING_DIMENSIONS
+        ),
+        budget_reservation_store=budget_reservation_store,
     )
     start_ms = int(time.time() * 1000)
     try:
@@ -933,7 +1075,9 @@ async def create_asset_embedding(
     except Exception as exc:
         failed_at_ms = int(time.time() * 1000)
         try:
-            await _finalize_usage_request(
+            await _finalize_budgeted_usage_request(
+                reservation=reservation,
+                budget_reservation_store=budget_reservation_store,
                 usage_event_id=admission.usage_event_id,
                 session_factory=ledger_factory,
                 evidence=exc,
@@ -973,7 +1117,9 @@ async def create_asset_embedding(
         failed_at_ms = int(time.time() * 1000)
         usage = _provider_value(result, "usage")
         tokens_in = _usage_count(usage, "prompt_tokens", "input_tokens")
-        await _finalize_usage_request(
+        await _finalize_budgeted_usage_request(
+            reservation=reservation,
+            budget_reservation_store=budget_reservation_store,
             usage_event_id=admission.usage_event_id,
             session_factory=ledger_factory,
             evidence=result,
@@ -990,7 +1136,9 @@ async def create_asset_embedding(
     usage = _provider_value(result, "usage")
     tokens_in = _usage_count(usage, "prompt_tokens", "input_tokens")
     latency_ms = int(time.time() * 1000) - start_ms
-    await _finalize_usage_request(
+    await _finalize_budgeted_usage_request(
+        reservation=reservation,
+        budget_reservation_store=budget_reservation_store,
         usage_event_id=admission.usage_event_id,
         session_factory=ledger_factory,
         evidence=result,
@@ -1042,6 +1190,7 @@ async def generate_image(
     parent_usage_event_id: Optional[uuid.UUID] = None,
     trace_id: Optional[str] = None,
     usage_session_factory: SessionFactory | None = None,
+    budget_reservation_store: ReservationStore | None = None,
 ) -> ImageGenerationResponse:
     """Generate D02's final visual through the configured per-client image model."""
     ledger_factory = _usage_factory(session, usage_session_factory)
@@ -1109,8 +1258,13 @@ async def generate_image(
     api_key = get_credential_cipher().decrypt(credential.encrypted_api_key)
     import litellm
 
-    provider_model = f"{config.provider}/{config.model}" if config.provider != "openai" else config.model
-    admission = await _admit_usage_request(
+    if config.provider == "openai":
+        provider_model = config.model
+    elif config.provider == "qwen":
+        provider_model = f"dashscope/{config.model}"
+    else:
+        provider_model = f"{config.provider}/{config.model}"
+    admission, reservation = await _admit_budgeted_usage_request(
         event_key=root_event_key,
         session_factory=ledger_factory,
         client_id=client_id,
@@ -1123,6 +1277,10 @@ async def generate_image(
         provider=config.provider,
         model=config.model,
         usage_category=UsageCategory.IMAGE,
+        maximum_units=maximum_image_units(
+            has_source_image=source_image_bytes is not None
+        ),
+        budget_reservation_store=budget_reservation_store,
         request_mode=generation_mode,
     )
     start_ms = int(time.time() * 1000)
@@ -1174,7 +1332,9 @@ async def generate_image(
         failed_at_ms = int(time.time() * 1000)
         has_provider_evidence = result is not None
         try:
-            await _finalize_usage_request(
+            await _finalize_budgeted_usage_request(
+                reservation=reservation,
+                budget_reservation_store=budget_reservation_store,
                 usage_event_id=admission.usage_event_id,
                 session_factory=ledger_factory,
                 evidence=result if result is not None else exc,
@@ -1209,7 +1369,9 @@ async def generate_image(
         logger.exception("D02 image generation failed for client=%s model=%s", client_id, config.model)
         raise
 
-    await _finalize_usage_request(
+    await _finalize_budgeted_usage_request(
+        reservation=reservation,
+        budget_reservation_store=budget_reservation_store,
         usage_event_id=admission.usage_event_id,
         session_factory=ledger_factory,
         evidence=result,

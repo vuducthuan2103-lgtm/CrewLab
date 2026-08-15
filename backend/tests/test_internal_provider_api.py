@@ -49,7 +49,7 @@ async def test_admin_can_create_inactive_client_and_read_masked_provider_slots(d
             assert response.status_code == 200
             providers = response.json()["data"]["providers"]
             assert {item["provider"] for item in providers} == {
-                "openai", "anthropic", "google", "deepseek"
+                "openai", "anthropic", "google", "deepseek", "qwen"
             }
             assert all(item["key_hint"] is None for item in providers)
             assert all(isinstance(item["models"], list) for item in providers)

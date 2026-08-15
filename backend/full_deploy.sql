@@ -23,9 +23,13 @@ CREATE TABLE IF NOT EXISTS clients (
 	industry VARCHAR,
 	timezone VARCHAR DEFAULT 'Asia/Ho_Chi_Minh',
 	platforms JSONB,
+	monthly_budget_usd NUMERIC(10, 2),
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-	PRIMARY KEY (id)
+	PRIMARY KEY (id),
+	CONSTRAINT ck_clients_monthly_budget_nonnegative CHECK (
+		monthly_budget_usd IS NULL OR monthly_budget_usd >= 0
+	)
 );
 
 CREATE TABLE IF NOT EXISTS brand_settings (
@@ -102,7 +106,10 @@ CREATE TABLE IF NOT EXISTS client_llm_configs (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     PRIMARY KEY (id),
     FOREIGN KEY(client_id) REFERENCES clients (id) ON DELETE CASCADE,
-    CONSTRAINT uq_client_llm_configs_client_agent UNIQUE (client_id, agent_code)
+    CONSTRAINT uq_client_llm_configs_client_agent UNIQUE (client_id, agent_code),
+    CONSTRAINT ck_client_llm_configs_budget_nonnegative CHECK (
+        budget_usd IS NULL OR budget_usd >= 0
+    )
 );
 
 CREATE INDEX IF NOT EXISTS ix_client_llm_configs_client_id ON client_llm_configs (client_id);
@@ -124,7 +131,7 @@ CREATE TABLE IF NOT EXISTS client_provider_credentials (
     PRIMARY KEY (id),
     FOREIGN KEY(client_id) REFERENCES clients (id) ON DELETE CASCADE,
     CONSTRAINT uq_client_provider_credentials_client_provider UNIQUE (client_id, provider),
-    CONSTRAINT ck_client_provider_credentials_provider CHECK (provider IN ('openai', 'anthropic', 'google')),
+    CONSTRAINT ck_client_provider_credentials_provider CHECK (provider IN ('openai', 'anthropic', 'google', 'deepseek', 'qwen')),
     CONSTRAINT ck_client_provider_credentials_validation_status CHECK (validation_status IN ('untested', 'valid', 'invalid'))
 );
 

@@ -24,7 +24,7 @@ class ClientProviderCredential(Base):
             "client_id", "provider", name="uq_client_provider_credentials_client_provider"
         ),
         CheckConstraint(
-            "provider IN ('openai', 'anthropic', 'google', 'deepseek')",
+            "provider IN ('openai', 'anthropic', 'google', 'deepseek', 'qwen')",
             name="ck_client_provider_credentials_provider",
         ),
         CheckConstraint(

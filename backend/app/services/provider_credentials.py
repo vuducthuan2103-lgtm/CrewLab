@@ -41,26 +41,71 @@ class ProviderConfigurationError(ValueError):
         self.details = details or {}
 
 
+def normalize_api_key(key: str) -> str:
+    """Sanitize API key by stripping quotes, whitespace, zero-width chars, and common prefixes."""
+    import re
+    cleaned = key.strip().strip("'\"`")
+    if cleaned.lower().startswith("bearer "):
+        cleaned = cleaned[7:].strip()
+    if "=" in cleaned and not cleaned.startswith("sk-"):
+        parts = cleaned.split("=", 1)
+        if len(parts) == 2 and "key" in parts[0].lower():
+            cleaned = parts[1].strip().strip("'\"`")
+    return re.sub(r"[\s\u200b\u200c\u200d\uFEFF\u00a0]+", "", cleaned)
+
+
 async def validate_provider_api_key(provider: str, api_key: str) -> None:
     """Make a minimal real provider request without logging secret material."""
     import litellm
 
+    clean_key = normalize_api_key(api_key)
     validation_models = {
         "openai": "gpt-4.1-mini",
         "anthropic": "anthropic/claude-haiku-4-5-20251001",
         "google": "google/gemini-2.5-flash-lite",
         "deepseek": "deepseek/deepseek-v4-flash",
+        "qwen": "dashscope/qwen-turbo",
     }
     model = validation_models.get(provider)
     if model is None:
         raise ValueError("Unsupported provider")
-    await litellm.acompletion(
-        model=model,
-        messages=[{"role": "user", "content": "Reply with OK."}],
-        max_tokens=2,
-        temperature=0,
-        api_key=api_key,
-    )
+
+    if provider == "qwen":
+        import httpx
+
+        endpoints = [
+            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models",
+            "https://dashscope.aliyuncs.com/compatible-mode/v1/models",
+            "https://dashscope-us.aliyuncs.com/compatible-mode/v1/models",
+        ]
+        authenticated = False
+        last_error_message = None
+        async with httpx.AsyncClient(timeout=8.0) as http_client:
+            for url in endpoints:
+                try:
+                    resp = await http_client.get(
+                        url, headers={"Authorization": f"Bearer {clean_key}"}
+                    )
+                    if resp.status_code in (200, 403):
+                        authenticated = True
+                        break
+                    elif resp.status_code == 401:
+                        last_error_message = resp.text
+                        continue
+                except Exception as exc:
+                    last_error_message = str(exc)
+
+        if not authenticated:
+            raise ValueError(last_error_message or "API key authentication failed for Qwen")
+        return
+    else:
+        await litellm.acompletion(
+            model=model,
+            messages=[{"role": "user", "content": "Reply with OK."}],
+            max_tokens=2,
+            temperature=0,
+            api_key=clean_key,
+        )
 
 
 def provider_public_dict(row: ClientProviderCredential) -> dict[str, Any]:
@@ -127,7 +172,7 @@ async def save_validated_credential(
         raise ProviderConfigurationError(
             f"Provider '{provider}' is not supported", code="PROVIDER_UNSUPPORTED"
         )
-    normalized_key = api_key.strip()
+    normalized_key = normalize_api_key(api_key)
     if not normalized_key:
         raise ProviderConfigurationError("API key is required", code="CREDENTIAL_REQUIRED")
 

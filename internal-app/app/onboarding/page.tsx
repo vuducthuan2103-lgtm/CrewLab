@@ -26,6 +26,7 @@ const PROVIDER_LABELS: Record<ProviderName, string> = {
   anthropic: 'Anthropic',
   google: 'Google Gemini',
   deepseek: 'DeepSeek',
+  qwen: 'Qwen (Alibaba DashScope)',
 };
 
 const PORTAL_LOGIN_URL = process.env.NEXT_PUBLIC_PORTAL_URL || 'http://localhost:3000/login';
