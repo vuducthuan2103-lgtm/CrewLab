@@ -17,7 +17,8 @@ import {
   Search,
   Building2,
   Calendar,
-  Layers
+  Layers,
+  KeyRound,
 } from 'lucide-react';
 
 export default function ClientsPage() {
@@ -194,13 +195,19 @@ export default function ClientsPage() {
                   </div>
                 </div>
 
-                {/* Footer Action Link */}
-                <div className="pt-2">
+                {/* Footer Action Links */}
+                <div className="pt-2 flex flex-col gap-2">
                   <Link
                     href={`/clients/${client.id}`}
                     className="w-full py-2 px-3 rounded-xl bg-lime-tint border border-lime-tint text-lime-admin hover:bg-lime-tint-15 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
                   >
                     Xem Content Monitor <ArrowRight size={13} />
+                  </Link>
+                  <Link
+                    href={`/onboarding?clientId=${client.id}`}
+                    className="w-full py-2 px-3 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-semibold text-xs flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <KeyRound size={12} className="text-cyan-admin" /> Quản lý Provider
                   </Link>
                 </div>
               </div>
