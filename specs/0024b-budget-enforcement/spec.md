@@ -1,8 +1,8 @@
 # Feature Specification: Budget Tracking & Enforcement
 
-**Feature Branch**: `feature/0024-full-llm-observability`
+**Feature Branch**: `feature/0024b-budget-enforcement`
 **Created**: 2026-08-15
-**Status**: Approved — blocked by 0024a
+**Status**: Approved — implementation in progress
 **Parent**: `specs/0024-full-llm-observability/spec.md`
 **Scope**: Original FR-023 → FR-032
 
