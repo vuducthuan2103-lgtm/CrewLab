@@ -4,7 +4,7 @@
 
 **Changelog v3 → v3.1:** (1) Chốt model tier E01 = Standard (khớp PRD v3.2, không còn để ngỏ Fast/Standard). (2) Bổ sung state `asset\_blocked` vào FSM mục 3, theo AC-WF-21 gốc PRD (asset\_request hết hạn → escalate, không tự dùng ảnh AI thay thế). (3) Mục 5 cập nhật: ngưỡng pass/fail E01 đã đồng bộ trong PRD v3.2, chỉ còn chờ ký xác nhận cuối.
 
-**Changelog v3.1 → v3.2 (fix gap A01/P01/Observability):** (1) A01 không còn là "Cycle Runner tối giản" đặt tên suông — build kiến trúc đầy đủ theo PRD (trigger table, DispatchInstruction, retry-routing, wake\_reason enum), chỉ giới hạn trigger active theo scope 5-agent (mục 1a). (2) Thêm Context Packet MVP cụ thể — trước đây chỉ ghi "giữ, đơn giản hoá" không có schema (mục 1b). (3) Thêm P01-lite cụ thể — trước đây chỉ ghi "ghi feedback đơn giản" không định nghĩa (mục 1c). (4) Thêm Observability tối giản — trước đây MVP hoàn toàn chưa nhắc tới (mục 1d). (5) Bổ sung rule phân biệt `eval\_retry\_count` vs infra retry (carry-over AC-WF-20 gốc PRD, trước đây MVP thiếu — rủi ro reject oan do lỗi mạng). (6) Sprint estimate tăng \~1 sprint để phản ánh effort thật thay vì gộp ẩn vào "Cycle Runner".
+**Changelog v3.1 → v3.2 (fix gap A01/P01/Observability):** (1) A01 không còn là "Cycle Runner tối giản" đặt tên suông — build kiến trúc đầy đủ theo PRD (trigger table, DispatchInstruction, retry-routing, wake\_reason enum), chỉ giới hạn trigger active theo scope 5-agent (mục 1a). (2) Thêm Context Packet MVP cụ thể — trước đây chỉ ghi "giữ, đơn giản hoá" không có schema (mục 1b). (3) Thêm P01-lite cụ thể — trước đây chỉ ghi "ghi feedback đơn giản" không định nghĩa (mục 1c). (4) Bản v3.2 từng thêm Observability tối giản — hướng này nay đã được Decision 0016 thay thế tại mục 1d. (5) Bổ sung rule phân biệt `eval\_retry\_count` vs infra retry (carry-over AC-WF-20 gốc PRD, trước đây MVP thiếu — rủi ro reject oan do lỗi mạng). (6) Sprint estimate tăng \~1 sprint để phản ánh effort thật thay vì gộp ẩn vào "Cycle Runner".
 
 **Changelog v3.2 → v3.3 (A01 chính thức là agent thứ 6, không còn ghi tách "5 agent + Orchestrator"):** (1) Mục 1 đổi tên "Agent scope — 5 agent" → "Agent scope — 6 agent (5 content agent + A01 Orchestrator)", thêm A01 vào bảng agent chính. Lý do: A01 đã được build đúng chất lượng contract đầy đủ (schema, `wake\_reason` enum, `DispatchInstruction`, idempotency pattern, module riêng — mục 1a) ngay từ v3.2, không phải rule phụ viết tắt — ghi nó ngoài bảng đếm agent như trước gây hiểu lầm effort thấp hơn thực tế, và không khớp cách Tầng 3 đã tự gọi là "6 contract" (mục 2). (2) P01 vẫn KHÔNG tính vào agent count — đúng nguyên tắc PRD gốc §7.3.2 ("System pipeline không tính vào 12 agent"), vì P01 không có contract/LLM call riêng như A01, chỉ là pipeline trích xuất-ghi memory. (3) Cập nhật các chỗ nhắc "5 agent"/"5-agent MVP" khi đang nói về *tổng scope MVP* sang "6 agent"; giữ nguyên cách gọi "5 agent nội dung" ở những chỗ nói riêng về nhóm B02/B03/D01/D02/E01 mà A01 dispatch tới (vd bảng trigger-routing của A01 — A01 không tự dispatch cho chính nó nên vẫn cần phân biệt). (4) Không đổi số sprint ở mục 6 — đây là đổi cách đếm/gọi tên cho nhất quán với Tầng 3, không đổi scope hay effort build thực tế.
 
@@ -35,7 +35,7 @@
 
 **Vẫn bỏ hoàn toàn (chưa có gì thay thế, chờ phase sau):** B01 IMC Planner + Campaign, F01 Meta Publisher, G01-G04 Analytics.
 
-**P01 KHÔNG tính vào 6 agent, nhưng cũng KHÔNG bị cắt** — khác A01, P01 không có contract/LLM call riêng như một agent thật, nó là pipeline nội bộ (trích xuất feedback người → ghi vào `agent\_memory`), đúng nguyên tắc PRD gốc §7.3.2 ("System pipeline không tính vào 12 agent"). P01 build ở mức lite ngay từ MVP (xem mục 1c Context Packet MVP, 1c P01-lite, 1d Observability tối giản — các mục bổ sung từ v3.2 vì bản trước chỉ đặt tên "Cycle Runner"/"ghi feedback đơn giản" mà chưa spec).
+**P01 KHÔNG tính vào 6 agent, nhưng cũng KHÔNG bị cắt** — khác A01, P01 không có contract/LLM call riêng như một agent thật, nó là pipeline nội bộ (trích xuất feedback người → ghi vào `agent\_memory`), đúng nguyên tắc PRD gốc §7.3.2 ("System pipeline không tính vào 12 agent"). P01 build ở mức lite ngay từ MVP (xem mục 1c Context Packet MVP, 1c P01-lite và mục 1d observability hiện hành theo Decisions 0015/0016).
 
 \---
 
@@ -139,19 +139,19 @@ So với bản gốc PRD (7 field), MVP giữ 4 field: bỏ `brand\_memory` (g�
 
 \---
 
-## 1d. Observability tối giản (MỚI — MVP trước đây hoàn toàn chưa nhắc tới)
+## 1d. Full observability: Postgres ledger + Langfuse trace
 
-PRD gốc bắt buộc mọi agent ghi Langfuse trace (`client\_id, agent\_code, task\_type, model\_used, tokens\_in/out, latency\_ms, status, eval\_score, wake\_reason` — Tầng 3 §A6). Bản MVP trước đây không có dòng nào về observability — nếu bỏ hẳn, khi pilot có lỗi (vd "sao tuần này B02 chọn pillar kỳ vậy") Trường/Thuận không có cách nào tra ngoài đọc code; và khi Phase 3+ cần bật Langfuse thật để debug đa client, phải instrument lại 6 agent đã build xong — tốn công gấp đôi.
+Thiết kế `task_logs` tối giản trước đây đã hoàn thành vai trò bootstrap, nhưng không còn đủ cho correlation nhiều model call/retry, debug prompt/response, redaction và retention tách biệt. **Decision 0016** chính thức khôi phục Langfuse self-hosted làm trace layer; **Decision 0015** giữ Postgres usage/cost ledger làm nguồn chính thức cho cost, quota và budget.
 
-**Đề xuất tối thiểu:** không cần Langfuse Docker đầy đủ, nhưng mỗi agent task (kể cả A01) tự ghi 1 dòng vào bảng Postgres đơn giản, **giữ đúng tên field như Observability Contract gốc** để khi bật Langfuse thật chỉ cần đổi nơi ghi log, không đổi field:
+Ranh giới bắt buộc:
 
-```
-task\_logs(id, client\_id, agent\_code, task\_type, model\_used,
-          tokens\_in, tokens\_out, latency\_ms, status, eval\_score,
-          wake\_reason, created\_at)
-```
+- Postgres ledger: usage event, actual cost, customer charge, quota, budget, reconciliation và audit tài chính.
+- Langfuse: trace/span correlation, prompt/response đã redaction, latency, retry và evaluation metadata.
+- Langfuse lỗi không được làm mất ledger hoặc bỏ qua budget check.
+- Portal không được truy cập trace hoặc dữ liệu actual cost/multiplier; Internal App chỉ mở trace cho Agency Admin.
+- `task_logs` chuyển về vai trò workflow execution log trong giai đoạn migration; quan hệ schema và backfill được chốt tại Spec 0024a.
 
-Internal App nên có 1 màn hình đơn giản list `task\_logs` filter theo `content\_item\_id`/`agent\_code` — đủ để Trường/Thuận tự tra khi có sự cố mà không cần hỏi Antigravity đọc code.
+Chi tiết lý do đảo quyết định, trade-off và yêu cầu đo RAM/resource trên staging Oracle Free/Hetzner CAX11: `docs/decisions/0016-reinstate-langfuse-observability.md`.
 
 \---
 
@@ -199,7 +199,7 @@ Cách làm này tránh đầu tư RAG/Hindsight theo lịch trình mặc định
 * **6 agent contract** theo đúng format A1 gốc — B02, B03, D01, D02, E01, và A01 Orchestrator (mục 1a — kiến trúc đầy đủ, trigger giới hạn theo scope MVP). Từ v3.3, cả 6 đều tính là agent chính thức của MVP (xem mục 1), không còn ghi tách "5 agent + 1 phụ" như bản trước.
 * Tool Registry rút gọn (mục 4)
 * Model tier: B02 Standard/Power tuỳ ngân sách, B03/D01/D02/E01 **Standard** (đã chốt — khớp PRD v3.2 §A3.2/§B5/§C7), A01 dùng tier Power
-* Observability tối giản (mục 1d) — mới bổ sung, PRD gốc có (Langfuse) nhưng bản MVP trước đây chưa nhắc tới
+* Observability tách lớp (mục 1d): Postgres ledger là nguồn chính thức cho cost/quota; Langfuse self-hosted là trace layer theo Decision 0016
 
 ### Tầng 4 — Client Portal + Internal App (viết lại hoàn toàn, v3.5)
 
@@ -473,7 +473,7 @@ Các màn hình giữ slot trên sidebar nhưng nội dung chỉ hiện thông b
 
 * Onboarding client cơ bản
 * Xem content item theo trạng thái
-* **Màn `task_logs`** (mục 1d, filter theo content\_item\_id/agent\_code)
+* **Màn vận hành observability** đọc Postgres ledger/workflow log; trace Langfuse chỉ mở cho Agency Admin theo Specs 0024d/0024e
 * Debug view chỉ đọc; không có nút `Chạy workflow test`, `Chạy lại` hoặc reopen content item
 * Không có DLQ phức tạp / replay UI (dời Phase 3 theo Roadmap)
 
@@ -550,9 +550,9 @@ planned
 |1|VPS/Coolify — không spike Hindsight, không khởi động Meta App Review|Hạ tầng chạy trước, mọi thứ khác cần chỗ để deploy lên|
 |2|C1 schema + C6 + `agent\_memory` + C7 rút gọn|Mọi agent đều query các bảng này — phải có trước khi code agent đầu tiên|
 |3|A01 Orchestrator (agent thứ 6 — trigger routing, retry-routing table, DispatchInstruction, idempotency, mục 1a)|5 agent nội dung cần A01 dispatch tới mới chạy được — viết trước để có khung test|
-|4|Context Packet MVP + P01-lite + Observability tối giản (mục 1b/1c/1d)|Mọi agent nội dung đều gọi `build\_context\_packet\_mvp()` và ghi `task\_logs` — cần có trước khi 5 agent nội dung chạy|
+|4|Context Packet MVP + P01-lite + Usage ledger nền tảng (mục 1b/1c/1d; Spec 0024a)|Mọi model call cần canonical usage event trước khi budget và dashboard đọc số liệu|
 |5|5 agent nội dung (B02/B03/D01/D02/E01) + FSM/state transitions + retry loop E01|Phần lõi tạo ra output thật — việc lớn nhất, làm sau khi khung dispatch/context đã sẵn|
-|6|Portal (Kanban Dashboard 3 swimlane + chat A01 + Content Hub 3 tab + Content Approval Gate 2 + Media Library upload/indexing + Settings 4 tab + Notification Center + nút "Đánh dấu đã đăng" + placeholder pages) + Internal App (`task\_logs` read-only)|Cần có agent chạy ra output thật rồi mới build UI để duyệt và giao việc — scope Tầng 4 chi tiết xem mục 2a–2k|
+|6|Portal + Internal App + observability views (Specs 0024c/0024d) và Langfuse trace layer (Spec 0024e, có thể chạy song song sau ledger)|Cần ledger/budget ổn định trước khi UI đọc số liệu; Langfuse là dependency trace riêng theo Decision 0016|
 |7|Hardening nhẹ + pilot thật tại Bardinh Coffee (đăng tay)|Bước cuối, sau khi mọi phần trên đã chạy được|
 
 Không ước lượng thời gian cho từng dòng trong tài liệu này. Nếu cần một con số tổng để lên kế hoạch (vd báo với ai đó ngoài team), khuyến nghị chạy thật dòng 1-4 trước rồi mới tự ước lượng phần còn lại dựa trên tốc độ thật đã quan sát được, thay vì đoán trước khi có dữ liệu — sprint estimate lần đầu chưa chạy thật gần như luôn lạc quan, nhất là khi code cùng AI coding assistant (rework/debug thường tốn thời gian hơn dự đoán).
