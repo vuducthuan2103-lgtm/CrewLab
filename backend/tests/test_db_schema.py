@@ -69,7 +69,7 @@ class TestMigrationAndSchemaStructure(unittest.TestCase):
         """Migration graph must be traversable and converge on the current head."""
         config = Config(str(PROJECT_ROOT / "alembic.ini"))
         script = ScriptDirectory.from_config(config)
-        self.assertEqual(script.get_heads(), ["0016"])
+        self.assertEqual(script.get_heads(), ["0018"])
         self.assertIsNotNone(script.get_revision("0006"))
 
     def test_DB_MIG_002_migration_idempotency_sql(self):

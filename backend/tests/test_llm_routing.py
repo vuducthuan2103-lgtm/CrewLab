@@ -147,3 +147,65 @@ async def test_deepseek_uses_json_object_mode_and_validates_schema(db_session, m
     assert captured["response_format"] == {"type": "json_object"}
     assert "JSON schema" in captured["messages"][0]["content"]
     assert StructuredReply.model_validate_json(response.content).reply == "ok"
+
+
+@pytest.mark.asyncio
+async def test_qwen_uses_dashscope_prefix_and_json_object_mode(db_session, monkeypatch):
+    monkeypatch.setenv("CREWLAB_LLM_MOCK", "false")
+    master_key = Fernet.generate_key().decode()
+    monkeypatch.setattr(
+        db_module.settings, "CREWLAB_CREDENTIAL_ENCRYPTION_KEY", master_key
+    )
+    client = Client(name="Qwen Client", brand_name="Qwen Client", is_active=True)
+    db_session.add(client)
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ClientLLMConfig(
+                client_id=client.id,
+                agent_code="A01",
+                provider="qwen",
+                model="qwen-3.8-max",
+                tier="power",
+                is_active=True,
+            ),
+            ClientProviderCredential(
+                client_id=client.id,
+                provider="qwen",
+                encrypted_api_key=CredentialCipher(master_key).encrypt("qwen-dashscope-key"),
+                key_hint="••••-key",
+                is_enabled=True,
+                validation_status="valid",
+                created_by=uuid.uuid4(),
+                updated_by=uuid.uuid4(),
+            ),
+        ]
+    )
+    await db_session.commit()
+    captured = {}
+
+    async def fake_acompletion(**kwargs):
+        captured.update(kwargs)
+        return types.SimpleNamespace(
+            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content='{"reply":"ok"}'))],
+            usage=None,
+        )
+
+    monkeypatch.setitem(
+        sys.modules, "litellm", types.SimpleNamespace(acompletion=fake_acompletion)
+    )
+
+    response = await call_llm(
+        client_id=client.id,
+        agent_code="A01",
+        messages=[{"role": "user", "content": "test"}],
+        session=db_session,
+        response_format=StructuredReply,
+    )
+
+    assert captured["model"] == "dashscope/qwen-3.8-max"
+    assert captured["api_key"] == "qwen-dashscope-key"
+    assert captured["response_format"] == {"type": "json_object"}
+    assert "JSON schema" in captured["messages"][0]["content"]
+    assert StructuredReply.model_validate_json(response.content).reply == "ok"
+

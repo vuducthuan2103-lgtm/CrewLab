@@ -65,6 +65,33 @@ def test_validate_model_selection_rejects_disabled_provider():
         )
 
 
+def test_qwen_models_cover_text_and_image_agents():
+    text_models = eligible_models({"qwen"}, agent_code="A01")
+    assert {model.id for model in text_models} == {
+        "qwen-3.7-turbo",
+        "qwen-3.7-plus",
+        "qwen-3.8-max",
+    }
+
+    image_models = eligible_models({"qwen"}, agent_code="D02")
+    assert {model.id for model in image_models} == {
+        "qwen-image-2",
+        "qwen-image-3",
+    }
+    assert all("image_generation" in model.capabilities for model in image_models)
+
+
+def test_qwen_3_8_max_is_marked_vision_capable():
+    entry = validate_model_selection(
+        model_id="qwen-3.8-max",
+        tier="power",
+        agent_code="E01",
+        enabled_providers={"qwen"},
+    )
+    assert "vision" in entry.capabilities
+    assert entry.provider == "qwen"
+
+
 def test_catalog_lookup_rejects_unknown_model():
     with pytest.raises(ValueError, match="not approved"):
         catalog_entry("made-up-model")

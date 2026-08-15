@@ -24,8 +24,16 @@ def upgrade() -> None:
         "clients",
         "monthly_budget_usd IS NULL OR monthly_budget_usd >= 0",
     )
+    op.create_check_constraint(
+        "ck_client_llm_configs_budget_nonnegative",
+        "client_llm_configs",
+        "budget_usd IS NULL OR budget_usd >= 0",
+    )
 
 
 def downgrade() -> None:
+    op.drop_constraint(
+        "ck_client_llm_configs_budget_nonnegative", "client_llm_configs"
+    )
     op.drop_constraint("ck_clients_monthly_budget_nonnegative", "clients")
     op.drop_column("clients", "monthly_budget_usd")
