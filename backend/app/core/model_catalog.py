@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 MVP_AGENT_CODES = {"A01", "B02", "B03", "D01", "D02", "E01"}
 TEXT_AGENTS = frozenset(MVP_AGENT_CODES - {"D02"})
 IMAGE_AGENT = frozenset({"D02"})
-SUPPORTED_PROVIDERS = frozenset({"openai", "anthropic", "google", "deepseek"})
+SUPPORTED_PROVIDERS = frozenset({"openai", "anthropic", "google", "deepseek", "qwen"})
 
 
 @dataclass(frozen=True)
@@ -76,7 +76,7 @@ MODEL_CATALOG = (
         frozenset({"image_generation"}), IMAGE_AGENT,
     ),
     ModelCatalogEntry(
-        "gemini-3-pro-image", "Gemini 3 Pro Image", "google", "power",
+        "gemini-3-pro-image", "Gemini 3-Pro Image", "google", "power",
         frozenset({"image_generation"}), IMAGE_AGENT,
     ),
     ModelCatalogEntry(
@@ -87,6 +87,26 @@ MODEL_CATALOG = (
         "deepseek-v4-pro", "DeepSeek V4 Pro", "deepseek", "power",
         frozenset({"text", "reasoning"}), TEXT_AGENTS,
     ),
+    ModelCatalogEntry(
+        "qwen-3.7-turbo", "Qwen 3.7 Turbo", "qwen", "fast",
+        frozenset({"text", "reasoning"}), TEXT_AGENTS,
+    ),
+    ModelCatalogEntry(
+        "qwen-3.7-plus", "Qwen 3.7 Plus", "qwen", "standard",
+        frozenset({"text", "reasoning"}), TEXT_AGENTS,
+    ),
+    ModelCatalogEntry(
+        "qwen-3.8-max", "Qwen 3.8 Max", "qwen", "power",
+        frozenset({"text", "reasoning", "vision"}), TEXT_AGENTS,
+    ),
+    ModelCatalogEntry(
+        "qwen-image-2", "Qwen Image 2", "qwen", "fast",
+        frozenset({"image_generation"}), IMAGE_AGENT,
+    ),
+    ModelCatalogEntry(
+        "qwen-image-3", "Qwen Image 3", "qwen", "power",
+        frozenset({"image_generation"}), IMAGE_AGENT,
+    ),
 )
 
 _CATALOG_BY_ID = {entry.id: entry for entry in MODEL_CATALOG}
@@ -96,6 +116,8 @@ _IMAGE_MODEL_CHAT_COMPANIONS = {
     "gpt-image-1": "gpt-5-mini",
     "gemini-3.1-flash-image": "gemini-3.6-flash",
     "gemini-3-pro-image": "gemini-3.6-flash",
+    "qwen-image-2": "qwen-3.7-plus",
+    "qwen-image-3": "qwen-3.8-max",
 }
 
 
