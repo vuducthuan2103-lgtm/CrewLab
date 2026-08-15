@@ -30,7 +30,7 @@ function Test-Url([string]$url, [int]$timeoutSeconds = 3) {
     }
 }
 
-function Wait-Url([string]$name, [string]$url, [int]$maxSeconds = 45) {
+function Wait-Url([string]$name, [string]$url, [int]$maxSeconds = 90) {
     $deadline = (Get-Date).AddSeconds($maxSeconds)
     do {
         if (Test-Url $url) {
@@ -47,8 +47,16 @@ function Test-DockerEngine {
     $docker = Get-Command docker.exe -ErrorAction SilentlyContinue
     if (-not $docker) { return $false }
 
-    & docker.exe info 2>$null | Out-Null
-    return ($LASTEXITCODE -eq 0)
+    try {
+        $prevEAP = $global:ErrorActionPreference
+        $global:ErrorActionPreference = 'SilentlyContinue'
+        & docker.exe info 2>&1 | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    } finally {
+        $global:ErrorActionPreference = $prevEAP
+    }
 }
 
 function Get-DockerDesktopPath {

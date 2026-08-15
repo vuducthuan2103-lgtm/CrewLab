@@ -51,6 +51,7 @@
 
   body {
     @apply min-h-screen bg-background font-sans text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     transition-property: background-color, color;
     transition-duration: 300ms;
     transition-timing-function: ease-in-out;
@@ -60,7 +61,6 @@
 /* Dark-only brand utilities retained for existing Portal components. */
 .text-lime-brand {
   color: var(--crew-primary);
-  font-weight: inherit;
 }
 
 .bg-lime-brand,

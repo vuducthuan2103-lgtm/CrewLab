@@ -58,6 +58,10 @@ export interface TaskCard {
   createdAt: Date;
   startedAt: Date | null;
   completedAt: Date | null;
+  timeLabel?: string;
+  durationLabel?: string;
+  pillarLabel?: string;
+  platform?: 'fb' | 'ig' | 'both';
 }
 
 // ─── Content Items ───────────────────────────────────────────────────────────

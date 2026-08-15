@@ -2,17 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   BookOpen,
   BarChart3,
-  Settings,
   ImageIcon,
-  LogOut,
   Bot,
 } from 'lucide-react';
-import { signOut } from '@/lib/supabase';
 import { usePortal } from '@/lib/store';
 
 const NAV_ITEMS = [
@@ -21,22 +18,15 @@ const NAV_ITEMS = [
   { href: '/content-hub', icon: BookOpen, label: 'Kế hoạch' },
   { href: '/assets', icon: ImageIcon, label: 'Thư viện ảnh' },
   { href: '/reports', icon: BarChart3, label: 'Báo cáo' },
-  { href: '/settings', icon: Settings, label: 'Cài đặt' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { clientName, portalUserEmail } = usePortal();
+  const { clientName } = usePortal();
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
-  };
-
-  const handleLogout = async () => {
-    await signOut();
-    router.push('/login');
   };
 
   return (
@@ -61,7 +51,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 py-3 space-y-0.5">
+      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
         {NAV_ITEMS.map(({ href, icon: Icon, label }) => (
           <Link
             key={href}
@@ -81,27 +71,6 @@ export default function Sidebar() {
           </Link>
         ))}
       </nav>
-
-      {/* Footer */}
-      <div className="px-4 py-4 border-t border-border space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-foreground">
-            {(clientName || portalUserEmail || '?').slice(0, 1).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-foreground truncate">{clientName || 'Portal Admin'}</p>
-            <p className="text-[10px] text-muted-foreground truncate">{portalUserEmail || 'Đang tải…'}</p>
-          </div>
-        </div>
-        <button
-          id="logout-btn"
-          onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-red-500 hover:bg-red-500/5 border border-transparent hover:border-red-500/20 transition-all"
-        >
-          <LogOut size={13} />
-          Đăng xuất
-        </button>
-      </div>
     </aside>
   );
 }
