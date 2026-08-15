@@ -4,6 +4,7 @@ Validates all 70+ test cases across 10 categories from specs/0001-db-schema/test
 """
 import os
 import re
+import inspect
 import unittest
 from pathlib import Path
 from alembic.config import Config
@@ -21,6 +22,14 @@ from app.models.portal_accounts import ClientPortalAdmin
 from app.models.assets import BrandAsset, SemanticAssetRecord, VisualSelectionDecision
 from app.models.reviews import HitlReview, AgentMemory
 from app.models.system import TaskLog, AuditLog
+from app.models.usage import (
+    ChargeMultiplierConfig,
+    PricingSnapshot,
+    UsageCostAdjustment,
+    UsageEvent,
+)
+from app.api import portal_router
+from app.api.schemas import TaskLogOut
 
 PROJECT_ROOT = Path(__file__).parent.parent
 FULL_DEPLOY_SQL = PROJECT_ROOT / "full_deploy.sql"
@@ -30,7 +39,8 @@ MODELS = [
     Client, BrandSetting, BrandSettingHistory, ClientPortalAdmin,
     WorkflowCycle, ContentPillar, ContentItem, ContentItemStateLog, ClientLLMConfig, ClientProviderCredential,
     BrandAsset, SemanticAssetRecord, VisualSelectionDecision, HitlReview, AgentMemory,
-    TaskLog, AuditLog, ContentItemEvalAttempt
+    TaskLog, AuditLog, ContentItemEvalAttempt, PricingSnapshot,
+    ChargeMultiplierConfig, UsageEvent, UsageCostAdjustment
 ]
 
 EXPECTED_TABLE_NAMES = {
@@ -38,7 +48,9 @@ EXPECTED_TABLE_NAMES = {
     "workflow_cycles", "content_pillars", "content_items",
     "brand_assets", "semantic_asset_records", "visual_selection_decisions", "hitl_reviews", "agent_memory",
     "task_logs", "audit_log", "client_llm_configs", "content_item_state_logs",
-    "content_item_eval_attempts", "client_provider_credentials", "client_portal_admins"
+    "content_item_eval_attempts", "client_provider_credentials", "client_portal_admins",
+    "pricing_snapshots", "charge_multiplier_configs", "usage_events",
+    "usage_cost_adjustments"
 }
 
 
@@ -57,7 +69,7 @@ class TestMigrationAndSchemaStructure(unittest.TestCase):
         """Migration graph must be traversable and converge on the current head."""
         config = Config(str(PROJECT_ROOT / "alembic.ini"))
         script = ScriptDirectory.from_config(config)
-        self.assertEqual(script.get_heads(), ["0015"])
+        self.assertEqual(script.get_heads(), ["0016"])
         self.assertIsNotNone(script.get_revision("0006"))
 
     def test_DB_MIG_002_migration_idempotency_sql(self):
@@ -70,14 +82,14 @@ class TestMigrationAndSchemaStructure(unittest.TestCase):
             "GAP/DEFECT P0 [DB-MIG-002]: full_deploy.sql uses bare 'CREATE TABLE' without 'IF NOT EXISTS', re-running raw SQL will fail."
         )
 
-    def test_DB_MIG_005_schema_inventory_12_tables(self):
+    def test_DB_MIG_005_schema_inventory_all_tables(self):
         """DB-MIG-005 (P0): All MVP tables must exist in models and DDL"""
         model_table_names = {model.__tablename__ for model in MODELS}
         self.assertEqual(
             model_table_names, EXPECTED_TABLE_NAMES,
             f"DEFECT P0 [DB-MIG-005]: Missing tables in models. Expected {EXPECTED_TABLE_NAMES}, got {model_table_names}"
         )
-        
+
         sql_content = FULL_DEPLOY_SQL.read_text(encoding="utf-8")
         created_tables = set(re.findall(r"CREATE\ TABLE\ (?:IF\ NOT\ EXISTS\ )?(\w+)", sql_content, re.IGNORECASE))
         self.assertEqual(
@@ -111,7 +123,7 @@ class TestMigrationAndSchemaStructure(unittest.TestCase):
         client_mapper = class_mapper(Client)
         self.assertFalse(client_mapper.columns["is_active"].nullable)
         self.assertEqual(client_mapper.columns["timezone"].default.arg, "Asia/Ho_Chi_Minh")
-        
+
         item_mapper = class_mapper(ContentItem)
         self.assertFalse(item_mapper.columns["eval_retry_count"].nullable)
         self.assertEqual(item_mapper.columns["eval_retry_count"].default.arg, 0)
@@ -126,7 +138,7 @@ class TestMigrationAndSchemaStructure(unittest.TestCase):
                         col.index,
                         f"DEFECT P1 [DB-MIG-010]: Table '{model.__tablename__}' FK column '{col.name}' is missing index=True"
                     )
-        
+
         # Hot paths: content_items.status, semantic record status, hitl_reviews.target_id.
         self.assertTrue(class_mapper(ContentItem).columns["status"].index)
         self.assertTrue(class_mapper(SemanticAssetRecord).columns["status"].index)
@@ -144,6 +156,8 @@ class TestMigrationAndSchemaStructure(unittest.TestCase):
             (ContentItem, "failed_criteria"),
             (BrandAsset, "tags"),
             (AuditLog, "details"),
+            (PricingSnapshot, "unit_prices"),
+            (UsageEvent, "usage_units"),
         ]
         for model, col_name in jsonb_expectations:
             col = class_mapper(model).columns[col_name]
@@ -298,6 +312,39 @@ class TestAgentMemoryAndObservability(unittest.TestCase):
             "GAP P1 [DB-OBS-005]: task_logs is missing 'content_item_id' column required by Internal App log filtering"
         )
 
+    def test_DB_OBS_006_task_logs_workflow_consumer_contract_remains_available(self):
+        """AC-0024A-09: Portal workflow history still reads task_logs during transition."""
+        model_fields = {column.name for column in class_mapper(TaskLog).columns}
+        response_fields = set(TaskLogOut.model_fields)
+        consumer_source = inspect.getsource(portal_router.list_task_logs)
+        required = {
+            "id", "agent_code", "task_type", "model_used", "tokens_in",
+            "tokens_out", "latency_ms", "status", "wake_reason", "created_at",
+            "content_item_id", "error_code", "error_provider",
+            "provider_request_id", "error_message", "error_retryable",
+        }
+
+        self.assertTrue(
+            required.issubset(model_fields),
+            "AC-0024A-09: task_logs model lost fields used by workflow/failure history",
+        )
+        self.assertTrue(
+            required.issubset(response_fields),
+            "AC-0024A-09: TaskLogOut lost fields exposed by the workflow-log endpoint",
+        )
+        self.assertIn("select(TaskLog)", consumer_source)
+        self.assertIn("TaskLogOut.model_validate", consumer_source)
+
+    def test_DB_OBS_007_usage_ledger_links_without_replacing_task_logs(self):
+        """AC-0024A-09: additive ledger mapping preserves the legacy source table."""
+        source_column = class_mapper(UsageEvent).columns["source_task_log_id"]
+        targets = {
+            foreign_key.target_fullname for foreign_key in source_column.foreign_keys
+        }
+
+        self.assertEqual(TaskLog.__tablename__, "task_logs")
+        self.assertEqual(targets, {"task_logs.id"})
+
 
 class TestAuditLogAndRLS(unittest.TestCase):
     """Section 9: DB-RLS-001 to DB-RLS-010"""
@@ -313,7 +360,7 @@ class TestAuditLogAndRLS(unittest.TestCase):
                 enabled_rls_tables = set(re.findall(r"'([a-z_]+)'", array_match.group(1)))
         self.assertEqual(
             enabled_rls_tables, EXPECTED_TABLE_NAMES,
-            f"DEFECT P0 [DB-RLS-001]: RLS not enabled on all 12 tables. Expected {EXPECTED_TABLE_NAMES}, got {enabled_rls_tables}"
+            f"DEFECT P0 [DB-RLS-001]: RLS not enabled on all modeled tables. Expected {EXPECTED_TABLE_NAMES}, got {enabled_rls_tables}"
         )
 
     def test_DB_RLS_007_audit_log_immutability(self):
