@@ -96,6 +96,18 @@
       "sourceType": "github",
       "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
       "computedHash": "768f9a7532780a72165f79c91d71a4bf82abd9ed31045238c2acb40322fc1d0a"
+    },
+    "react-three-fiber": {
+      "source": "local/r3f-skill",
+      "sourceType": "local",
+      "skillPath": ".agents/skills/react-three-fiber/SKILL.md",
+      "computedHash": "local-r3f-threejs-suite"
+    },
+    "playwright": {
+      "source": "local/playwright-skill",
+      "sourceType": "local",
+      "skillPath": ".agents/skills/playwright/SKILL.md",
+      "computedHash": "local-playwright-test-suite"
     }
   }
 }

@@ -1,0 +1,44 @@
+{
+  "name": "office-sandbox",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@pixiv/three-vrm": "2.1.2",
+    "@react-three/drei": "9.117.3",
+    "@react-three/fiber": "8.17.10",
+    "@react-three/rapier": "1.5.0",
+    "@supabase/ssr": "0.12.4",
+    "@supabase/supabase-js": "^2.110.8",
+    "@types/three": "0.164.1",
+    "@types/uuid": "^10.0.0",
+    "clsx": "^2.1.1",
+    "ecctrl": "1.0.84",
+    "lucide-react": "^0.420.0",
+    "next": "14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.4.0",
+    "tailwindcss-animate": "^1.0.7",
+    "three": "0.164.1",
+    "uuid": "^14.0.1",
+    "zustand": "4.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.5",
+    "gltfjsx": "^6.5.3",
+    "postcss": "^8.4.40",
+    "tailwindcss": "^3.4.7",
+    "typescript": "^5.5.3"
+  }
+}

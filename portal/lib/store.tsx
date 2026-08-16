@@ -322,7 +322,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       setWeekApproved(board.schedule.phase === 'content_production');
 
       const readIds = getReadNotificationIds();
-      setNotifications(generateRealNotifications(mappedItems, mappedTasks, board.schedule, readIds));
+      setNotifications(generateRealNotifications(mappedItems, mappedTasks, { cycle_id: board.schedule.cycle_id, phase: board.schedule.phase || undefined }, readIds));
 
       if (settings) {
         const serverBrand = settings.brand_voice || {};
