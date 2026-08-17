@@ -232,12 +232,6 @@ export const WorkstationDesk: React.FC<WorkstationDeskProps> = ({
 
   return (
     <group position={position} rotation={rotation}>
-      {/* Soft Contact Shadow Ground Disc for crisp floor anchoring */}
-      <mesh position={[0, 0.003, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[1.45, 32]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.35} />
-      </mesh>
-
       {/* ═════════════════════════════════════════════
           1. MAIN EXECUTIVE WORKSTATION DESK
          ═════════════════════════════════════════════ */}

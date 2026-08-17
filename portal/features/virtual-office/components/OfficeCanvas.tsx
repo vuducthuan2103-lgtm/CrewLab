@@ -181,7 +181,7 @@ export const OfficeCanvas: React.FC = () => {
             <OfficeRoom />
 
             {/* Soft contact shadows for grounding */}
-            <ContactShadows position={[0, 0.012, 0]} opacity={0.85} scale={32} blur={1.8} far={8} />
+            <ContactShadows position={[0, 0.012, 0]} opacity={0.4} scale={32} blur={2.4} far={6} />
 
             {/* 2. CEO CHARACTER — walks in front area */}
             <CEOCharacter />
