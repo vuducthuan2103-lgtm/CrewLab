@@ -16,126 +16,7 @@ interface WorkstationDeskProps {
   screenType?: ScreenType;
 }
 
-/**
- * Floating Hologram Ring for A01 Command Desk
- */
-const HologramProjection: React.FC<{ type: ScreenType }> = ({ type }) => {
-  const ringRef = useRef<THREE.Group>(null);
-  const coreRef = useRef<THREE.Mesh>(null);
-  const cardRef = useRef<THREE.Group>(null);
 
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    if (ringRef.current) {
-      ringRef.current.rotation.y = t * 0.4;
-      ringRef.current.rotation.x = Math.sin(t * 0.5) * 0.08;
-    }
-    if (coreRef.current) {
-      coreRef.current.rotation.y = -t * 0.6;
-      const scale = 1 + Math.sin(t * 2) * 0.08;
-      coreRef.current.scale.set(scale, scale, scale);
-    }
-    if (cardRef.current) {
-      cardRef.current.position.y = 1.8 + Math.sin(t * 1.5) * 0.03;
-    }
-  });
-
-  const isA01 = type === 'coordination';
-  const isD02 = type === 'design';
-
-  if (!isA01 && !isD02) return null;
-
-  return (
-    <group position={[0, 0, 0]}>
-      {/* Floating Holographic Projection Panels */}
-      <group ref={cardRef} position={[0, 1.8, 0]}>
-        {/* Central Holographic Dashboard Screen */}
-        <mesh position={[0, 0, 0]}>
-          <planeGeometry args={[1.2, 0.6]} />
-          <meshBasicMaterial
-            color={isA01 ? '#0284c7' : '#c026d3'}
-            transparent
-            opacity={0.35}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-        <mesh position={[0, 0, 0.002]}>
-          <planeGeometry args={[1.16, 0.56]} />
-          <meshBasicMaterial
-            color={isA01 ? '#38bdf8' : '#e879f9'}
-            wireframe
-            transparent
-            opacity={0.4}
-          />
-        </mesh>
-
-        {/* Flanking Angled Mini Hologram Panels */}
-        <mesh position={[-0.8, -0.05, 0.15]} rotation={[0, 0.45, 0]}>
-          <planeGeometry args={[0.5, 0.45]} />
-          <meshBasicMaterial
-            color={isA01 ? '#0284c7' : '#c026d3'}
-            transparent
-            opacity={0.3}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-        <mesh position={[0.8, -0.05, 0.15]} rotation={[0, -0.45, 0]}>
-          <planeGeometry args={[0.5, 0.45]} />
-          <meshBasicMaterial
-            color={isA01 ? '#0284c7' : '#c026d3'}
-            transparent
-            opacity={0.3}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-
-        {/* Floating Ring Orbiting */}
-        <group ref={ringRef} position={[0, 0.1, 0]}>
-          <mesh>
-            <torusGeometry args={[0.55, 0.008, 12, 32]} />
-            <meshBasicMaterial color={isA01 ? '#38bdf8' : '#e879f9'} transparent opacity={0.7} />
-          </mesh>
-          <mesh rotation={[Math.PI / 3, 0, 0]}>
-            <torusGeometry args={[0.42, 0.006, 8, 24, Math.PI * 1.6]} />
-            <meshBasicMaterial color={isA01 ? '#D4FF00' : '#38bdf8'} transparent opacity={0.75} />
-          </mesh>
-          {/* Orbiting Satellite Data Nodes */}
-          {[0, (Math.PI * 2) / 3, (Math.PI * 4) / 3].map((angle, i) => (
-            <mesh
-              key={i}
-              position={[Math.cos(angle) * 0.55, 0, Math.sin(angle) * 0.55]}
-            >
-              <sphereGeometry args={[0.025, 8, 8]} />
-              <meshBasicMaterial color={isA01 ? '#D4FF00' : '#f43f5e'} />
-            </mesh>
-          ))}
-        </group>
-
-        {/* Floating Central Core */}
-        <mesh ref={coreRef} position={[0, 0.1, 0]}>
-          <octahedronGeometry args={[0.1, 0]} />
-          <meshBasicMaterial
-            color={isA01 ? '#00f0ff' : '#e879f9'}
-            wireframe
-            transparent
-            opacity={0.9}
-          />
-        </mesh>
-      </group>
-
-      {/* Vertical Emitter Beam from Desk */}
-      <mesh position={[0, 1.35, -0.1]}>
-        <cylinderGeometry args={[0.03, 0.18, 0.9, 16, 1, true]} />
-        <meshBasicMaterial
-          color={isA01 ? '#38bdf8' : '#e879f9'}
-          transparent
-          opacity={0.15}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-    </group>
-  );
-};
 
 /**
  * Screen Content Renderer with Stylized UI Elements for each Role
@@ -589,9 +470,6 @@ export const WorkstationDesk: React.FC<WorkstationDeskProps> = ({
       {/* ═════════════════════════════════════════════
           6. ROLE-SPECIFIC ACCESSORIES & PROPS
          ═════════════════════════════════════════════ */}
-
-      {/* A01 & D02: Holographic Projection */}
-      <HologramProjection type={screenType} />
 
       {/* D02: Graphic Drawing Tablet (Wacom style) + Stylus */}
       {isD02 && (
