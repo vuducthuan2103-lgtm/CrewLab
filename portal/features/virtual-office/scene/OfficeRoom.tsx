@@ -815,9 +815,6 @@ export const OfficeRoom: React.FC = () => {
         </mesh>
       </RigidBody>
 
-      {/* Right Creative Studio Showcase Board */}
-      <RightCreativeStudioWall />
-
       {/* Outdoor Balcony Terrace */}
       <group position={[halfW, 0, 0]}>
         <mesh position={[1.5, -0.06, 0]} receiveShadow>
