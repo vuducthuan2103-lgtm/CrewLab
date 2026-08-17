@@ -11,29 +11,31 @@ export const OfficeLighting: React.FC = () => {
     <>
       {/* ══════════════════════════════════════════════════
           1. GLOBAL AMBIENT & SKY ILLUMINATION
+          Elevated fill so dark walls and furniture are clearly
+          readable and NOT crushed to pure black silhouettes.
          ══════════════════════════════════════════════════ */}
-      {/* Soft warm global ambient fill */}
+      {/* Soft warm architectural ambient fill */}
       <ambientLight
-        intensity={isDay ? 3.2 : 2.2}
-        color={isDay ? '#ffffff' : '#f1f5f9'}
+        intensity={isDay ? 3.8 : 2.8}
+        color={isDay ? '#ffffff' : '#e2e8f0'}
       />
 
-      {/* Hemisphere sky dome for rich color grading */}
+      {/* Hemisphere sky dome for natural warm ceiling & floor bounce */}
       <hemisphereLight
         args={[
-          isDay ? '#e0f2fe' : '#38bdf8',
-          isDay ? '#fef3c7' : '#1e1b4b',
-          isDay ? 1.8 : 1.2,
+          isDay ? '#e0f2fe' : '#94a3b8',  // Sky / ceiling bounce
+          isDay ? '#fed7aa' : '#1e2030',  // Floor warm bounce
+          isDay ? 2.2 : 1.6,
         ]}
       />
 
       {/* ══════════════════════════════════════════════════
-          2. KEY DIRECTIONAL LIGHTS (SHADOWS & DEPTH)
+          2. KEY DIRECTIONAL LIGHTS (SHADOWS & ARCHITECTURAL DEFINITION)
          ══════════════════════════════════════════════════ */}
-      {/* Main Overhead Architectural Key Light */}
+      {/* Main Overhead Architectural Key Light (Soft Warm Halogen 3500K) */}
       <directionalLight
-        position={[4, 18, 12]}
-        intensity={isDay ? 3.6 : 2.6}
+        position={[6, 18, 10]}
+        intensity={isDay ? 3.8 : 2.8}
         color={isDay ? '#fffdfa' : '#f8fafc'}
         castShadow
         shadow-mapSize-width={2048}
@@ -47,104 +49,88 @@ export const OfficeLighting: React.FC = () => {
         shadow-bias={-0.0001}
       />
 
-      {/* Window Daylight / Night Skyline Light from Right Side */}
+      {/* Panoramic Window Daylight / Night Skyline Light from Right Side */}
       <directionalLight
-        position={[18, 10, -2]}
-        intensity={isDay ? 3.2 : 1.6}
-        color={isDay ? '#fff7ed' : '#93c5fd'}
+        position={[18, 9, -2]}
+        intensity={isDay ? 3.4 : 1.8}
+        color={isDay ? '#fff7ed' : '#cbd5e1'}
       />
 
-      {/* Soft Fill from Left Wall to soften contrast */}
+      {/* Soft Fill from Left Wall to eliminate harsh pitch-black shadows */}
       <directionalLight
-        position={[-16, 12, 4]}
-        intensity={isDay ? 2.0 : 1.4}
-        color="#f8fafc"
+        position={[-16, 10, 2]}
+        intensity={isDay ? 2.2 : 1.6}
+        color={isDay ? '#f8fafc' : '#e2e8f0'}
       />
 
       {/* ══════════════════════════════════════════════════
-          3. FOCUSED ACCENT LIGHTS OVER WORKSTATIONS & BRAND
+          3. WORKSTATION ZONE DOWNLIGHTS (NATURAL WARM ACCENT)
+          Clean warm downlights directly above each desk zone
+          so agents, chairs, and monitors pop crisply.
          ══════════════════════════════════════════════════ */}
-      {/* A01 Center Command Desk */}
+      {/* A01 Center Command Hub (Sếp Vũ) */}
       <pointLight
-        position={[0, 3.8, -5.0]}
-        intensity={isDay ? 3.2 : 4.5}
-        color={isDay ? '#fffbeb' : '#38bdf8'}
-        distance={8}
+        position={[0, 4.5, -5.0]}
+        intensity={isDay ? 3.6 : 4.8}
+        color="#fffbeb"
+        distance={9}
         decay={1.5}
       />
 
-      {/* BAR DINH Brand Wall */}
+      {/* Strategy Zone (B02 & B03 Left Desks) */}
       <pointLight
-        position={[0, 3.2, -10.2]}
-        intensity={4.5}
-        color="#fbbf24"
+        position={[-7.0, 4.2, -2.0]}
+        intensity={isDay ? 3.2 : 4.2}
+        color="#fef9c3"
+        distance={9}
+        decay={1.5}
+      />
+
+      {/* Creative Zone (D01 & D02 Right Desks) */}
+      <pointLight
+        position={[7.0, 4.2, -2.0]}
+        intensity={isDay ? 3.2 : 4.2}
+        color="#fef9c3"
+        distance={9}
+        decay={1.5}
+      />
+
+      {/* QA Review Zone (E01 Front Desk) */}
+      <pointLight
+        position={[0, 4.0, 5.5]}
+        intensity={isDay ? 3.2 : 4.4}
+        color="#fffbeb"
+        distance={8.5}
+        decay={1.5}
+      />
+
+      {/* ══════════════════════════════════════════════════
+          4. ARCHITECTURAL WALL WASH & BRAND ACCENTS
+         ══════════════════════════════════════════════════ */}
+      {/* BAR DINH Brand Wall Wash */}
+      <pointLight
+        position={[0, 3.8, -9.8]}
+        intensity={3.8}
+        color="#fef3c7"
         distance={7}
         decay={1.4}
       />
-      <pointLight
-        position={[-5.0, 2.8, -10.5]}
-        intensity={2.8}
-        color="#D4FF00"
-        distance={6}
-        decay={1.6}
-      />
-      <pointLight
-        position={[5.0, 2.8, -10.5]}
-        intensity={2.8}
-        color="#D4FF00"
-        distance={6}
-        decay={1.6}
-      />
 
-      {/* Left Wall Dashboard Accent */}
+      {/* Left Wall Gentle Fill (Subtle, non-dominating) */}
       <pointLight
-        position={[-11.5, 3.2, -4.5]}
-        intensity={3.0}
-        color="#38bdf8"
-        distance={7}
-        decay={1.6}
-      />
-      <pointLight
-        position={[-11.5, 3.2, 2.0]}
-        intensity={2.8}
-        color="#fef08a"
+        position={[-11.2, 3.8, -1.0]}
+        intensity={2.2}
+        color="#e2e8f0"
         distance={7}
         decay={1.6}
       />
 
-      {/* Strategy Zone (B02 & B03) */}
+      {/* Right Wall Creative Display Gentle Fill */}
       <pointLight
-        position={[-7.0, 3.5, -2.0]}
-        intensity={isDay ? 2.6 : 3.5}
-        color="#34d399"
-        distance={8}
-        decay={1.6}
-      />
-
-      {/* Creative Zone (D01 & D02) */}
-      <pointLight
-        position={[7.0, 3.5, -2.0]}
-        intensity={isDay ? 2.6 : 3.5}
-        color="#f472b6"
-        distance={8}
-        decay={1.6}
-      />
-
-      {/* QA Review Zone (E01) */}
-      <pointLight
-        position={[0, 3.5, 5.5]}
-        intensity={isDay ? 2.6 : 3.8}
-        color="#a78bfa"
-        distance={8}
-        decay={1.6}
-      />
-
-      {/* AI Command Kiosk (Front Left) */}
-      <pointLight
-        position={[5.5, 2.2, 7.2]}
-        intensity={2.5}
-        color="#D4FF00"
-        distance={5}
+        position={[10.5, 3.8, -2.5]}
+        intensity={2.2}
+        color="#fef3c7"
+        distance={7}
         decay={1.6}
       />
     </>

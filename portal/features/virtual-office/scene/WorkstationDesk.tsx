@@ -351,21 +351,27 @@ export const WorkstationDesk: React.FC<WorkstationDeskProps> = ({
 
   return (
     <group position={position} rotation={rotation}>
+      {/* Soft Contact Shadow Ground Disc for crisp floor anchoring */}
+      <mesh position={[0, 0.003, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[1.45, 32]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.35} />
+      </mesh>
+
       {/* ═════════════════════════════════════════════
-          1. PHYSICAL DESK (Fixed RigidBody)
+          1. MAIN EXECUTIVE WORKSTATION DESK
          ═════════════════════════════════════════════ */}
-      <RigidBody type="fixed" colliders="hull">
-        {/* Walnut / Dark Carbon Desktop Surface */}
-        <mesh position={[0, 0.76, 0]} castShadow receiveShadow>
+      <RigidBody type="fixed" colliders="cuboid">
+        {/* Solid Dark Walnut Desktop with Beveled Chamfer */}
+        <mesh position={[0, 0.765, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.3, 0.05, 1.15]} />
           <meshStandardMaterial
-            color={isA01 ? '#181820' : '#221914'}
-            roughness={0.4}
-            metalness={0.15}
+            color={isA01 ? '#202434' : isNight ? '#222636' : '#282f42'}
+            roughness={0.35}
+            metalness={0.2}
           />
         </mesh>
 
-        {/* Subtle LED Edge Trim under front desk edge */}
+        {/* Warm Walnut / Lime Edge Trim */}
         <mesh position={[0, 0.74, 0.57]}>
           <boxGeometry args={[2.28, 0.012, 0.012]} />
           <meshBasicMaterial color={isA01 ? '#D4FF00' : isD02 ? '#e879f9' : '#38bdf8'} />

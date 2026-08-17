@@ -8,7 +8,7 @@ import { OFFICE_ROOM_CONFIG, CLIENT_BRAND_CONFIG } from '../config/office-layout
 import { useOfficeStore } from '../state/office-store';
 
 /**
- * 1. BrandWall (Back Center): BAR | DINH signage centered at x = 0 (spans x = -3.5 to +3.5)
+ * 1. BrandWall (Back Center): BAR | DINH signage centered at x = 0
  */
 const BrandWall: React.FC = () => {
   const brand = CLIENT_BRAND_CONFIG;
@@ -16,13 +16,13 @@ const BrandWall: React.FC = () => {
 
   return (
     <group position={[0, 0, -10.95]}>
-      {/* Centered Acoustic Wood Slats (14 slats spanning -3.25 to +3.25) */}
+      {/* Centered Acoustic Wood Slats (Warm Walnut / Teak) */}
       {Array.from({ length: 14 }).map((_, idx) => (
         <mesh key={idx} position={[-3.25 + idx * 0.5, wh / 2, 0.02]} castShadow>
           <boxGeometry args={[0.38, wh - 0.2, 0.05]} />
           <meshStandardMaterial
-            color={idx % 2 === 0 ? '#382414' : '#2a1a0d'}
-            roughness={0.55}
+            color={idx % 2 === 0 ? '#452a18' : '#341f12'}
+            roughness={0.45}
             metalness={0.1}
           />
         </mesh>
@@ -43,7 +43,7 @@ const BrandWall: React.FC = () => {
               userSelect: 'none',
               pointerEvents: 'none',
               width: '500px',
-              backgroundColor: '#0c0d12',
+              backgroundColor: '#0c0e18',
               border: '2px solid rgba(212, 255, 0, 0.6)',
               borderRadius: '12px',
               padding: '24px 32px',
@@ -51,7 +51,7 @@ const BrandWall: React.FC = () => {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 35px rgba(0,0,0,0.9), 0 0 20px rgba(212,255,0,0.2)',
+              boxShadow: '0 0 35px rgba(0,0,0,0.85), 0 0 18px rgba(212,255,0,0.18)',
               WebkitFontSmoothing: 'antialiased',
             }}
           >
@@ -140,7 +140,7 @@ const BrandWall: React.FC = () => {
 };
 
 /**
- * 2. CoffeeBarCredenza (Back Wall Left Section): Centered at x = -8.1 (exact mathematical center of left back wall)
+ * 2. CoffeeBarCredenza (Back Wall Left Section): Centered at x = -8.1 (warm hospitality area)
  */
 const CoffeeBarCredenza: React.FC = () => {
   return (
@@ -148,12 +148,12 @@ const CoffeeBarCredenza: React.FC = () => {
       {/* Base Cabinet Credenza */}
       <mesh position={[0, 0.5, 0.2]} castShadow receiveShadow>
         <boxGeometry args={[3.8, 1.0, 0.45]} />
-        <meshStandardMaterial color="#1a1410" roughness={0.5} metalness={0.2} />
+        <meshStandardMaterial color="#261b14" roughness={0.45} metalness={0.15} />
       </mesh>
       {/* Marble Countertop */}
       <mesh position={[0, 1.02, 0.2]} castShadow>
         <boxGeometry args={[3.85, 0.04, 0.48]} />
-        <meshStandardMaterial color="#2d2926" roughness={0.2} metalness={0.1} />
+        <meshStandardMaterial color="#38332f" roughness={0.2} metalness={0.1} />
       </mesh>
 
       {/* Multi-Tier Backlit Wall Shelves */}
@@ -161,7 +161,7 @@ const CoffeeBarCredenza: React.FC = () => {
         <group key={i} position={[0, y, 0.12]}>
           <mesh castShadow>
             <boxGeometry args={[3.6, 0.05, 0.25]} />
-            <meshStandardMaterial color="#3e2714" roughness={0.4} />
+            <meshStandardMaterial color="#4a301a" roughness={0.4} />
           </mesh>
           {/* LED Underglow */}
           <mesh position={[0, -0.028, 0]}>
@@ -171,13 +171,12 @@ const CoffeeBarCredenza: React.FC = () => {
         </group>
       ))}
 
-      {/* Realistic Commercial Dual-Group Espresso Machine */}
+      {/* Commercial Dual-Group Espresso Machine */}
       <group position={[-0.8, 1.3, 0.2]}>
         <mesh castShadow>
           <boxGeometry args={[0.8, 0.5, 0.35]} />
-          <meshStandardMaterial color="#18181b" metalness={0.9} roughness={0.15} />
+          <meshStandardMaterial color="#27272a" metalness={0.9} roughness={0.15} />
         </mesh>
-        {/* Chrome Group Heads */}
         {[-0.18, 0.18].map((gx, gi) => (
           <mesh key={gi} position={[gx, -0.12, 0.19]} castShadow>
             <cylinderGeometry args={[0.04, 0.04, 0.1, 12]} />
@@ -190,7 +189,7 @@ const CoffeeBarCredenza: React.FC = () => {
       <group position={[0.25, 1.32, 0.2]}>
         <mesh castShadow>
           <cylinderGeometry args={[0.08, 0.1, 0.52, 16]} />
-          <meshStandardMaterial color="#09090b" metalness={0.8} />
+          <meshStandardMaterial color="#18181b" metalness={0.8} />
         </mesh>
         <mesh position={[0, 0.32, 0]}>
           <cylinderGeometry args={[0.12, 0.06, 0.22, 16]} />
@@ -198,7 +197,7 @@ const CoffeeBarCredenza: React.FC = () => {
         </mesh>
       </group>
 
-      {/* Pour-over Stand & Glassware on Counter */}
+      {/* Pour-over Stand & Glassware */}
       <group position={[1.1, 1.18, 0.2]}>
         <mesh castShadow>
           <cylinderGeometry args={[0.06, 0.08, 0.2, 16]} />
@@ -230,94 +229,329 @@ const CoffeeBarCredenza: React.FC = () => {
 };
 
 /**
- * 3. StrategyContentWallBoard (Back Wall Right Section): Clean single bezel with zero border misalignment
+ * 3. DesignBookshelfCredenza (Back Wall Right Section): Centered at x = +8.1 for perfect architectural symmetry with the Coffee Bar Credenza
  */
-const StrategyContentWallBoard: React.FC = () => {
+const DesignBookshelfCredenza: React.FC = () => {
   return (
-    <group position={[7.6, 4.2, -10.9]}>
-      {/* HTML High-Resolution Content Flow & KPI HUD */}
-      <Html
-        center
-        distanceFactor={6.8}
-        transform
-        occlude={false}
-        className="pointer-events-none select-none"
-      >
+    <group position={[8.1, 0, -10.9]}>
+      {/* Base Cabinet Credenza */}
+      <mesh position={[0, 0.5, 0.2]} castShadow receiveShadow>
+        <boxGeometry args={[3.8, 1.0, 0.45]} />
+        <meshStandardMaterial color="#261b14" roughness={0.45} metalness={0.15} />
+      </mesh>
+      {/* Marble Countertop */}
+      <mesh position={[0, 1.02, 0.2]} castShadow>
+        <boxGeometry args={[3.85, 0.04, 0.48]} />
+        <meshStandardMaterial color="#38332f" roughness={0.2} metalness={0.1} />
+      </mesh>
+
+      {/* Multi-Tier Backlit Wall Shelves */}
+      {[2.4, 3.8, 5.2].map((y, i) => (
+        <group key={i} position={[0, y, 0.12]}>
+          <mesh castShadow>
+            <boxGeometry args={[3.6, 0.05, 0.25]} />
+            <meshStandardMaterial color="#4a301a" roughness={0.4} />
+          </mesh>
+          {/* LED Underglow */}
+          <mesh position={[0, -0.028, 0]}>
+            <planeGeometry args={[3.5, 0.02]} />
+            <meshBasicMaterial color="#fef08a" />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Countertop: Creative Design Books & Architectural Sculpture */}
+      {/* Stacked Coffee Table Books */}
+      <group position={[-1.0, 1.1, 0.2]} rotation={[0, 0.15, 0]}>
+        <mesh castShadow position={[0, 0.02, 0]}>
+          <boxGeometry args={[0.42, 0.04, 0.3]} />
+          <meshStandardMaterial color="#0284c7" roughness={0.5} />
+        </mesh>
+        <mesh castShadow position={[0.02, 0.06, -0.01]} rotation={[0, -0.1, 0]}>
+          <boxGeometry args={[0.38, 0.04, 0.28]} />
+          <meshStandardMaterial color="#d97706" roughness={0.5} />
+        </mesh>
+        <mesh castShadow position={[-0.01, 0.1, 0.01]} rotation={[0, 0.05, 0]}>
+          <boxGeometry args={[0.35, 0.04, 0.25]} />
+          <meshStandardMaterial color="#059669" roughness={0.5} />
+        </mesh>
+      </group>
+
+      {/* Modern Geometric Trophy / Art Piece */}
+      <group position={[0.2, 1.25, 0.2]}>
+        <mesh castShadow>
+          <cylinderGeometry args={[0.06, 0.08, 0.08, 16]} />
+          <meshStandardMaterial color="#18181b" metalness={0.9} />
+        </mesh>
+        <mesh position={[0, 0.14, 0]} castShadow>
+          <octahedronGeometry args={[0.1, 0]} />
+          <meshStandardMaterial color="#facc15" metalness={0.95} roughness={0.1} />
+        </mesh>
+      </group>
+
+      {/* Minimalist Brass Reading Lamp */}
+      <group position={[1.1, 1.28, 0.18]}>
+        <mesh castShadow>
+          <cylinderGeometry args={[0.07, 0.07, 0.02, 16]} />
+          <meshStandardMaterial color="#d97706" metalness={0.9} />
+        </mesh>
+        <mesh position={[0, 0.22, 0]} castShadow>
+          <cylinderGeometry args={[0.012, 0.012, 0.42, 8]} />
+          <meshStandardMaterial color="#d97706" metalness={0.9} />
+        </mesh>
+        <mesh position={[0, 0.44, 0]} castShadow>
+          <cylinderGeometry args={[0.1, 0.16, 0.18, 16]} />
+          <meshStandardMaterial color="#fef3c7" roughness={0.3} />
+        </mesh>
+        {/* Soft Warm Lamp Glow */}
+        <pointLight position={[0, 0.4, 0]} intensity={1.5} color="#fef08a" distance={3.5} />
+      </group>
+
+      {/* Shelf 1 (y = 2.4): Rows of Marketing & Design Books */}
+      <group position={[-1.1, 2.7, 0.12]}>
+        {[-0.32, -0.22, -0.12, -0.02, 0.08, 0.18, 0.28, 0.38, 0.48, 0.58].map((bx, bi) => (
+          <mesh key={bi} position={[bx, 0, 0]} castShadow>
+            <boxGeometry args={[0.08, 0.38, 0.18]} />
+            <meshStandardMaterial
+              color={
+                bi % 5 === 0
+                  ? '#38bdf8'
+                  : bi % 5 === 1
+                  ? '#f43f5e'
+                  : bi % 5 === 2
+                  ? '#10b981'
+                  : bi % 5 === 3
+                  ? '#fbbf24'
+                  : '#a855f7'
+              }
+              roughness={0.4}
+            />
+          </mesh>
+        ))}
+      </group>
+      {/* Decorative Ceramic Planter on Shelf 1 */}
+      <group position={[0.8, 2.62, 0.12]}>
+        <mesh castShadow>
+          <cylinderGeometry args={[0.1, 0.07, 0.2, 16]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.2} />
+        </mesh>
+        <mesh position={[0, 0.14, 0]} castShadow>
+          <sphereGeometry args={[0.12, 12, 12]} />
+          <meshStandardMaterial color="#16a34a" roughness={0.7} />
+        </mesh>
+      </group>
+
+      {/* Shelf 2 (y = 3.8): Art Books + Minimalist White Ceramic Vases */}
+      <group position={[0.3, 4.1, 0.12]}>
+        {[-0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3].map((bx, bi) => (
+          <mesh key={`s2-b-${bi}`} position={[bx, 0, 0]} castShadow>
+            <boxGeometry args={[0.075, 0.36, 0.18]} />
+            <meshStandardMaterial
+              color={bi % 3 === 0 ? '#1e293b' : bi % 3 === 1 ? '#0284c7' : '#D4FF00'}
+              roughness={0.4}
+            />
+          </mesh>
+        ))}
+      </group>
+      <group position={[-0.9, 4.05, 0.12]}>
+        <mesh castShadow>
+          <cylinderGeometry args={[0.08, 0.11, 0.28, 16]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.15} />
+        </mesh>
+      </group>
+      <group position={[-0.5, 4.02, 0.12]}>
+        <mesh castShadow>
+          <cylinderGeometry args={[0.06, 0.08, 0.22, 16]} />
+          <meshStandardMaterial color="#38bdf8" roughness={0.3} />
+        </mesh>
+      </group>
+
+      {/* Shelf 3 (y = 5.2): Design Artifacts & Award Statues */}
+      {[-0.9, -0.3, 0.3, 0.9].map((ax, ai) => (
+        <group key={`s3-art-${ai}`} position={[ax, 5.42, 0.12]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.18, 0.24, 0.14]} />
+            <meshStandardMaterial
+              color={ai % 2 === 0 ? '#fef08a' : '#f8fafc'}
+              roughness={0.3}
+              metalness={0.5}
+            />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+};
+
+/**
+ * 4. LeftAnalyticsWall (Left Wall): Scaled down by ~30%, tightened to wall with grounded storytelling
+ */
+const LeftAnalyticsWall: React.FC = () => {
+  const halfW = OFFICE_ROOM_CONFIG.width / 2;
+  const wh = OFFICE_ROOM_CONFIG.wallHeight;
+
+  return (
+    <group position={[-halfW + 0.08, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+      {/* Warm Oak Wall Backdrop Panel */}
+      <mesh position={[0, wh / 2, -0.04]} receiveShadow>
+        <boxGeometry args={[18, wh, 0.08]} />
+        <meshStandardMaterial color="#2a1f16" roughness={0.55} metalness={0.1} />
+      </mesh>
+
+      {/* Horizontal Warm Accent Trim */}
+      <mesh position={[0, wh - 0.35, 0.01]}>
+        <boxGeometry args={[17.8, 0.03, 0.02]} />
+        <meshBasicMaterial color="#fef08a" />
+      </mesh>
+
+      {/* ── TOP TIER: 3 COMPACT HUD DISPLAYS (Scaled down 30%) ── */}
+      <group position={[-4.5, 5.8, 0.04]}>
+        <Html center distanceFactor={5.6} transform occlude={false} className="pointer-events-none select-none">
+          <div style={{ display: 'flex', gap: '14px', width: '420px', fontFamily: "'Inter', -apple-system, sans-serif" }}>
+            {/* HUD 1: Tone waveform */}
+            <div style={{ flex: 1, backgroundColor: '#090d1a', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', height: '105px', boxShadow: '0 0 14px rgba(0,0,0,0.5)' }}>
+              <div style={{ fontSize: '8px', fontWeight: 700, color: '#38bdf8', marginBottom: '4px' }}>BRAND VOICE // TONE</div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', height: '65px', gap: '2px' }}>
+                {[45, 65, 80, 55, 90, 70, 50, 85, 65, 95, 75, 60, 85, 90, 65].map((h, idx) => (
+                  <div key={idx} style={{ flex: 1, height: `${h}%`, backgroundColor: '#38bdf8', borderRadius: '1px' }} />
+                ))}
+              </div>
+            </div>
+            {/* HUD 2: Pillar distribution */}
+            <div style={{ flex: 1, backgroundColor: '#090d1a', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', height: '105px', boxShadow: '0 0 14px rgba(0,0,0,0.5)' }}>
+              <div style={{ fontSize: '8px', fontWeight: 700, color: '#e879f9', marginBottom: '4px' }}>TRỤ CỘT NỘI DUNG</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                <div style={{ width: '85%', height: '7px', backgroundColor: '#e879f9', borderRadius: '2px' }} />
+                <div style={{ width: '65%', height: '7px', backgroundColor: '#38bdf8', borderRadius: '2px' }} />
+                <div style={{ width: '90%', height: '7px', backgroundColor: '#D4FF00', borderRadius: '2px' }} />
+                <div style={{ width: '50%', height: '7px', backgroundColor: '#34d399', borderRadius: '2px' }} />
+              </div>
+            </div>
+            {/* HUD 3: Agent status */}
+            <div style={{ flex: 1, backgroundColor: '#090d1a', border: '1px solid #1e293b', borderRadius: '8px', padding: '8px', height: '105px', boxShadow: '0 0 14px rgba(0,0,0,0.5)' }}>
+              <div style={{ fontSize: '8px', fontWeight: 700, color: '#D4FF00', marginBottom: '4px' }}>TRẠNG THÁI AGENT</div>
+              <div style={{ fontSize: '18px', fontWeight: 900, color: '#D4FF00', marginTop: '8px', textAlign: 'center' }}>6 READY</div>
+              <div style={{ fontSize: '8px', color: '#94a3b8', textAlign: 'center', marginTop: '4px' }}>3 ĐANG HOẠT ĐỘNG</div>
+            </div>
+          </div>
+        </Html>
+      </group>
+
+      {/* ── MIDDLE TIER: STRATEGY PIPELINE STATUS (Scaled down 30%) ── */}
+      <group position={[-4.5, 3.8, 0.04]}>
+        <Html center distanceFactor={5.2} transform occlude={false} className="pointer-events-none select-none">
+          <div style={{ width: '340px', backgroundColor: '#090d1a', border: '1px solid #1e293b', borderRadius: '8px', padding: '12px', display: 'flex', alignItems: 'center', gap: '14px', fontFamily: "'Inter', -apple-system, sans-serif", boxShadow: '0 0 16px rgba(0,0,0,0.5)' }}>
+            <div style={{ width: '68px', height: '68px', borderRadius: '50%', border: '4px solid #34d399', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 12px rgba(52,211,153,0.25)' }}>
+              <span style={{ fontSize: '16px', fontWeight: 900, color: '#ffffff' }}>T34</span>
+              <span style={{ fontSize: '7px', fontWeight: 700, color: '#34d399' }}>TUẦN NÀY</span>
+            </div>
+
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '12px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.06em', marginBottom: '6px' }}>KẾ HOẠCH TUẦN</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '9px', color: '#cbd5e1' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Trụ cột B02</span>
+                  <span style={{ color: '#34d399', fontWeight: 700 }}>4/4 Hoàn tất</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Lịch phát hành B03</span>
+                  <span style={{ color: '#38bdf8', fontWeight: 700 }}>14 Bài đăng</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Html>
+      </group>
+
+      {/* ── BOTTOM TIER: NỘI DUNG HÔM NAY (Scaled down 30%) ── */}
+      <group position={[3.5, 3.8, 0.04]}>
+        <Html center distanceFactor={5.2} transform occlude={false} className="pointer-events-none select-none">
+          <div style={{ width: '360px', backgroundColor: '#090d1a', border: '1px solid #1e293b', borderRadius: '8px', padding: '12px', fontFamily: "'Inter', -apple-system, sans-serif", boxShadow: '0 0 16px rgba(0,0,0,0.5)' }}>
+            <div style={{ fontSize: '11px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.08em', marginBottom: '8px', borderBottom: '1px solid #1e293b', paddingBottom: '4px' }}>
+              NỘI DUNG HÔM NAY
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+              <div style={{ backgroundColor: '#10162a', padding: '6px', borderRadius: '4px', border: '1px solid #1e293b' }}>
+                <div style={{ fontSize: '8px', fontWeight: 700, color: '#94a3b8', marginBottom: '4px' }}>Ý tưởng</div>
+                <div style={{ backgroundColor: '#fef08a', color: '#713f12', padding: '4px', borderRadius: '3px', fontSize: '8px', fontWeight: 600 }}>
+                  📝 Story hoàng hôn
+                </div>
+              </div>
+
+              <div style={{ backgroundColor: '#10162a', padding: '6px', borderRadius: '4px', border: '1px solid #1e293b' }}>
+                <div style={{ fontSize: '8px', fontWeight: 700, color: '#38bdf8', marginBottom: '4px' }}>Đang làm</div>
+                <div style={{ backgroundColor: '#bae6fd', color: '#0369a1', padding: '4px', borderRadius: '3px', fontSize: '8px', fontWeight: 600 }}>
+                  🎨 Combo Trưa (D02)
+                </div>
+              </div>
+
+              <div style={{ backgroundColor: '#10162a', padding: '6px', borderRadius: '4px', border: '1px solid #1e293b' }}>
+                <div style={{ fontSize: '8px', fontWeight: 700, color: '#34d399', marginBottom: '4px' }}>Đã duyệt</div>
+                <div style={{ backgroundColor: '#bbf7d0', color: '#14532d', padding: '4px', borderRadius: '3px', fontSize: '8px', fontWeight: 600 }}>
+                  ✅ Lịch T34 (B03)
+                </div>
+              </div>
+            </div>
+          </div>
+        </Html>
+      </group>
+    </group>
+  );
+};
+
+/**
+ * 5. RightCreativeStudioWall (Right Wall Showcase Display): Balances the right side (D01 & D02 Creative Zone)
+ */
+const RightCreativeStudioWall: React.FC = () => {
+  const halfW = OFFICE_ROOM_CONFIG.width / 2;
+
+  return (
+    <group position={[halfW - 0.12, 4.0, -2.5]} rotation={[0, -Math.PI / 2, 0]}>
+      <Html center distanceFactor={5.6} transform occlude={false} className="pointer-events-none select-none">
         <div
           style={{
-            width: '460px',
-            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-            backgroundColor: '#070a14',
-            border: '2px solid rgba(212, 255, 0, 0.5)',
-            borderRadius: '12px',
-            padding: '16px',
-            color: '#f1f5f9',
-            boxShadow: '0 0 25px rgba(0,0,0,0.9), 0 0 15px rgba(212,255,0,0.15)',
-            WebkitFontSmoothing: 'antialiased',
+            width: '380px',
+            backgroundColor: '#0c0f1e',
+            border: '2px solid rgba(232, 121, 249, 0.5)',
+            borderRadius: '10px',
+            padding: '14px',
+            fontFamily: "'Inter', -apple-system, sans-serif",
+            color: '#f8fafc',
+            boxShadow: '0 0 25px rgba(0,0,0,0.85), 0 0 15px rgba(232,121,249,0.15)',
           }}
         >
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '10px', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#D4FF00', boxShadow: '0 0 8px #D4FF00' }} />
-              <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.1em', color: '#ffffff', textTransform: 'uppercase' }}>
-                CHIẾN LƯỢC NỘI DUNG
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '8px', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#e879f9', boxShadow: '0 0 8px #e879f9' }} />
+              <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', color: '#ffffff' }}>
+                CREATIVE STUDIO // D01 & D02
               </span>
             </div>
-            <div style={{ display: 'flex', gap: '8px', fontSize: '9px', fontWeight: 700 }}>
-              <span style={{ color: '#D4FF00', backgroundColor: '#1e293b', padding: '2px 6px', borderRadius: '4px' }}>MỤC TIÊU</span>
-              <span style={{ color: '#38bdf8', backgroundColor: '#1e293b', padding: '2px 6px', borderRadius: '4px' }}>KÊNH</span>
-              <span style={{ color: '#c084fc', backgroundColor: '#1e293b', padding: '2px 6px', borderRadius: '4px' }}>KPI</span>
+            <span style={{ fontSize: '8px', fontWeight: 700, color: '#e879f9', backgroundColor: '#2e1065', padding: '2px 6px', borderRadius: '4px' }}>
+              ACTIVE PIPELINE
+            </span>
+          </div>
+
+          {/* Workflow Pipeline */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+            <div style={{ flex: 1, backgroundColor: '#10162a', padding: '8px', borderRadius: '6px', border: '1px solid #1e293b' }}>
+              <div style={{ fontSize: '8px', color: '#fbbf24', fontWeight: 700, marginBottom: '2px' }}>D01 COPYWRITER</div>
+              <div style={{ fontSize: '10px', fontWeight: 800, color: '#ffffff' }}>Caption & Hashtags</div>
+              <div style={{ fontSize: '8px', color: '#94a3b8', marginTop: '2px' }}>Chuẩn F&B Tone</div>
+            </div>
+            <div style={{ flex: 1, backgroundColor: '#10162a', padding: '8px', borderRadius: '6px', border: '1px solid #1e293b' }}>
+              <div style={{ fontSize: '8px', color: '#e879f9', fontWeight: 700, marginBottom: '2px' }}>D02 VISUAL DESIGN</div>
+              <div style={{ fontSize: '10px', fontWeight: 800, color: '#ffffff' }}>Graphic & Layout</div>
+              <div style={{ fontSize: '8px', color: '#94a3b8', marginTop: '2px' }}>1:1 Feed · 9:16 Story</div>
             </div>
           </div>
 
-          {/* Interactive Flowchart Diagram */}
-          <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', margin: '14px 0', padding: '12px 6px', backgroundColor: '#0c1120', borderRadius: '8px', border: '1px solid #1e293b' }}>
-            {/* Step 1 */}
-            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: '#065f46', border: '1px solid #34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 0 12px rgba(52,211,153,0.3)' }}>
-                🎯
-              </div>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#34d399', marginTop: '6px' }}>Mục tiêu Q3</div>
-            </div>
-
-            {/* Arrow 1 */}
-            <div style={{ color: '#38bdf8', fontSize: '16px', fontWeight: 900, opacity: 0.8 }}>➔</div>
-
-            {/* Step 2 */}
-            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: '#075985', border: '1px solid #38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 0 12px rgba(56,189,248,0.3)' }}>
-                📱
-              </div>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#38bdf8', marginTop: '6px' }}>Kênh FB/IG</div>
-            </div>
-
-            {/* Arrow 2 */}
-            <div style={{ color: '#38bdf8', fontSize: '16px', fontWeight: 900, opacity: 0.8 }}>➔</div>
-
-            {/* Step 3 */}
-            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: '#581c87', border: '1px solid #c084fc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 0 12px rgba(192,132,252,0.3)' }}>
-                📊
-              </div>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#c084fc', marginTop: '6px' }}>+35% Tương tác</div>
-            </div>
-          </div>
-
-          {/* Performance Metric Stream */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '12px' }}>
-            <div style={{ backgroundColor: '#0b101c', padding: '8px 6px', borderRadius: '6px', textAlign: 'center', border: '1px solid #1e293b' }}>
-              <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '2px' }}>Reach Tuần</div>
-              <div style={{ fontSize: '14px', fontWeight: 800, color: '#D4FF00', letterSpacing: '0.04em' }}>148.5K</div>
-            </div>
-            <div style={{ backgroundColor: '#0b101c', padding: '8px 6px', borderRadius: '6px', textAlign: 'center', border: '1px solid #1e293b' }}>
-              <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '2px' }}>Tương tác</div>
-              <div style={{ fontSize: '14px', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.04em' }}>12.4K</div>
-            </div>
-            <div style={{ backgroundColor: '#0b101c', padding: '8px 6px', borderRadius: '6px', textAlign: 'center', border: '1px solid #1e293b' }}>
-              <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '2px' }}>Chuyển đổi</div>
-              <div style={{ fontSize: '14px', fontWeight: 800, color: '#34d399', letterSpacing: '0.04em' }}>8.9%</div>
-            </div>
+          {/* Format Spec Tags */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#10162a', padding: '6px 10px', borderRadius: '6px', fontSize: '8px', color: '#cbd5e1' }}>
+            <span>🎨 Brand Palette: Amber / Sunset / Lime</span>
+            <span style={{ color: '#34d399', fontWeight: 700 }}>⚡ Visual High-DPI</span>
           </div>
         </div>
       </Html>
@@ -326,143 +560,7 @@ const StrategyContentWallBoard: React.FC = () => {
 };
 
 /**
- * 4. LeftAnalyticsWall (Left Wall): Top 3 HUDs, "HIỆU SUẤT AGENT" 82% gauge, "NỘI DUNG HÔM NAY" 3-column Kanban
- */
-const LeftAnalyticsWall: React.FC = () => {
-  const halfW = OFFICE_ROOM_CONFIG.width / 2;
-  const wh = OFFICE_ROOM_CONFIG.wallHeight;
-
-  return (
-    <group position={[-halfW + 0.12, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-      {/* Warm Oak Wall Backdrop Panel */}
-      <mesh position={[0, wh / 2, -0.04]} receiveShadow>
-        <boxGeometry args={[18, wh, 0.08]} />
-        <meshStandardMaterial color="#1e1610" roughness={0.6} metalness={0.1} />
-      </mesh>
-
-      {/* Horizontal LED Accent Trim at upper wall */}
-      <mesh position={[0, wh - 0.35, 0.01]}>
-        <boxGeometry args={[17.8, 0.04, 0.02]} />
-        <meshBasicMaterial color="#D4FF00" />
-      </mesh>
-
-      {/* ── TOP TIER: 3 FUTURISTIC HUD ANALYTICS MONITORS ── */}
-      <group position={[-4.5, 5.8, 0.05]}>
-        <Html center distanceFactor={7} transform occlude={false} className="pointer-events-none select-none">
-          <div style={{ display: 'flex', gap: '22px', width: '580px', fontFamily: "'Inter', -apple-system, sans-serif" }}>
-            {/* HUD 1: Tone waveform */}
-            <div style={{ flex: 1, backgroundColor: '#070b14', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px', height: '120px', boxShadow: '0 0 16px rgba(0,0,0,0.6)' }}>
-              <div style={{ fontSize: '9px', fontWeight: 700, color: '#38bdf8', marginBottom: '6px' }}>BRAND VOICE // FREQUENCY</div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', height: '75px', gap: '3px' }}>
-                {[40, 65, 85, 50, 95, 70, 45, 80, 60, 90, 75, 55, 85, 95, 60].map((h, idx) => (
-                  <div key={idx} style={{ flex: 1, height: `${h}%`, backgroundColor: '#38bdf8', borderRadius: '1px' }} />
-                ))}
-              </div>
-            </div>
-            {/* HUD 2: Pillar distribution bars */}
-            <div style={{ flex: 1, backgroundColor: '#070b14', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px', height: '120px', boxShadow: '0 0 16px rgba(0,0,0,0.6)' }}>
-              <div style={{ fontSize: '9px', fontWeight: 700, color: '#e879f9', marginBottom: '6px' }}>CONTENT ALLOCATION</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
-                <div style={{ width: '85%', height: '9px', backgroundColor: '#e879f9', borderRadius: '2px' }} />
-                <div style={{ width: '65%', height: '9px', backgroundColor: '#38bdf8', borderRadius: '2px' }} />
-                <div style={{ width: '92%', height: '9px', backgroundColor: '#D4FF00', borderRadius: '2px' }} />
-                <div style={{ width: '50%', height: '9px', backgroundColor: '#34d399', borderRadius: '2px' }} />
-              </div>
-            </div>
-            {/* HUD 3: Quality gauge */}
-            <div style={{ flex: 1, backgroundColor: '#070b14', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px', height: '120px', boxShadow: '0 0 16px rgba(0,0,0,0.6)' }}>
-              <div style={{ fontSize: '9px', fontWeight: 700, color: '#D4FF00', marginBottom: '6px' }}>SYSTEM TOKEN RATE</div>
-              <div style={{ fontSize: '24px', fontWeight: 900, color: '#D4FF00', marginTop: '14px', textAlign: 'center' }}>98.4%</div>
-              <div style={{ fontSize: '8px', color: '#94a3b8', textAlign: 'center', marginTop: '4px' }}>TOKEN EFFICIENCY PASS</div>
-            </div>
-          </div>
-        </Html>
-      </group>
-
-      {/* ── MIDDLE TIER: "HIỆU SUẤT AGENT" (82% CIRCULAR GAUGE) ── */}
-      <group position={[-4.5, 3.8, 0.05]}>
-        <Html center distanceFactor={6.5} transform occlude={false} className="pointer-events-none select-none">
-          <div style={{ width: '440px', backgroundColor: '#080c18', border: '1px solid #1e293b', borderRadius: '10px', padding: '16px', display: 'flex', alignItems: 'center', gap: '18px', fontFamily: "'Inter', -apple-system, sans-serif", boxShadow: '0 0 20px rgba(0,0,0,0.7)' }}>
-            {/* Circular Gauge */}
-            <div style={{ width: '96px', height: '96px', borderRadius: '50%', border: '6px solid #D4FF00', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 16px rgba(212,255,0,0.3)' }}>
-              <span style={{ fontSize: '22px', fontWeight: 900, color: '#ffffff' }}>82%</span>
-              <span style={{ fontSize: '8px', fontWeight: 700, color: '#D4FF00' }}>HEALTH</span>
-            </div>
-
-            {/* Text Metrics */}
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.08em', marginBottom: '8px' }}>HIỆU SUẤT AGENT</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#cbd5e1' }}>
-                  <span>Thời gian phản hồi TB</span>
-                  <span style={{ color: '#38bdf8', fontWeight: 700 }}>1.4s</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#cbd5e1' }}>
-                  <span>Tỷ lệ duyệt lần 1</span>
-                  <span style={{ color: '#34d399', fontWeight: 700 }}>92% Pass</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#cbd5e1' }}>
-                  <span>Ngân sách token</span>
-                  <span style={{ color: '#D4FF00', fontWeight: 700 }}>63% Còn lại</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Html>
-      </group>
-
-      {/* ── BOTTOM TIER: "NỘI DUNG HÔM NAY" (3-COLUMN KANBAN) ── */}
-      <group position={[3.5, 3.8, 0.05]}>
-        <Html center distanceFactor={6.5} transform occlude={false} className="pointer-events-none select-none">
-          <div style={{ width: '460px', backgroundColor: '#080c18', border: '1px solid #1e293b', borderRadius: '10px', padding: '16px', fontFamily: "'Inter', -apple-system, sans-serif", boxShadow: '0 0 20px rgba(0,0,0,0.7)' }}>
-            <div style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.1em', marginBottom: '12px', borderBottom: '1px solid #1e293b', paddingBottom: '6px' }}>
-              NỘI DUNG HÔM NAY
-            </div>
-
-            {/* 3 Kanban Columns */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-              {/* Column 1: Ý tưởng */}
-              <div style={{ backgroundColor: '#0f172a', padding: '8px', borderRadius: '6px', border: '1px solid #1e293b' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', marginBottom: '8px' }}>Ý tưởng</div>
-                <div style={{ backgroundColor: '#fef08a', color: '#713f12', padding: '6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, marginBottom: '6px' }}>
-                  📝 Story góc hoàng hôn
-                </div>
-                <div style={{ backgroundColor: '#fed7aa', color: '#7c2d12', padding: '6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600 }}>
-                  💡 Minigame Voucher
-                </div>
-              </div>
-
-              {/* Column 2: Đang làm */}
-              <div style={{ backgroundColor: '#0f172a', padding: '8px', borderRadius: '6px', border: '1px solid #1e293b' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#38bdf8', marginBottom: '8px' }}>Đang làm</div>
-                <div style={{ backgroundColor: '#bae6fd', color: '#0369a1', padding: '6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, marginBottom: '6px' }}>
-                  🎨 Banner Combo Trưa (D02)
-                </div>
-                <div style={{ backgroundColor: '#fbcfe8', color: '#831843', padding: '6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600 }}>
-                  ✍️ Caption Trà Ổi Hồng (D01)
-                </div>
-              </div>
-
-              {/* Column 3: Hoàn thành */}
-              <div style={{ backgroundColor: '#0f172a', padding: '8px', borderRadius: '6px', border: '1px solid #1e293b' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#34d399', marginBottom: '8px' }}>Hoàn thành</div>
-                <div style={{ backgroundColor: '#bbf7d0', color: '#14532d', padding: '6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, marginBottom: '6px' }}>
-                  ✅ Lịch xuất bản T34 (B03)
-                </div>
-                <div style={{ backgroundColor: '#ddd6fe', color: '#4c1d95', padding: '6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600 }}>
-                  ✅ 4 Trụ cột Content (B02)
-                </div>
-              </div>
-            </div>
-          </div>
-        </Html>
-      </group>
-    </group>
-  );
-};
-
-/**
- * 5. Architectural Crown / Perimeter Cove Light Soffit (Positioned at y = 8.85m, completely open center so ZERO view obstruction)
+ * 6. Architectural Crown / Perimeter Cove Light Soffit
  */
 const CeilingPerimeterCrown: React.FC = () => {
   const { width, depth } = OFFICE_ROOM_CONFIG;
@@ -472,55 +570,53 @@ const CeilingPerimeterCrown: React.FC = () => {
 
   return (
     <group position={[0, crownY, 0]}>
-      {/* ── BACK WALL PERIMETER SOFFIT ── */}
-      <mesh position={[0, 0, -depth / 2 + 0.7]} castShadow receiveShadow>
+      {/* Back Wall Soffit */}
+      <mesh position={[0, 0, -depth / 2 + 0.7]}>
         <boxGeometry args={[width, 0.3, 1.4]} />
-        <meshStandardMaterial color={isDay ? '#181a24' : '#0c0d14'} roughness={0.7} />
+        <meshStandardMaterial color={isDay ? '#222738' : '#141724'} roughness={0.6} />
       </mesh>
-      {/* Back Cove Light Glow Line */}
+      {/* Cove Light Glow */}
       <mesh position={[0, -0.16, -depth / 2 + 1.4]}>
         <boxGeometry args={[width, 0.04, 0.03]} />
-        <meshBasicMaterial color={isDay ? '#ffffff' : '#D4FF00'} />
+        <meshBasicMaterial color={isDay ? '#ffffff' : '#fef08a'} />
       </mesh>
 
-      {/* ── LEFT WALL PERIMETER SOFFIT ── */}
-      <mesh position={[-width / 2 + 0.7, 0, 0]} castShadow receiveShadow>
+      {/* Left Wall Soffit */}
+      <mesh position={[-width / 2 + 0.7, 0, 0]}>
         <boxGeometry args={[1.4, 0.3, depth]} />
-        <meshStandardMaterial color={isDay ? '#181a24' : '#0c0d14'} roughness={0.7} />
+        <meshStandardMaterial color={isDay ? '#222738' : '#141724'} roughness={0.6} />
       </mesh>
-      {/* Left Cove Light Glow Line */}
       <mesh position={[-width / 2 + 1.4, -0.16, 0]}>
         <boxGeometry args={[0.03, 0.04, depth]} />
-        <meshBasicMaterial color={isDay ? '#ffffff' : '#D4FF00'} />
+        <meshBasicMaterial color={isDay ? '#ffffff' : '#fef08a'} />
       </mesh>
 
-      {/* ── RIGHT GLASS WALL PERIMETER SOFFIT ── */}
-      <mesh position={[width / 2 - 0.7, 0, 0]} castShadow receiveShadow>
+      {/* Right Wall Soffit */}
+      <mesh position={[width / 2 - 0.7, 0, 0]}>
         <boxGeometry args={[1.4, 0.3, depth]} />
-        <meshStandardMaterial color={isDay ? '#181a24' : '#0c0d14'} roughness={0.7} />
+        <meshStandardMaterial color={isDay ? '#222738' : '#141724'} roughness={0.6} />
       </mesh>
-      {/* Right Cove Light Glow Line */}
       <mesh position={[width / 2 - 1.4, -0.16, 0]}>
         <boxGeometry args={[0.03, 0.04, depth]} />
-        <meshBasicMaterial color={isDay ? '#ffffff' : '#D4FF00'} />
+        <meshBasicMaterial color={isDay ? '#ffffff' : '#fef08a'} />
       </mesh>
 
-      {/* ── RECESSED PERIMETER DOWNLIGHTS ── */}
+      {/* Recessed Warm Downlights */}
       {[-8.0, -4.0, 0, 4.0, 8.0].map((x, xi) => (
         <mesh key={`dl-b-${xi}`} position={[x, -0.16, -depth / 2 + 0.7]}>
           <circleGeometry args={[0.16, 16]} />
-          <meshBasicMaterial color="#ffffff" />
+          <meshBasicMaterial color="#fffbeb" />
         </mesh>
       ))}
       {[-6.0, -1.0, 4.0].map((z, zi) => (
         <React.Fragment key={`dl-sides-${zi}`}>
           <mesh position={[-width / 2 + 0.7, -0.16, z]}>
             <circleGeometry args={[0.16, 16]} />
-            <meshBasicMaterial color="#ffffff" />
+            <meshBasicMaterial color="#fffbeb" />
           </mesh>
           <mesh position={[width / 2 - 0.7, -0.16, z]}>
             <circleGeometry args={[0.16, 16]} />
-            <meshBasicMaterial color="#ffffff" />
+            <meshBasicMaterial color="#fffbeb" />
           </mesh>
         </React.Fragment>
       ))}
@@ -529,85 +625,73 @@ const CeilingPerimeterCrown: React.FC = () => {
 };
 
 /**
- * 6. AICommandKiosk (Front-Left Foreground): Angled Pedestal with "AI COMMAND CENTER" Avatar HUD
+ * 7. AICommandKiosk: Repositioned as an elegant freestanding console in the entrance/lounge niche
  */
 const AICommandKiosk: React.FC = () => {
   return (
-    <group position={[-6.8, 0, 6.8]} rotation={[0, 0.45, 0]}>
-      {/* Pedestal Base */}
-      <mesh position={[0, 0.4, 0]} castShadow>
-        <boxGeometry args={[0.6, 0.8, 0.5]} />
-        <meshStandardMaterial color="#12141c" metalness={0.9} roughness={0.2} />
+    <group position={[-9.2, 0, 3.8]} rotation={[0, 0.6, 0]}>
+      {/* Sleek Upright Pedestal */}
+      <mesh position={[0, 0.55, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.5, 1.1, 0.4]} />
+        <meshStandardMaterial color="#181c2b" metalness={0.8} roughness={0.25} />
       </mesh>
-      {/* Neon Edge Accents */}
-      <mesh position={[0, 0.78, 0.24]}>
-        <boxGeometry args={[0.56, 0.02, 0.02]} />
+      {/* Accent Edge */}
+      <mesh position={[0, 1.08, 0.19]}>
+        <boxGeometry args={[0.46, 0.02, 0.02]} />
         <meshBasicMaterial color="#D4FF00" />
       </mesh>
 
-      {/* Angled Display Surface */}
-      <group position={[0, 0.95, 0.08]} rotation={[-0.55, 0, 0]}>
-        <mesh castShadow>
-          <boxGeometry args={[1.05, 0.68, 0.05]} />
-          <meshStandardMaterial color="#090a10" metalness={0.95} roughness={0.15} />
-        </mesh>
-        <mesh position={[0, 0, 0.028]}>
-          <planeGeometry args={[0.98, 0.62]} />
-          <meshStandardMaterial color="#04060d" roughness={0.9} />
-        </mesh>
-
-        {/* HTML Robot Face & Command Center Status */}
-        <group position={[0, 0, 0.035]}>
-          <Html center distanceFactor={5} transform occlude={false} className="pointer-events-none select-none">
-            <div style={{ width: '280px', backgroundColor: '#050a16', border: '2px solid #D4FF00', borderRadius: '8px', padding: '12px', textAlign: 'center', boxShadow: '0 0 20px rgba(212,255,0,0.25)', fontFamily: "'Inter', -apple-system, sans-serif" }}>
-              <div style={{ fontSize: '11px', fontWeight: 900, color: '#D4FF00', letterSpacing: '0.15em', marginBottom: '8px' }}>
-                AI COMMAND CENTER
-              </div>
-
-              {/* Stylized Glowing AI Avatar Face */}
-              <div style={{ width: '70px', height: '70px', borderRadius: '50%', backgroundColor: '#0c1a30', border: '2px solid #38bdf8', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 14px #38bdf8' }}>
-                <div style={{ display: 'flex', gap: '14px', marginBottom: '6px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#38bdf8', boxShadow: '0 0 6px #38bdf8' }} />
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#38bdf8', boxShadow: '0 0 6px #38bdf8' }} />
-                </div>
-                <div style={{ width: '22px', height: '3px', backgroundColor: '#D4FF00', borderRadius: '2px' }} />
-              </div>
-
-              <div style={{ fontSize: '9px', fontWeight: 700, color: '#38bdf8', marginTop: '8px' }}>
-                SYSTEM ONLINE · 6 AGENTS READY
-              </div>
+      {/* Slight 12-degree angled console display */}
+      <group position={[0, 1.15, 0.06]} rotation={[-0.2, 0, 0]}>
+        <Html center distanceFactor={5.0} transform occlude={false} className="pointer-events-none select-none">
+          <div style={{ width: '260px', backgroundColor: '#090d1c', border: '2px solid #D4FF00', borderRadius: '8px', padding: '12px', textAlign: 'center', boxShadow: '0 0 18px rgba(212,255,0,0.2)', fontFamily: "'Inter', -apple-system, sans-serif" }}>
+            <div style={{ fontSize: '10px', fontWeight: 900, color: '#D4FF00', letterSpacing: '0.12em', marginBottom: '6px' }}>
+              CREWLAB OPERATIONS HUB
             </div>
-          </Html>
-        </group>
+
+            {/* Glowing AI Avatar Face */}
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#0e172e', border: '2px solid #38bdf8', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 10px #38bdf8' }}>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '4px' }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#38bdf8' }} />
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#38bdf8' }} />
+              </div>
+              <div style={{ width: '18px', height: '2px', backgroundColor: '#D4FF00', borderRadius: '2px' }} />
+            </div>
+
+            <div style={{ fontSize: '8px', fontWeight: 700, color: '#38bdf8', marginTop: '6px' }}>
+              6 AGENTS SYNCED · READY
+            </div>
+          </div>
+        </Html>
       </group>
     </group>
   );
 };
 
 /**
- * 7. ForegroundLounge (Front-Right Foreground): Modern dark leather modular sofa
+ * 8. ForegroundLounge (Front-Right Lounge Area): Dark leather modular sofa
  */
 const ForegroundLounge: React.FC = () => {
   return (
-    <group position={[7.5, 0, 7.2]} rotation={[0, -0.3, 0]}>
+    <group position={[8.5, 0, 6.8]} rotation={[0, -0.4, 0]}>
       {/* Base */}
       <mesh position={[0, 0.22, 0]} castShadow receiveShadow>
         <boxGeometry args={[2.6, 0.38, 0.95]} />
-        <meshStandardMaterial color="#141418" roughness={0.8} />
+        <meshStandardMaterial color="#1c1d26" roughness={0.7} />
       </mesh>
       {/* Cushions */}
       <mesh position={[-0.65, 0.43, 0.08]} castShadow>
         <boxGeometry args={[1.2, 0.12, 0.75]} />
-        <meshStandardMaterial color="#1f2028" roughness={0.7} />
+        <meshStandardMaterial color="#282936" roughness={0.6} />
       </mesh>
       <mesh position={[0.65, 0.43, 0.08]} castShadow>
         <boxGeometry args={[1.2, 0.12, 0.75]} />
-        <meshStandardMaterial color="#1f2028" roughness={0.7} />
+        <meshStandardMaterial color="#282936" roughness={0.6} />
       </mesh>
       {/* Backrest */}
       <mesh position={[0, 0.62, 0.38]} castShadow>
         <boxGeometry args={[2.6, 0.48, 0.24]} />
-        <meshStandardMaterial color="#111116" roughness={0.8} />
+        <meshStandardMaterial color="#1a1b24" roughness={0.7} />
       </mesh>
     </group>
   );
@@ -625,20 +709,20 @@ export const OfficeRoom: React.FC = () => {
   return (
     <group>
       {/* ═══════════════════════════════════════════════════════
-          1. FLOOR — Dark Slate Tiles + Bright Electric-Lime Glow Grid
+          1. FLOOR — Dark Slate Tiles + Structural Command Grid
          ═══════════════════════════════════════════════════════ */}
       <RigidBody type="fixed" colliders="cuboid">
         <mesh position={[0, -0.25, 0]} receiveShadow>
           <boxGeometry args={[width, 0.5, depth]} />
           <meshStandardMaterial
-            color={isDay ? '#181e2e' : '#0f111a'}
-            roughness={0.16}
-            metalness={0.35}
+            color={isDay ? '#22283a' : '#161926'}
+            roughness={0.22}
+            metalness={0.25}
           />
         </mesh>
       </RigidBody>
 
-      {/* Polished Square Slate Tiles */}
+      {/* Polished Square Slate Tiles (Subtle tonal checkerboard) */}
       {Array.from({ length: 14 }).map((_, xi) =>
         Array.from({ length: 12 }).map((_, zi) => (
           <mesh
@@ -651,67 +735,75 @@ export const OfficeRoom: React.FC = () => {
             <meshStandardMaterial
               color={
                 isDay
-                  ? (xi + zi) % 2 === 0 ? '#20273a' : '#192032'
-                  : (xi + zi) % 2 === 0 ? '#141622' : '#10121d'
+                  ? (xi + zi) % 2 === 0 ? '#283147' : '#1f2638'
+                  : (xi + zi) % 2 === 0 ? '#1b1f30' : '#161926'
               }
-              roughness={isDay ? 0.2 : 0.15}
-              metalness={isDay ? 0.35 : 0.45}
+              roughness={0.2}
+              metalness={0.3}
             />
           </mesh>
         ))
       )}
 
-      {/* ── BRIGHT GLOWING ELECTRIC LIME / GOLD FLOOR GRID LINES ── */}
-      {/* Longitudinal Main Axis Lines */}
-      {[-3.8, 0, 3.8].map((x, i) => (
-        <mesh key={`grid-x-${i}`} position={[x, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.035, depth - 2]} />
-          <meshBasicMaterial color="#D4FF00" />
-        </mesh>
-      ))}
+      {/* ── CENTRAL COMMAND FLOOR NETWORK & DATA FLOW LINES ── */}
+      {/* Longitudinal Center Axis */}
+      <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[0.03, depth - 4]} />
+        <meshBasicMaterial color="#D4FF00" transparent opacity={0.35} />
+      </mesh>
 
-      {/* Transverse Cross Axis Lines */}
+      {/* Cross Command Axis (Connecting Strategy to Creative) */}
       {[-5.0, 0.5, 5.5].map((z, i) => (
         <mesh key={`grid-z-${i}`} position={[0, 0.006, z]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[width - 2, 0.035]} />
-          <meshBasicMaterial color="#D4FF00" />
+          <planeGeometry args={[width - 6, 0.02]} />
+          <meshBasicMaterial color="#D4FF00" transparent opacity={0.2} />
         </mesh>
       ))}
 
-      {/* Workstation Floor Halos */}
+      {/* Central Command Ring Motif around CEO Nexus */}
+      <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[2.8, 2.82, 48]} />
+        <meshBasicMaterial color="#D4FF00" transparent opacity={0.3} />
+      </mesh>
+      <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[4.5, 4.52, 48]} />
+        <meshBasicMaterial color="#38bdf8" transparent opacity={0.2} />
+      </mesh>
+
+      {/* Workstation Grounding Floor Rings (Subtle boundary) */}
       {/* A01 Center */}
       <mesh position={[0, 0.005, -5.0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.8, 1.83, 32]} />
-        <meshBasicMaterial color="#D4FF00" />
+        <ringGeometry args={[1.75, 1.78, 32]} />
+        <meshBasicMaterial color="#D4FF00" transparent opacity={0.4} />
       </mesh>
       {/* B02 Left Top */}
       <mesh position={[-7.0, 0.005, -4.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.6, 1.63, 32]} />
-        <meshBasicMaterial color="#34d399" />
+        <ringGeometry args={[1.55, 1.58, 32]} />
+        <meshBasicMaterial color="#34d399" transparent opacity={0.35} />
       </mesh>
       {/* B03 Left Mid */}
       <mesh position={[-7.0, 0.005, 0.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.6, 1.63, 32]} />
-        <meshBasicMaterial color="#38bdf8" />
+        <ringGeometry args={[1.55, 1.58, 32]} />
+        <meshBasicMaterial color="#38bdf8" transparent opacity={0.35} />
       </mesh>
       {/* D01 Right Top */}
       <mesh position={[7.0, 0.005, -4.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.6, 1.63, 32]} />
-        <meshBasicMaterial color="#fbbf24" />
+        <ringGeometry args={[1.55, 1.58, 32]} />
+        <meshBasicMaterial color="#fbbf24" transparent opacity={0.35} />
       </mesh>
       {/* D02 Right Mid */}
       <mesh position={[7.0, 0.005, 0.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.6, 1.63, 32]} />
-        <meshBasicMaterial color="#e879f9" />
+        <ringGeometry args={[1.55, 1.58, 32]} />
+        <meshBasicMaterial color="#e879f9" transparent opacity={0.35} />
       </mesh>
       {/* E01 Front Center */}
       <mesh position={[0, 0.005, 5.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.7, 1.73, 32]} />
-        <meshBasicMaterial color="#a78bfa" />
+        <ringGeometry args={[1.65, 1.68, 32]} />
+        <meshBasicMaterial color="#a78bfa" transparent opacity={0.35} />
       </mesh>
 
       {/* ═══════════════════════════════════════════════════════
-          2. PERIMETER CEILING CROWN SOFFIT (Zero View Occlusion)
+          2. PERIMETER CEILING CROWN SOFFIT
          ═══════════════════════════════════════════════════════ */}
       <CeilingPerimeterCrown />
 
@@ -719,23 +811,22 @@ export const OfficeRoom: React.FC = () => {
           3. BACK WALL & CREDENZA & STRATEGY BOARD
          ═══════════════════════════════════════════════════════ */}
       <RigidBody type="fixed" colliders="hull">
-        {/* Solid Back Wall Base */}
         <mesh position={[0, wallHeight / 2, -halfD - wallThickness / 2]} receiveShadow castShadow>
           <boxGeometry args={[width, wallHeight, wallThickness]} />
-          <meshStandardMaterial color="#14141a" roughness={0.85} />
+          <meshStandardMaterial color="#1c1f2e" roughness={0.7} />
         </mesh>
       </RigidBody>
 
       <BrandWall />
       <CoffeeBarCredenza />
-      <StrategyContentWallBoard />
+      <DesignBookshelfCredenza />
 
-      {/* Vertical Light Columns Flanking Back Wall */}
+      {/* Vertical Light Columns */}
       {[-10.8, 10.8].map((x, i) => (
         <group key={i} position={[x, wallHeight / 2, -10.9]}>
           <mesh>
-            <boxGeometry args={[0.1, wallHeight - 0.4, 0.04]} />
-            <meshBasicMaterial color="#D4FF00" />
+            <boxGeometry args={[0.08, wallHeight - 0.4, 0.03]} />
+            <meshBasicMaterial color="#fef08a" />
           </mesh>
         </group>
       ))}
@@ -746,32 +837,32 @@ export const OfficeRoom: React.FC = () => {
       <RigidBody type="fixed" colliders="hull">
         <mesh position={[-halfW - wallThickness / 2, wallHeight / 2, 0]} receiveShadow castShadow>
           <boxGeometry args={[wallThickness, wallHeight, depth]} />
-          <meshStandardMaterial color="#14141a" roughness={0.85} />
+          <meshStandardMaterial color="#1c1f2e" roughness={0.7} />
         </mesh>
       </RigidBody>
 
       <LeftAnalyticsWall />
 
       {/* ═══════════════════════════════════════════════════════
-          5. RIGHT PANORAMIC GLASS WALL & BALCONY TERRACE
+          5. RIGHT PANORAMIC GLASS WALL & CREATIVE SHOWCASE DISPLAY
          ═══════════════════════════════════════════════════════ */}
       <RigidBody type="fixed" colliders="hull">
         {/* Top Header */}
         <mesh position={[halfW, wallHeight - 0.05, 0]}>
           <boxGeometry args={[0.16, 0.1, depth]} />
-          <meshStandardMaterial color="#09090b" metalness={0.9} roughness={0.15} />
+          <meshStandardMaterial color="#11131c" metalness={0.9} roughness={0.15} />
         </mesh>
         {/* Bottom Sill */}
         <mesh position={[halfW, 0.05, 0]}>
           <boxGeometry args={[0.16, 0.1, depth]} />
-          <meshStandardMaterial color="#09090b" metalness={0.9} roughness={0.15} />
+          <meshStandardMaterial color="#11131c" metalness={0.9} roughness={0.15} />
         </mesh>
 
         {/* Vertical Mullions */}
         {[-8.8, -4.4, 0, 4.4, 8.8].map((zPos, idx) => (
           <mesh key={`mullion-${idx}`} position={[halfW, wallHeight / 2, zPos]}>
             <boxGeometry args={[0.14, wallHeight, 0.06]} />
-            <meshStandardMaterial color="#09090b" metalness={0.9} roughness={0.15} />
+            <meshStandardMaterial color="#11131c" metalness={0.9} roughness={0.15} />
           </mesh>
         ))}
 
@@ -781,7 +872,7 @@ export const OfficeRoom: React.FC = () => {
           <meshPhysicalMaterial
             color={isDay ? '#ffffff' : '#e0e7ff'}
             transparent
-            opacity={0.18}
+            opacity={0.15}
             roughness={0.01}
             metalness={0.05}
             transmission={0.96}
@@ -791,11 +882,14 @@ export const OfficeRoom: React.FC = () => {
         </mesh>
       </RigidBody>
 
+      {/* Right Creative Studio Showcase Board */}
+      <RightCreativeStudioWall />
+
       {/* Outdoor Balcony Terrace */}
       <group position={[halfW, 0, 0]}>
         <mesh position={[1.5, -0.06, 0]} receiveShadow>
           <boxGeometry args={[3.0, 0.12, depth]} />
-          <meshStandardMaterial color={isDay ? '#3e2723' : '#18120e'} roughness={0.65} />
+          <meshStandardMaterial color={isDay ? '#3e2723' : '#221914'} roughness={0.6} />
         </mesh>
         <mesh position={[2.9, 0.55, 0]}>
           <boxGeometry args={[0.04, 1.1, depth - 0.2]} />
@@ -803,7 +897,7 @@ export const OfficeRoom: React.FC = () => {
         </mesh>
         <mesh position={[2.9, 1.12, 0]}>
           <boxGeometry args={[0.1, 0.05, depth]} />
-          <meshStandardMaterial color="#09090b" metalness={0.95} />
+          <meshStandardMaterial color="#11131c" metalness={0.95} />
         </mesh>
         {/* Balcony Plants */}
         {[-7.5, -2.5, 2.5, 7.5].map((zPos, pIdx) => (
@@ -814,7 +908,7 @@ export const OfficeRoom: React.FC = () => {
             </mesh>
             <mesh position={[0, 0.75, 0]} castShadow>
               <sphereGeometry args={[0.45, 14, 14]} />
-              <meshStandardMaterial color="#15803d" roughness={0.8} />
+              <meshStandardMaterial color="#16a34a" roughness={0.8} />
             </mesh>
           </group>
         ))}
@@ -827,33 +921,33 @@ export const OfficeRoom: React.FC = () => {
       <ForegroundLounge />
 
       {/* ═══════════════════════════════════════════════════════
-          7. LUSH TROPICAL PLANTS IN POTS
+          7. INDOOR POTTED PLANTS
          ═══════════════════════════════════════════════════════ */}
-      {/* Front-Left Plant next to AI Command Kiosk */}
-      <group position={[-8.8, 0, 7.2]}>
+      {/* Front-Left Plant near lounge */}
+      <group position={[-9.8, 0, 5.5]}>
         <mesh position={[0, 0.45, 0]} castShadow>
           <cylinderGeometry args={[0.42, 0.3, 0.9, 20]} />
           <meshStandardMaterial color="#f8fafc" roughness={0.2} />
         </mesh>
         <mesh position={[0, 1.3, 0]} castShadow>
           <sphereGeometry args={[0.6, 16, 16]} />
-          <meshStandardMaterial color="#15803d" roughness={0.65} />
+          <meshStandardMaterial color="#16a34a" roughness={0.65} />
         </mesh>
         <mesh position={[0.2, 1.7, 0.1]} castShadow>
           <sphereGeometry args={[0.45, 16, 16]} />
-          <meshStandardMaterial color="#16a34a" roughness={0.65} />
+          <meshStandardMaterial color="#22c55e" roughness={0.65} />
         </mesh>
       </group>
 
       {/* Front-Right Plant in Planter Box */}
-      <group position={[9.8, 0, 7.2]}>
+      <group position={[10.2, 0, 6.8]}>
         <mesh position={[0, 0.35, 0]} castShadow>
           <boxGeometry args={[0.9, 0.7, 0.9]} />
           <meshStandardMaterial color="#1e293b" roughness={0.5} />
         </mesh>
         <mesh position={[0, 1.0, 0]} castShadow>
           <sphereGeometry args={[0.55, 16, 16]} />
-          <meshStandardMaterial color="#15803d" roughness={0.65} />
+          <meshStandardMaterial color="#16a34a" roughness={0.65} />
         </mesh>
       </group>
 
@@ -861,11 +955,11 @@ export const OfficeRoom: React.FC = () => {
       <group position={[-11.2, 0, -9.5]}>
         <mesh position={[0, 0.45, 0]} castShadow>
           <cylinderGeometry args={[0.38, 0.26, 0.9, 20]} />
-          <meshStandardMaterial color="#181822" roughness={0.3} metalness={0.6} />
+          <meshStandardMaterial color="#222533" roughness={0.3} metalness={0.5} />
         </mesh>
         <mesh position={[0, 1.3, 0]} castShadow>
           <sphereGeometry args={[0.58, 16, 16]} />
-          <meshStandardMaterial color="#15803d" roughness={0.7} />
+          <meshStandardMaterial color="#16a34a" roughness={0.7} />
         </mesh>
       </group>
 
@@ -873,11 +967,11 @@ export const OfficeRoom: React.FC = () => {
       <group position={[11.2, 0, -9.5]}>
         <mesh position={[0, 0.45, 0]} castShadow>
           <cylinderGeometry args={[0.38, 0.26, 0.9, 20]} />
-          <meshStandardMaterial color="#181822" roughness={0.3} metalness={0.6} />
+          <meshStandardMaterial color="#222533" roughness={0.3} metalness={0.5} />
         </mesh>
         <mesh position={[0, 1.3, 0]} castShadow>
           <sphereGeometry args={[0.58, 16, 16]} />
-          <meshStandardMaterial color="#15803d" roughness={0.7} />
+          <meshStandardMaterial color="#16a34a" roughness={0.7} />
         </mesh>
       </group>
     </group>

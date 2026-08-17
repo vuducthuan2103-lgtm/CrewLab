@@ -947,7 +947,8 @@ export const AgentCharacter: React.FC<AgentCharacterProps> = ({ agent }) => {
           3D CHARACTER BODY (CUSTOMIZED PER AGENT)
          ──────────────────────────────────── */}
       <group
-        position={[0, 0.45, -0.6]}
+        position={[0, 0.46, -0.62]}
+        scale={[1.12, 1.12, 1.12]}
         onPointerOver={(e) => {
           e.stopPropagation();
           setHovered(true);

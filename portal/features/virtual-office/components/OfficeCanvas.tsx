@@ -57,38 +57,38 @@ const AgentCameraAnimator: React.FC = () => {
       const [ax, , az] = ag.position;
 
       let camX = ax;
-      let camY = 1.9;
-      let camZ = az + 2.8;
+      let camY = 1.55;
+      let camZ = az + 2.2;
 
       if (ag.code === 'A01') {
         camX = 0;
-        camY = 1.9;
-        camZ = -2.5;
+        camY = 1.55;
+        camZ = -2.8;
       } else if (ag.code === 'B02') {
-        camX = -4.2;
-        camY = 1.9;
-        camZ = -3.2;
+        camX = -5.1;
+        camY = 1.55;
+        camZ = -2.6;
       } else if (ag.code === 'B03') {
-        camX = -4.2;
-        camY = 1.9;
-        camZ = 1.8;
+        camX = -5.1;
+        camY = 1.55;
+        camZ = 2.4;
       } else if (ag.code === 'D01') {
-        camX = 4.2;
-        camY = 1.9;
-        camZ = -3.2;
+        camX = 5.1;
+        camY = 1.55;
+        camZ = -2.6;
       } else if (ag.code === 'D02') {
-        camX = 4.2;
-        camY = 1.9;
-        camZ = 1.8;
+        camX = 5.1;
+        camY = 1.55;
+        camZ = 2.4;
       } else if (ag.code === 'E01') {
         camX = 0;
-        camY = 1.9;
-        camZ = 2.8;
+        camY = 1.55;
+        camZ = 7.6;
       }
 
       targetPosRef.current.set(camX, camY, camZ);
-      targetLookAtRef.current.set(ax, 1.05, az);
-      targetFovRef.current = 38;
+      targetLookAtRef.current.set(ax, 1.0, az);
+      targetFovRef.current = 34;
       isTransitioningRef.current = true;
     } else if (prevSelectedRef.current !== null && !selectedAgentCode) {
       // 🏠 Closed agent detail: Animate back to original overview
@@ -181,7 +181,7 @@ export const OfficeCanvas: React.FC = () => {
             <OfficeRoom />
 
             {/* Soft contact shadows for grounding */}
-            <ContactShadows position={[0, 0.015, 0]} opacity={0.6} scale={30} blur={2.2} far={7} />
+            <ContactShadows position={[0, 0.012, 0]} opacity={0.85} scale={32} blur={1.8} far={8} />
 
             {/* 2. CEO CHARACTER — walks in front area */}
             <CEOCharacter />
