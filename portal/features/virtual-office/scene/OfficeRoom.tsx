@@ -650,24 +650,86 @@ export const OfficeRoom: React.FC = () => {
   return (
     <group>
       {/* ═══════════════════════════════════════════════════════
-          1. FLOOR — Monolithic Seamless Dark Cyber-Slate Floor
+          1. FLOOR — Luxury Large-Format Architectural Slate Slabs
          ═══════════════════════════════════════════════════════ */}
       <RigidBody type="fixed" colliders="cuboid">
         <mesh position={[0, -0.25, 0]} receiveShadow>
           <boxGeometry args={[width, 0.5, depth]} />
           <meshStandardMaterial
-            color={isDay ? '#161924' : '#0e1017'}
-            roughness={0.25}
-            metalness={0.35}
+            color={isDay ? '#181b28' : '#0d0f17'}
+            roughness={0.3}
+            metalness={0.2}
           />
         </mesh>
       </RigidBody>
 
-      {/* Single Ultra-Clean Central Cyber Data Line */}
-      <mesh position={[0, 0.003, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[0.02, depth - 4]} />
-        <meshBasicMaterial color="#D4FF00" transparent opacity={0.6} />
-      </mesh>
+      {/* Large-Format Architectural Slabs (4.8m x 5.2m Luxury Panels) */}
+      {[-7.5, -2.5, 2.5, 7.5].map((px, xi) =>
+        [-5.5, 0, 5.5].map((pz, zi) => (
+          <mesh
+            key={`slab-${xi}-${zi}`}
+            position={[px, 0.002, pz]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            receiveShadow
+          >
+            <planeGeometry args={[4.6, 5.0]} />
+            <meshStandardMaterial
+              color={
+                isDay
+                  ? (xi + zi) % 2 === 0 ? '#1c2030' : '#171a27'
+                  : (xi + zi) % 2 === 0 ? '#131520' : '#0f111a'
+              }
+              roughness={0.28}
+              metalness={0.25}
+            />
+          </mesh>
+        ))
+      )}
+
+      {/* ── LUXURY RECESSED METALLIC & NEON INSET CHANNELS ── */}
+      {/* Longitudinal Inlay Channels (Separating Executive Zones) */}
+      {[-5.0, 0, 5.0].map((lx, i) => (
+        <mesh key={`inlay-x-${i}`} position={[lx, 0.004, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.018, depth - 4]} />
+          <meshBasicMaterial
+            color={i === 1 ? '#D4FF00' : '#38bdf8'}
+            transparent
+            opacity={i === 1 ? 0.65 : 0.4}
+          />
+        </mesh>
+      ))}
+
+      {/* Transverse Cross Channels (Aligning Workstation Tiers) */}
+      {[-2.75, 2.75].map((lz, j) => (
+        <mesh key={`inlay-z-${j}`} position={[0, 0.004, lz]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[width - 5, 0.018]} />
+          <meshBasicMaterial color="#38bdf8" transparent opacity={0.35} />
+        </mesh>
+      ))}
+
+      {/* Luxury Intersection Corner Accent Brackets */}
+      {[-5.0, 0, 5.0].map((cx) =>
+        [-2.75, 2.75].map((cz) => (
+          <group key={`corner-${cx}-${cz}`} position={[cx, 0.005, cz]} rotation={[-Math.PI / 2, 0, 0]}>
+            <mesh position={[0.08, 0.08, 0]}>
+              <planeGeometry args={[0.12, 0.016]} />
+              <meshBasicMaterial color="#D4FF00" transparent opacity={0.8} />
+            </mesh>
+            <mesh position={[0.08, 0.08, 0]}>
+              <planeGeometry args={[0.016, 0.12]} />
+              <meshBasicMaterial color="#D4FF00" transparent opacity={0.8} />
+            </mesh>
+            <mesh position={[-0.08, -0.08, 0]}>
+              <planeGeometry args={[0.12, 0.016]} />
+              <meshBasicMaterial color="#D4FF00" transparent opacity={0.8} />
+            </mesh>
+            <mesh position={[-0.08, -0.08, 0]}>
+              <planeGeometry args={[0.016, 0.12]} />
+              <meshBasicMaterial color="#D4FF00" transparent opacity={0.8} />
+            </mesh>
+          </group>
+        ))
+      )}
 
       {/* ═══════════════════════════════════════════════════════
           2. PERIMETER CEILING CROWN SOFFIT
