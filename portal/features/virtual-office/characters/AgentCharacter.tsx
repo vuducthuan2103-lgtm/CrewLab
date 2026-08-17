@@ -38,7 +38,6 @@ export const AgentCharacter: React.FC<AgentCharacterProps> = ({ agent }) => {
   const [hovered, setHovered] = useState(false);
   const headGroupRef = useRef<THREE.Group>(null);
   const torsoGroupRef = useRef<THREE.Group>(null);
-  const auraRef = useRef<THREE.Mesh>(null);
 
   const leftArmRef = useRef<THREE.Group>(null);
   const rightArmRef = useRef<THREE.Group>(null);
@@ -265,13 +264,6 @@ export const AgentCharacter: React.FC<AgentCharacterProps> = ({ agent }) => {
         rightArmRef.current.rotation.set(-0.25, 0, -0.05);
         leftArmRef.current.rotation.set(-0.25, 0, 0.05);
       }
-    }
-
-    // 4. Selection / Hover / Urgent aura pulse
-    if (auraRef.current) {
-      auraRef.current.rotation.z = t * 0.8;
-      const s = 1 + Math.sin(t * 3) * 0.06;
-      auraRef.current.scale.set(s, s, s);
     }
   });
 
@@ -1030,23 +1022,6 @@ export const AgentCharacter: React.FC<AgentCharacterProps> = ({ agent }) => {
           <cylinderGeometry args={[0.22, 0.22, 0.48, 16]} />
           <meshStandardMaterial color="#0f172a" roughness={0.8} />
         </mesh>
-
-        {/* ── SELECTION / HOVER / PROXIMITY AURA RING ── */}
-        {(hovered || isSelected || isNearbyCEO || agent.requiresHumanAction) && (
-          <mesh
-            ref={auraRef}
-            position={[0, -0.44, 0.3]}
-            rotation={[-Math.PI / 2, 0, 0]}
-          >
-            <ringGeometry args={[0.65, 0.88, 32]} />
-            <meshBasicMaterial
-              color={agent.requiresHumanAction ? '#f59e0b' : '#D4FF00'}
-              side={THREE.DoubleSide}
-              transparent
-              opacity={0.85}
-            />
-          </mesh>
-        )}
       </group>
 
       {/* ────────────────────────────────────
