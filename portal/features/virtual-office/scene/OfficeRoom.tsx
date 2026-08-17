@@ -650,20 +650,20 @@ export const OfficeRoom: React.FC = () => {
   return (
     <group>
       {/* ═══════════════════════════════════════════════════════
-          1. FLOOR — Bright Modern Slate Tiles + Electric-Lime Grid Lines
+          1. FLOOR — Bright High-Tech Titanium-Slate Modular Panels
          ═══════════════════════════════════════════════════════ */}
       <RigidBody type="fixed" colliders="cuboid">
         <mesh position={[0, -0.25, 0]} receiveShadow>
           <boxGeometry args={[width, 0.5, depth]} />
           <meshStandardMaterial
-            color={isDay ? '#475569' : '#282d3f'}
-            roughness={0.3}
-            metalness={0.15}
+            color={isDay ? '#94a3b8' : '#475569'}
+            roughness={0.25}
+            metalness={0.1}
           />
         </mesh>
       </RigidBody>
 
-      {/* Polished Square Slate Tiles (Modern Bright Contrast) */}
+      {/* High-Tech Satin Slate Grid Panels (Bright & Clean) */}
       {Array.from({ length: 14 }).map((_, xi) =>
         Array.from({ length: 12 }).map((_, zi) => (
           <mesh
@@ -676,11 +676,11 @@ export const OfficeRoom: React.FC = () => {
             <meshStandardMaterial
               color={
                 isDay
-                  ? (xi + zi) % 2 === 0 ? '#64748b' : '#4b5563'
-                  : (xi + zi) % 2 === 0 ? '#383e54' : '#2d3345'
+                  ? (xi + zi) % 2 === 0 ? '#cbd5e1' : '#b0bec5'
+                  : (xi + zi) % 2 === 0 ? '#5a6678' : '#4a5568'
               }
-              roughness={0.35}
-              metalness={0.15}
+              roughness={0.28}
+              metalness={0.12}
             />
           </mesh>
         ))
@@ -702,38 +702,6 @@ export const OfficeRoom: React.FC = () => {
           <meshBasicMaterial color="#D4FF00" />
         </mesh>
       ))}
-
-      {/* Workstation Floor Halos */}
-      {/* A01 Center */}
-      <mesh position={[0, 0.005, -5.0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.8, 1.83, 32]} />
-        <meshBasicMaterial color="#D4FF00" />
-      </mesh>
-      {/* B02 Left Top */}
-      <mesh position={[-7.0, 0.005, -4.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.6, 1.63, 32]} />
-        <meshBasicMaterial color="#34d399" />
-      </mesh>
-      {/* B03 Left Mid */}
-      <mesh position={[-7.0, 0.005, 0.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.6, 1.63, 32]} />
-        <meshBasicMaterial color="#38bdf8" />
-      </mesh>
-      {/* D01 Right Top */}
-      <mesh position={[7.0, 0.005, -4.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.6, 1.63, 32]} />
-        <meshBasicMaterial color="#fbbf24" />
-      </mesh>
-      {/* D02 Right Mid */}
-      <mesh position={[7.0, 0.005, 0.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.6, 1.63, 32]} />
-        <meshBasicMaterial color="#e879f9" />
-      </mesh>
-      {/* E01 Front Center */}
-      <mesh position={[0, 0.005, 5.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.7, 1.73, 32]} />
-        <meshBasicMaterial color="#a78bfa" />
-      </mesh>
 
       {/* ═══════════════════════════════════════════════════════
           2. PERIMETER CEILING CROWN SOFFIT
