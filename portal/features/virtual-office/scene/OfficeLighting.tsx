@@ -24,8 +24,8 @@ export const OfficeLighting: React.FC = () => {
       <hemisphereLight
         args={[
           isDay ? '#e0f2fe' : '#94a3b8',  // Sky / ceiling bounce
-          isDay ? '#fed7aa' : '#1e2030',  // Floor warm bounce
-          isDay ? 2.2 : 1.6,
+          isDay ? '#fed7aa' : '#334155',  // Floor warm bounce
+          isDay ? 2.4 : 2.0,
         ]}
       />
 

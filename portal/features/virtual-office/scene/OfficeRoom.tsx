@@ -650,20 +650,20 @@ export const OfficeRoom: React.FC = () => {
   return (
     <group>
       {/* ═══════════════════════════════════════════════════════
-          1. FLOOR — Polished Dark Slate Tiles + Bright Electric-Lime Grid Lines
+          1. FLOOR — Bright Modern Slate Tiles + Electric-Lime Grid Lines
          ═══════════════════════════════════════════════════════ */}
       <RigidBody type="fixed" colliders="cuboid">
         <mesh position={[0, -0.25, 0]} receiveShadow>
           <boxGeometry args={[width, 0.5, depth]} />
           <meshStandardMaterial
-            color={isDay ? '#181e2e' : '#0f111a'}
-            roughness={0.16}
-            metalness={0.35}
+            color={isDay ? '#475569' : '#282d3f'}
+            roughness={0.3}
+            metalness={0.15}
           />
         </mesh>
       </RigidBody>
 
-      {/* Polished Square Slate Tiles */}
+      {/* Polished Square Slate Tiles (Modern Bright Contrast) */}
       {Array.from({ length: 14 }).map((_, xi) =>
         Array.from({ length: 12 }).map((_, zi) => (
           <mesh
@@ -676,11 +676,11 @@ export const OfficeRoom: React.FC = () => {
             <meshStandardMaterial
               color={
                 isDay
-                  ? (xi + zi) % 2 === 0 ? '#20273a' : '#192032'
-                  : (xi + zi) % 2 === 0 ? '#141622' : '#10121d'
+                  ? (xi + zi) % 2 === 0 ? '#64748b' : '#4b5563'
+                  : (xi + zi) % 2 === 0 ? '#383e54' : '#2d3345'
               }
-              roughness={isDay ? 0.2 : 0.15}
-              metalness={isDay ? 0.35 : 0.45}
+              roughness={0.35}
+              metalness={0.15}
             />
           </mesh>
         ))
