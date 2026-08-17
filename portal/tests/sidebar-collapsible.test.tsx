@@ -43,7 +43,7 @@ describe('Hover-to-Expand & Clean Sidebar Tests', () => {
     expect(screen.getByAltText('CrewLab Logo')).toBeInTheDocument();
     expect(screen.getByText('Crew')).toBeInTheDocument();
     expect(screen.getByText('Lab')).toBeInTheDocument();
-    expect(screen.getByText('Công việc')).toBeInTheDocument();
+    expect(screen.getByText('Bảng công việc')).toBeInTheDocument();
 
     // Mouse leaves sidebar
     fireEvent.mouseLeave(sidebar);

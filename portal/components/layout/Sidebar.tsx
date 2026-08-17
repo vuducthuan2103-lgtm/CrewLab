@@ -85,6 +85,7 @@ export default function Sidebar() {
                 key={href}
                 href={href}
                 prefetch={true}
+                onClick={() => setIsHovered(false)}
                 id={`sidebar-nav-${label.toLowerCase().replace(/\s+/g, '-')}`}
                 className={`flex items-center h-10 rounded-xl text-xs font-semibold transition-colors duration-150 relative group ${
                   active
@@ -116,12 +117,12 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* ── BOTTOM: CLIENT BRAND BADGE & USER PROFILE ── */}
-      <div className="p-2.5 border-t border-border/80 bg-zinc-950/40">
+      {/* ── BOTTOM: CLIENT BRAND BADGE, USER PROFILE & LOGOUT ── */}
+      <div className="p-2 border-t border-border/80 bg-zinc-950/40 space-y-1">
         <Link
           href="/settings"
           prefetch={true}
-          className="flex items-center gap-3 p-1 rounded-xl hover:bg-zinc-800/50 transition-colors group cursor-pointer"
+          className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-zinc-800/50 transition-colors group cursor-pointer"
           title={`Quán: ${clientName || 'Bardinh Coffee'}`}
         >
           {/* Client Logo or Initial Avatar */}
@@ -147,6 +148,29 @@ export default function Sidebar() {
             </p>
           </div>
         </Link>
+
+        {/* Logout Button */}
+        <button
+          id="sidebar-logout-btn"
+          type="button"
+          onClick={handleLogout}
+          title="Đăng xuất"
+          className="w-full flex items-center h-10 rounded-xl text-xs font-medium text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-150 group cursor-pointer"
+        >
+          <div className="w-10 h-10 flex items-center justify-center shrink-0">
+            <LogOut
+              size={18}
+              className="text-zinc-400 group-hover:text-red-400 transition-transform duration-150 group-hover:scale-110"
+            />
+          </div>
+          <div
+            className={`overflow-hidden transition-all duration-200 ease-out whitespace-nowrap ${
+              isHovered ? 'opacity-100 translate-x-0 ml-1' : 'opacity-0 -translate-x-2 w-0 pointer-events-none'
+            }`}
+          >
+            <span className="truncate">Đăng xuất</span>
+          </div>
+        </button>
       </div>
     </aside>
   );

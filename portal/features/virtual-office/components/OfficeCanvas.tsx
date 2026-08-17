@@ -45,8 +45,8 @@ const AgentCameraAnimator: React.FC = () => {
   const targetLookAtRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.0, -1.5));
   const targetFovRef = useRef<number>(46);
 
-  const defaultCamPos = new THREE.Vector3(0, 10, 17);
-  const defaultTarget = new THREE.Vector3(0, 1.0, -1.5);
+  const defaultCamPos = new THREE.Vector3(0, 9.8, 20.5);
+  const defaultTarget = new THREE.Vector3(0, 2.5, -1.0);
   const defaultFov = 46;
 
   // Detect selection changes
@@ -150,24 +150,25 @@ export const OfficeCanvas: React.FC = () => {
     <div className="absolute inset-0 w-full h-full z-0">
       <Canvas
         shadows
-        // Camera pulled back further for the larger 26×22 room
-        camera={{ position: [0, 10, 17], fov: 46 }}
+        // Camera framed to view the towering 9m walls and all agent workstations
+        camera={{ position: [0, 9.8, 20.5], fov: 46 }}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         dpr={[1, 2]}
       >
 
-        {/* Transition-based Agent Focus Animator (only animates during click/close transitions, releases OrbitControls) */}
+        {/* Transition-based Agent Focus Animator */}
         <AgentCameraAnimator />
 
-        {/* Orbit controls tuned for larger space */}
+        {/* Orbit controls tuned with exact zoom bounds */}
         <OrbitControls
           makeDefault
           enableDamping
           dampingFactor={0.08}
-          maxPolarAngle={Math.PI / 2 - 0.06}
-          minDistance={5}
-          maxDistance={36}
-          target={[0, 1.0, -1.5]}
+          minDistance={4.0}
+          maxDistance={23.5}
+          minPolarAngle={Math.PI / 8}
+          maxPolarAngle={Math.PI / 2 - 0.04}
+          target={[0, 2.5, -1.0]}
         />
 
         {/* Scene-level background & fog — must be outside group for correct attach */}

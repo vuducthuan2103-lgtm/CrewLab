@@ -3,9 +3,9 @@ import { OfficeAgent } from '../types/office';
 export const OFFICE_ROOM_CONFIG = {
   width: 26,
   depth: 22,
-  wallHeight: 4.0,
-  floorColor: '#2a2420',
-  wallColor: '#1a1a1e',
+  wallHeight: 9.0,
+  floorColor: '#12141c',
+  wallColor: '#14141a',
   accentColor: '#D4FF00',
 };
 
