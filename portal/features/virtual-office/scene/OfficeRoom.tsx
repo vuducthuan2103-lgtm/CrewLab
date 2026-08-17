@@ -650,55 +650,48 @@ export const OfficeRoom: React.FC = () => {
   return (
     <group>
       {/* ═══════════════════════════════════════════════════════
-          1. FLOOR — Bright High-Tech Titanium-Slate Modular Panels
+          1. FLOOR — Monolithic High-Tech Dark Cyber-Slate Floor
          ═══════════════════════════════════════════════════════ */}
       <RigidBody type="fixed" colliders="cuboid">
         <mesh position={[0, -0.25, 0]} receiveShadow>
           <boxGeometry args={[width, 0.5, depth]} />
           <meshStandardMaterial
-            color={isDay ? '#94a3b8' : '#475569'}
-            roughness={0.25}
-            metalness={0.1}
+            color={isDay ? '#181c28' : '#10121a'}
+            roughness={0.22}
+            metalness={0.4}
           />
         </mesh>
       </RigidBody>
 
-      {/* High-Tech Satin Slate Grid Panels (Bright & Clean) */}
-      {Array.from({ length: 14 }).map((_, xi) =>
-        Array.from({ length: 12 }).map((_, zi) => (
-          <mesh
-            key={`${xi}-${zi}`}
-            position={[-12 + xi * 1.86, 0.003, -10 + zi * 1.86]}
-            rotation={[-Math.PI / 2, 0, 0]}
-            receiveShadow
-          >
-            <planeGeometry args={[1.8, 1.8]} />
-            <meshStandardMaterial
-              color={
-                isDay
-                  ? (xi + zi) % 2 === 0 ? '#cbd5e1' : '#b0bec5'
-                  : (xi + zi) % 2 === 0 ? '#5a6678' : '#4a5568'
-              }
-              roughness={0.28}
-              metalness={0.12}
-            />
-          </mesh>
-        ))
-      )}
+      {/* Seamless Central High-Tech Operations Inlay */}
+      <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[width - 3.6, depth - 3.6]} />
+        <meshStandardMaterial
+          color={isDay ? '#131622' : '#0b0d14'}
+          roughness={0.2}
+          metalness={0.5}
+        />
+      </mesh>
 
-      {/* ── BRIGHT GLOWING ELECTRIC LIME / GOLD FLOOR GRID LINES ── */}
+      {/* Cyber Inlay Glowing Perimeter Border */}
+      <mesh position={[0, 0.004, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[width - 3.56, 0.02]} />
+        <meshBasicMaterial color="#38bdf8" />
+      </mesh>
+
+      {/* ── MINIMALIST CYBER DATA TRACKS (Clean & Futuristic) ── */}
       {/* Longitudinal Main Axis Lines */}
-      {[-3.8, 0, 3.8].map((x, i) => (
-        <mesh key={`grid-x-${i}`} position={[x, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.035, depth - 2]} />
-          <meshBasicMaterial color="#D4FF00" />
+      {[-4.0, 0, 4.0].map((x, i) => (
+        <mesh key={`grid-x-${i}`} position={[x, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.025, depth - 4]} />
+          <meshBasicMaterial color={i === 1 ? '#D4FF00' : '#38bdf8'} />
         </mesh>
       ))}
 
       {/* Transverse Cross Axis Lines */}
       {[-5.0, 0.5, 5.5].map((z, i) => (
-        <mesh key={`grid-z-${i}`} position={[0, 0.006, z]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[width - 2, 0.035]} />
+        <mesh key={`grid-z-${i}`} position={[0, 0.005, z]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[width - 4, 0.025]} />
           <meshBasicMaterial color="#D4FF00" />
         </mesh>
       ))}
