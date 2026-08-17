@@ -501,66 +501,7 @@ const LeftAnalyticsWall: React.FC = () => {
 };
 
 /**
- * 5. RightCreativeStudioWall (Right Wall Showcase Display): Balances the right side (D01 & D02 Creative Zone)
- */
-const RightCreativeStudioWall: React.FC = () => {
-  const halfW = OFFICE_ROOM_CONFIG.width / 2;
-
-  return (
-    <group position={[halfW - 0.12, 4.0, -2.5]} rotation={[0, -Math.PI / 2, 0]}>
-      <Html center distanceFactor={5.6} transform occlude={false} className="pointer-events-none select-none">
-        <div
-          style={{
-            width: '380px',
-            backgroundColor: '#0c0f1e',
-            border: '2px solid rgba(232, 121, 249, 0.5)',
-            borderRadius: '10px',
-            padding: '14px',
-            fontFamily: "'Inter', -apple-system, sans-serif",
-            color: '#f8fafc',
-            boxShadow: '0 0 25px rgba(0,0,0,0.85), 0 0 15px rgba(232,121,249,0.15)',
-          }}
-        >
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '8px', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#e879f9', boxShadow: '0 0 8px #e879f9' }} />
-              <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', color: '#ffffff' }}>
-                CREATIVE STUDIO // D01 & D02
-              </span>
-            </div>
-            <span style={{ fontSize: '8px', fontWeight: 700, color: '#e879f9', backgroundColor: '#2e1065', padding: '2px 6px', borderRadius: '4px' }}>
-              ACTIVE PIPELINE
-            </span>
-          </div>
-
-          {/* Workflow Pipeline */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-            <div style={{ flex: 1, backgroundColor: '#10162a', padding: '8px', borderRadius: '6px', border: '1px solid #1e293b' }}>
-              <div style={{ fontSize: '8px', color: '#fbbf24', fontWeight: 700, marginBottom: '2px' }}>D01 COPYWRITER</div>
-              <div style={{ fontSize: '10px', fontWeight: 800, color: '#ffffff' }}>Caption & Hashtags</div>
-              <div style={{ fontSize: '8px', color: '#94a3b8', marginTop: '2px' }}>Chuẩn F&B Tone</div>
-            </div>
-            <div style={{ flex: 1, backgroundColor: '#10162a', padding: '8px', borderRadius: '6px', border: '1px solid #1e293b' }}>
-              <div style={{ fontSize: '8px', color: '#e879f9', fontWeight: 700, marginBottom: '2px' }}>D02 VISUAL DESIGN</div>
-              <div style={{ fontSize: '10px', fontWeight: 800, color: '#ffffff' }}>Graphic & Layout</div>
-              <div style={{ fontSize: '8px', color: '#94a3b8', marginTop: '2px' }}>1:1 Feed · 9:16 Story</div>
-            </div>
-          </div>
-
-          {/* Format Spec Tags */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#10162a', padding: '6px 10px', borderRadius: '6px', fontSize: '8px', color: '#cbd5e1' }}>
-            <span>🎨 Brand Palette: Amber / Sunset / Lime</span>
-            <span style={{ color: '#34d399', fontWeight: 700 }}>⚡ Visual High-DPI</span>
-          </div>
-        </div>
-      </Html>
-    </group>
-  );
-};
-
-/**
- * 6. Architectural Crown / Perimeter Cove Light Soffit
+ * 5. Architectural Crown / Perimeter Cove Light Soffit
  */
 const CeilingPerimeterCrown: React.FC = () => {
   const { width, depth } = OFFICE_ROOM_CONFIG;
@@ -625,7 +566,7 @@ const CeilingPerimeterCrown: React.FC = () => {
 };
 
 /**
- * 7. AICommandKiosk: Repositioned as an elegant freestanding console in the entrance/lounge niche
+ * 6. AICommandKiosk: Repositioned as an elegant freestanding console in the entrance/lounge niche
  */
 const AICommandKiosk: React.FC = () => {
   return (
@@ -669,7 +610,7 @@ const AICommandKiosk: React.FC = () => {
 };
 
 /**
- * 8. ForegroundLounge (Front-Right Lounge Area): Dark leather modular sofa
+ * 7. ForegroundLounge (Front-Right Lounge Area): Dark leather modular sofa
  */
 const ForegroundLounge: React.FC = () => {
   return (
@@ -709,20 +650,20 @@ export const OfficeRoom: React.FC = () => {
   return (
     <group>
       {/* ═══════════════════════════════════════════════════════
-          1. FLOOR — Dark Slate Tiles + Structural Command Grid
+          1. FLOOR — Polished Dark Slate Tiles + Bright Electric-Lime Grid Lines
          ═══════════════════════════════════════════════════════ */}
       <RigidBody type="fixed" colliders="cuboid">
         <mesh position={[0, -0.25, 0]} receiveShadow>
           <boxGeometry args={[width, 0.5, depth]} />
           <meshStandardMaterial
-            color={isDay ? '#22283a' : '#161926'}
-            roughness={0.22}
-            metalness={0.25}
+            color={isDay ? '#181e2e' : '#0f111a'}
+            roughness={0.16}
+            metalness={0.35}
           />
         </mesh>
       </RigidBody>
 
-      {/* Polished Square Slate Tiles (Subtle tonal checkerboard) */}
+      {/* Polished Square Slate Tiles */}
       {Array.from({ length: 14 }).map((_, xi) =>
         Array.from({ length: 12 }).map((_, zi) => (
           <mesh
@@ -735,71 +676,63 @@ export const OfficeRoom: React.FC = () => {
             <meshStandardMaterial
               color={
                 isDay
-                  ? (xi + zi) % 2 === 0 ? '#283147' : '#1f2638'
-                  : (xi + zi) % 2 === 0 ? '#1b1f30' : '#161926'
+                  ? (xi + zi) % 2 === 0 ? '#20273a' : '#192032'
+                  : (xi + zi) % 2 === 0 ? '#141622' : '#10121d'
               }
-              roughness={0.2}
-              metalness={0.3}
+              roughness={isDay ? 0.2 : 0.15}
+              metalness={isDay ? 0.35 : 0.45}
             />
           </mesh>
         ))
       )}
 
-      {/* ── CENTRAL COMMAND FLOOR NETWORK & DATA FLOW LINES ── */}
-      {/* Longitudinal Center Axis */}
-      <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[0.03, depth - 4]} />
-        <meshBasicMaterial color="#D4FF00" transparent opacity={0.35} />
-      </mesh>
-
-      {/* Cross Command Axis (Connecting Strategy to Creative) */}
-      {[-5.0, 0.5, 5.5].map((z, i) => (
-        <mesh key={`grid-z-${i}`} position={[0, 0.006, z]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[width - 6, 0.02]} />
-          <meshBasicMaterial color="#D4FF00" transparent opacity={0.2} />
+      {/* ── BRIGHT GLOWING ELECTRIC LIME / GOLD FLOOR GRID LINES ── */}
+      {/* Longitudinal Main Axis Lines */}
+      {[-3.8, 0, 3.8].map((x, i) => (
+        <mesh key={`grid-x-${i}`} position={[x, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.035, depth - 2]} />
+          <meshBasicMaterial color="#D4FF00" />
         </mesh>
       ))}
 
-      {/* Central Command Ring Motif around CEO Nexus */}
-      <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[2.8, 2.82, 48]} />
-        <meshBasicMaterial color="#D4FF00" transparent opacity={0.3} />
-      </mesh>
-      <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[4.5, 4.52, 48]} />
-        <meshBasicMaterial color="#38bdf8" transparent opacity={0.2} />
-      </mesh>
+      {/* Transverse Cross Axis Lines */}
+      {[-5.0, 0.5, 5.5].map((z, i) => (
+        <mesh key={`grid-z-${i}`} position={[0, 0.006, z]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[width - 2, 0.035]} />
+          <meshBasicMaterial color="#D4FF00" />
+        </mesh>
+      ))}
 
-      {/* Workstation Grounding Floor Rings (Subtle boundary) */}
+      {/* Workstation Floor Halos */}
       {/* A01 Center */}
       <mesh position={[0, 0.005, -5.0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.75, 1.78, 32]} />
-        <meshBasicMaterial color="#D4FF00" transparent opacity={0.4} />
+        <ringGeometry args={[1.8, 1.83, 32]} />
+        <meshBasicMaterial color="#D4FF00" />
       </mesh>
       {/* B02 Left Top */}
       <mesh position={[-7.0, 0.005, -4.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.55, 1.58, 32]} />
-        <meshBasicMaterial color="#34d399" transparent opacity={0.35} />
+        <ringGeometry args={[1.6, 1.63, 32]} />
+        <meshBasicMaterial color="#34d399" />
       </mesh>
       {/* B03 Left Mid */}
       <mesh position={[-7.0, 0.005, 0.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.55, 1.58, 32]} />
-        <meshBasicMaterial color="#38bdf8" transparent opacity={0.35} />
+        <ringGeometry args={[1.6, 1.63, 32]} />
+        <meshBasicMaterial color="#38bdf8" />
       </mesh>
       {/* D01 Right Top */}
       <mesh position={[7.0, 0.005, -4.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.55, 1.58, 32]} />
-        <meshBasicMaterial color="#fbbf24" transparent opacity={0.35} />
+        <ringGeometry args={[1.6, 1.63, 32]} />
+        <meshBasicMaterial color="#fbbf24" />
       </mesh>
       {/* D02 Right Mid */}
       <mesh position={[7.0, 0.005, 0.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.55, 1.58, 32]} />
-        <meshBasicMaterial color="#e879f9" transparent opacity={0.35} />
+        <ringGeometry args={[1.6, 1.63, 32]} />
+        <meshBasicMaterial color="#e879f9" />
       </mesh>
       {/* E01 Front Center */}
       <mesh position={[0, 0.005, 5.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.65, 1.68, 32]} />
-        <meshBasicMaterial color="#a78bfa" transparent opacity={0.35} />
+        <ringGeometry args={[1.7, 1.73, 32]} />
+        <meshBasicMaterial color="#a78bfa" />
       </mesh>
 
       {/* ═══════════════════════════════════════════════════════
@@ -808,12 +741,12 @@ export const OfficeRoom: React.FC = () => {
       <CeilingPerimeterCrown />
 
       {/* ═══════════════════════════════════════════════════════
-          3. BACK WALL & CREDENZA & STRATEGY BOARD
+          3. BACK WALL & CREDENZAS (Hospitality Bar & Design Library)
          ═══════════════════════════════════════════════════════ */}
       <RigidBody type="fixed" colliders="hull">
         <mesh position={[0, wallHeight / 2, -halfD - wallThickness / 2]} receiveShadow castShadow>
           <boxGeometry args={[width, wallHeight, wallThickness]} />
-          <meshStandardMaterial color="#1c1f2e" roughness={0.7} />
+          <meshStandardMaterial color="#14141a" roughness={0.85} />
         </mesh>
       </RigidBody>
 
@@ -825,8 +758,8 @@ export const OfficeRoom: React.FC = () => {
       {[-10.8, 10.8].map((x, i) => (
         <group key={i} position={[x, wallHeight / 2, -10.9]}>
           <mesh>
-            <boxGeometry args={[0.08, wallHeight - 0.4, 0.03]} />
-            <meshBasicMaterial color="#fef08a" />
+            <boxGeometry args={[0.1, wallHeight - 0.4, 0.04]} />
+            <meshBasicMaterial color="#D4FF00" />
           </mesh>
         </group>
       ))}
@@ -837,25 +770,25 @@ export const OfficeRoom: React.FC = () => {
       <RigidBody type="fixed" colliders="hull">
         <mesh position={[-halfW - wallThickness / 2, wallHeight / 2, 0]} receiveShadow castShadow>
           <boxGeometry args={[wallThickness, wallHeight, depth]} />
-          <meshStandardMaterial color="#1c1f2e" roughness={0.7} />
+          <meshStandardMaterial color="#14141a" roughness={0.85} />
         </mesh>
       </RigidBody>
 
       <LeftAnalyticsWall />
 
       {/* ═══════════════════════════════════════════════════════
-          5. RIGHT PANORAMIC GLASS WALL & CREATIVE SHOWCASE DISPLAY
+          5. RIGHT PANORAMIC GLASS WALL & BALCONY TERRACE (Clean Open View)
          ═══════════════════════════════════════════════════════ */}
       <RigidBody type="fixed" colliders="hull">
         {/* Top Header */}
         <mesh position={[halfW, wallHeight - 0.05, 0]}>
           <boxGeometry args={[0.16, 0.1, depth]} />
-          <meshStandardMaterial color="#11131c" metalness={0.9} roughness={0.15} />
+          <meshStandardMaterial color="#09090b" metalness={0.9} roughness={0.15} />
         </mesh>
         {/* Bottom Sill */}
         <mesh position={[halfW, 0.05, 0]}>
           <boxGeometry args={[0.16, 0.1, depth]} />
-          <meshStandardMaterial color="#11131c" metalness={0.9} roughness={0.15} />
+          <meshStandardMaterial color="#09090b" metalness={0.9} roughness={0.15} />
         </mesh>
 
         {/* Vertical Mullions */}
