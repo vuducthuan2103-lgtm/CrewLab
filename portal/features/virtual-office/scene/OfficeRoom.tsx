@@ -650,51 +650,24 @@ export const OfficeRoom: React.FC = () => {
   return (
     <group>
       {/* ═══════════════════════════════════════════════════════
-          1. FLOOR — Monolithic High-Tech Dark Cyber-Slate Floor
+          1. FLOOR — Monolithic Seamless Dark Cyber-Slate Floor
          ═══════════════════════════════════════════════════════ */}
       <RigidBody type="fixed" colliders="cuboid">
         <mesh position={[0, -0.25, 0]} receiveShadow>
           <boxGeometry args={[width, 0.5, depth]} />
           <meshStandardMaterial
-            color={isDay ? '#181c28' : '#10121a'}
-            roughness={0.22}
-            metalness={0.4}
+            color={isDay ? '#161924' : '#0e1017'}
+            roughness={0.25}
+            metalness={0.35}
           />
         </mesh>
       </RigidBody>
 
-      {/* Seamless Central High-Tech Operations Inlay */}
-      <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[width - 3.6, depth - 3.6]} />
-        <meshStandardMaterial
-          color={isDay ? '#131622' : '#0b0d14'}
-          roughness={0.2}
-          metalness={0.5}
-        />
+      {/* Single Ultra-Clean Central Cyber Data Line */}
+      <mesh position={[0, 0.003, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[0.02, depth - 4]} />
+        <meshBasicMaterial color="#D4FF00" transparent opacity={0.6} />
       </mesh>
-
-      {/* Cyber Inlay Glowing Perimeter Border */}
-      <mesh position={[0, 0.004, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[width - 3.56, 0.02]} />
-        <meshBasicMaterial color="#38bdf8" />
-      </mesh>
-
-      {/* ── MINIMALIST CYBER DATA TRACKS (Clean & Futuristic) ── */}
-      {/* Longitudinal Main Axis Lines */}
-      {[-4.0, 0, 4.0].map((x, i) => (
-        <mesh key={`grid-x-${i}`} position={[x, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.025, depth - 4]} />
-          <meshBasicMaterial color={i === 1 ? '#D4FF00' : '#38bdf8'} />
-        </mesh>
-      ))}
-
-      {/* Transverse Cross Axis Lines */}
-      {[-5.0, 0.5, 5.5].map((z, i) => (
-        <mesh key={`grid-z-${i}`} position={[0, 0.005, z]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[width - 4, 0.025]} />
-          <meshBasicMaterial color="#D4FF00" />
-        </mesh>
-      ))}
 
       {/* ═══════════════════════════════════════════════════════
           2. PERIMETER CEILING CROWN SOFFIT
