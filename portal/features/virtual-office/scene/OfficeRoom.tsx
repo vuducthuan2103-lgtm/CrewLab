@@ -746,7 +746,7 @@ export const OfficeRoom: React.FC = () => {
       <RigidBody type="fixed" colliders="hull">
         <mesh position={[0, wallHeight / 2, -halfD - wallThickness / 2]} receiveShadow castShadow>
           <boxGeometry args={[width, wallHeight, wallThickness]} />
-          <meshStandardMaterial color="#14141a" roughness={0.85} />
+          <meshStandardMaterial color="#0e1017" roughness={0.9} />
         </mesh>
       </RigidBody>
 
@@ -770,7 +770,7 @@ export const OfficeRoom: React.FC = () => {
       <RigidBody type="fixed" colliders="hull">
         <mesh position={[-halfW - wallThickness / 2, wallHeight / 2, 0]} receiveShadow castShadow>
           <boxGeometry args={[wallThickness, wallHeight, depth]} />
-          <meshStandardMaterial color="#14141a" roughness={0.85} />
+          <meshStandardMaterial color="#0e1017" roughness={0.9} />
         </mesh>
       </RigidBody>
 

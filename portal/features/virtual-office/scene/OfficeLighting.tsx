@@ -32,11 +32,11 @@ export const OfficeLighting: React.FC = () => {
       {/* ══════════════════════════════════════════════════
           2. KEY DIRECTIONAL LIGHTS (SHADOWS & ARCHITECTURAL DEFINITION)
          ══════════════════════════════════════════════════ */}
-      {/* Main Overhead Architectural Key Light (Soft Warm Halogen 3500K) */}
+      {/* Top-Down Architectural Key Light (Balanced overhead so all walls receive identical ambient tone) */}
       <directionalLight
-        position={[6, 18, 10]}
-        intensity={isDay ? 3.8 : 2.8}
-        color={isDay ? '#fffdfa' : '#f8fafc'}
+        position={[0, 22, 6]}
+        intensity={isDay ? 3.6 : 2.6}
+        color={isDay ? '#ffffff' : '#f1f5f9'}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
@@ -49,18 +49,11 @@ export const OfficeLighting: React.FC = () => {
         shadow-bias={-0.0001}
       />
 
-      {/* Panoramic Window Daylight / Night Skyline Light from Right Side */}
+      {/* Subtle Sky Glancing Light from Glass Window */}
       <directionalLight
-        position={[18, 9, -2]}
-        intensity={isDay ? 3.4 : 1.8}
-        color={isDay ? '#fff7ed' : '#cbd5e1'}
-      />
-
-      {/* Soft Fill from Left Wall to eliminate harsh pitch-black shadows */}
-      <directionalLight
-        position={[-16, 10, 2]}
-        intensity={isDay ? 2.2 : 1.6}
-        color={isDay ? '#f8fafc' : '#e2e8f0'}
+        position={[14, 12, 0]}
+        intensity={isDay ? 1.8 : 0.8}
+        color={isDay ? '#f8fafc' : '#94a3b8'}
       />
 
       {/* ══════════════════════════════════════════════════
@@ -105,7 +98,7 @@ export const OfficeLighting: React.FC = () => {
       />
 
       {/* ══════════════════════════════════════════════════
-          4. ARCHITECTURAL WALL WASH & BRAND ACCENTS
+          4. ARCHITECTURAL BRAND WALL ACCENT
          ══════════════════════════════════════════════════ */}
       {/* BAR DINH Brand Wall Wash */}
       <pointLight
@@ -114,24 +107,6 @@ export const OfficeLighting: React.FC = () => {
         color="#fef3c7"
         distance={7}
         decay={1.4}
-      />
-
-      {/* Left Wall Gentle Fill (Subtle, non-dominating) */}
-      <pointLight
-        position={[-11.2, 3.8, -1.0]}
-        intensity={2.2}
-        color="#e2e8f0"
-        distance={7}
-        decay={1.6}
-      />
-
-      {/* Right Wall Creative Display Gentle Fill */}
-      <pointLight
-        position={[10.5, 3.8, -2.5]}
-        intensity={2.2}
-        color="#fef3c7"
-        distance={7}
-        decay={1.6}
       />
     </>
   );
