@@ -86,6 +86,7 @@ export interface ContentItem {
   fixInstructions?: string;
   evalScoreCaption?: number | null;
   evalScoreVisual?: number | null;
+  eval_retry_count?: number;
   rejectionReason?: RejectionReason;
   rejectionFeedback?: string;
   imageProvenance?: {

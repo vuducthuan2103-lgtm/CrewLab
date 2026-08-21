@@ -1,0 +1,2616 @@
+# CrewLab Virtual 3D Marketing Office
+
+## PRD + Implementation Plan — Simplified Tooling Edition
+
+**Version:** 1.1
+**Status:** Founder Authorized
+**Target:** CrewLab Client Portal
+**Primary Implementer:** Antigravity
+**Feature:** Virtual 3D Marketing Office
+**Date:** August 2026
+
+---
+
+# 1. Scope Authorization
+
+This document explicitly authorizes implementation of a new CrewLab feature:
+
+> **Virtual 3D Marketing Office**
+
+The current CrewLab MVP normally excludes Pixel Office / Virtual Office.
+
+This document is the founder's explicit approval to open this feature as a separate scope.
+
+This authorization applies ONLY to the 3D visualization and interaction layer described here.
+
+It does NOT authorize implementation of unrelated full-vision CrewLab functionality.
+
+The Virtual Office V1 contains ONLY the six currently active CrewLab agents:
+
+```text
+A01 — Orchestrator
+B02 — Content Pillar
+B03 — Content Plan
+D01 — Caption Writer
+D02 — Image Design
+E01 — Evaluator
+```
+
+Do NOT introduce:
+
+```text
+B01
+F01
+G01-G04
+H01
+ChromaDB
+Hindsight
+Meta publishing
+Telegram
+automatic social publishing
+full long-document RAG
+```
+
+---
+
+# 2. Repository Rules
+
+Before implementation, Antigravity MUST:
+
+1. Read `AGENTS.md`.
+2. Pull latest `main`.
+3. Inspect `docs/decisions/`.
+4. Inspect current `specs/`.
+5. Determine the next available spec number.
+6. Create an ADR for Virtual Office scope.
+7. Create:
+
+```text
+specs/<NNNN>-virtual-3d-office/spec.md
+```
+
+8. Create branch:
+
+```text
+feature/<NNNN>-virtual-3d-office
+```
+
+9. Copy relevant Acceptance Criteria from this document into the spec.
+10. Never implement directly on `main`.
+
+---
+
+# 3. Product Vision
+
+CrewLab is a multi-agent marketing automation platform.
+
+The Virtual Office turns the invisible AI system into a visible virtual marketing department.
+
+Instead of only seeing:
+
+```text
+cards
+statuses
+content items
+chat
+approval screens
+```
+
+the customer enters a virtual 3D marketing office.
+
+Every CrewLab agent becomes a virtual employee.
+
+The customer becomes the:
+
+> **CEO of their restaurant / cafe / business**
+
+The CEO can:
+
+* walk around the office;
+* approach each employee;
+* see agents working;
+* see agents waiting;
+* see agents reacting to workflow state;
+* click an agent;
+* inspect current work;
+* see whether customer action is required;
+* jump to the correct existing CrewLab screen.
+
+The experience should communicate:
+
+> "I have an AI marketing department working for my business."
+
+---
+
+# 4. Core Product Rule
+
+## The 3D Office is a visualization layer.
+
+It is NOT another workflow engine.
+
+Existing CrewLab business ownership remains unchanged.
+
+Examples:
+
+### Allowed
+
+```text
+D02 needs customer image
+
+3D Office
+→ D02 shows waiting animation
+→ customer clicks D02
+→ panel says "Waiting for your image"
+→ Open Asset Request
+→ redirect to existing CrewLab screen
+```
+
+### Not Allowed
+
+```text
+3D Office
+→ D02 has a completely separate upload workflow
+```
+
+---
+
+Existing CrewLab customer communication rules also remain unchanged.
+
+Customer communicates with:
+
+```text
+A01
+```
+
+The customer does NOT directly command:
+
+```text
+B02
+B03
+D01
+D02
+E01
+```
+
+The office may display these agents and their work, but it must not create direct child-agent chat.
+
+---
+
+# 5. Target User
+
+Primary user:
+
+> CrewLab client / business owner.
+
+Within approximately 10 seconds after entering the office, the customer should understand:
+
+```text
+Who is working?
+
+What are they doing?
+
+Who needs me?
+
+What should I do next?
+```
+
+The user should NOT need technical knowledge about:
+
+```text
+Celery
+Redis
+Postgres
+LLM providers
+internal prompts
+task queues
+API routing
+```
+
+---
+
+# 6. V1 Scope
+
+V1 contains:
+
+```text
+1 virtual office
+1 CEO character
+6 agent characters
+6 workstations
+1 third-person camera
+CEO movement
+agent interaction
+agent animation states
+agent expressions
+agent detail UI
+real CrewLab state integration
+desktop support
+mobile support
+accessible DOM fallback
+```
+
+V1 does NOT contain:
+
+```text
+multiplayer
+voice chat
+TTS
+lip sync
+full avatar editor
+multiple floors
+office decoration builder
+mini games
+VR
+50 NPCs
+complex NPC pathfinding
+agent-to-agent visible conversations
+```
+
+---
+
+# 7. Office Layout
+
+The virtual office should have four functional zones.
+
+## Zone 1 — Coordination
+
+```text
+A01 — Orchestrator
+```
+
+Position:
+
+* near the center;
+* slightly more prominent desk.
+
+Props:
+
+```text
+dual monitors
+workflow screen
+task board
+```
+
+---
+
+## Zone 2 — Strategy
+
+```text
+B02 — Content Pillar
+B03 — Content Plan
+```
+
+### B02
+
+Props:
+
+```text
+idea board
+sticky notes
+strategy material
+```
+
+### B03
+
+Props:
+
+```text
+calendar
+timeline
+schedule board
+```
+
+---
+
+## Zone 3 — Creative Production
+
+```text
+D01 — Caption Writer
+D02 — Image Design
+```
+
+### D01
+
+Props:
+
+```text
+keyboard
+copywriting screen
+document windows
+```
+
+### D02
+
+Props:
+
+```text
+large visual monitor
+design tablet
+image canvas
+```
+
+---
+
+## Zone 4 — Quality Control
+
+```text
+E01 — Evaluator
+```
+
+Props:
+
+```text
+checklist
+quality monitor
+comparison screen
+```
+
+---
+
+# 8. CEO Character
+
+The customer controls a third-person CEO avatar.
+
+V1 must support:
+
+```text
+idle
+walk
+turn
+stop
+camera follow
+collision
+```
+
+Desktop controls:
+
+```text
+WASD
+or Arrow Keys
+```
+
+Mobile:
+
+```text
+virtual joystick
+tap agent to inspect
+```
+
+Optional later:
+
+```text
+click-to-walk
+```
+
+Do NOT implement a full character customization system in V1.
+
+A generic stylized CEO is acceptable.
+
+Possible lightweight customization later:
+
+```text
+business name
+logo
+clothing accent
+avatar preset
+```
+
+---
+
+# 9. Agent Characters
+
+Each agent must look and behave differently.
+
+Differentiation should come from:
+
+```text
+silhouette
+clothing
+desk
+props
+animation
+posture
+behavior
+```
+
+Do NOT rely only on color.
+
+---
+
+# 10. Agent Personality & Animation
+
+## A01 — Orchestrator
+
+Personality:
+
+```text
+calm
+responsible
+leader
+observant
+```
+
+Idle:
+
+```text
+checking screens
+looking around office
+```
+
+Working:
+
+```text
+switching screens
+reviewing workflow
+planning
+```
+
+Waiting for customer:
+
+```text
+turn toward CEO
+subtle raised-hand gesture
+notification indicator
+```
+
+Success:
+
+```text
+small nod
+```
+
+---
+
+## B02 — Content Pillar
+
+Personality:
+
+```text
+creative
+strategic
+thoughtful
+```
+
+Idle:
+
+```text
+thinking
+looking at notes
+```
+
+Working:
+
+```text
+brainstorming
+writing notes
+moving sticky notes
+```
+
+Success:
+
+```text
+idea reaction
+```
+
+---
+
+## B03 — Content Plan
+
+Personality:
+
+```text
+organized
+systematic
+schedule-focused
+```
+
+Idle:
+
+```text
+checking calendar
+```
+
+Working:
+
+```text
+moving calendar blocks
+typing
+checking schedule
+```
+
+Success:
+
+```text
+schedule confirmation
+```
+
+---
+
+## D01 — Caption Writer
+
+Personality:
+
+```text
+focused
+creative
+fast
+```
+
+Idle:
+
+```text
+reading
+thinking
+```
+
+Working:
+
+```text
+typing
+pause
+think
+continue typing
+```
+
+Rework:
+
+```text
+faster editing
+focused expression
+```
+
+---
+
+## D02 — Image Design
+
+Personality:
+
+```text
+visual
+creative
+expressive
+detail-focused
+```
+
+Working:
+
+```text
+drawing
+editing
+switching artwork
+```
+
+Waiting for asset:
+
+```text
+turn toward CEO
+asset icon appears
+```
+
+Success:
+
+```text
+look at completed design
+```
+
+---
+
+## E01 — Evaluator
+
+Personality:
+
+```text
+analytical
+careful
+strict
+```
+
+Working:
+
+```text
+checking criteria
+comparing output
+review animation
+```
+
+Evaluation failure:
+
+```text
+concerned expression
+mark issue
+```
+
+Success:
+
+```text
+checkmark reaction
+```
+
+---
+
+# 11. Visual State System
+
+These are PRESENTATION states.
+
+They are NOT new CrewLab backend workflow states.
+
+Use approximately:
+
+```ts
+type AgentVisualState =
+  | "idle"
+  | "working"
+  | "waiting_human"
+  | "reviewing"
+  | "reworking"
+  | "success"
+  | "error"
+  | "rejected";
+```
+
+Expressions:
+
+```ts
+type AgentEmotion =
+  | "neutral"
+  | "focused"
+  | "thinking"
+  | "happy"
+  | "concerned"
+  | "urgent";
+```
+
+Never write these visual states back into CrewLab's domain workflow.
+
+---
+
+# 12. State Mapping
+
+Backend state must be translated through one visualization adapter.
+
+Architecture:
+
+```text
+CrewLab Backend State
+        ↓
+Office State Adapter
+        ↓
+Agent Visual State
+        ↓
+Animation + Expression
+```
+
+Example:
+
+```text
+E01 currently evaluating content
+        ↓
+E01 = reviewing
+        ↓
+review animation
+focused expression
+```
+
+If backend data cannot prove that an agent is active:
+
+```text
+show idle
+```
+
+Do NOT invent agent activity.
+
+---
+
+# 13. Agent Detail Panel
+
+Clicking an agent opens a normal CrewLab UI panel.
+
+Use existing:
+
+```text
+shadcn/ui
+```
+
+Desktop:
+
+```text
+right-side Sheet
+```
+
+Mobile:
+
+```text
+bottom Drawer / Sheet
+```
+
+Required fields:
+
+```text
+Agent Code
+Agent Name
+Role
+Current Status
+Current Task
+Task Summary
+Related Content Item
+Last Update
+Requires Customer Action?
+```
+
+Possible CTA:
+
+```text
+Open A01 Chat
+Open Content Hub
+Open Content Item
+Open Approval
+Open Asset Request
+Open Calendar
+```
+
+ONLY expose actions already supported by CrewLab.
+
+Do not recreate their workflow inside the office.
+
+---
+
+# 14. Agent Interaction
+
+Desktop:
+
+```text
+hover agent
+→ subtle highlight
+→ name
+→ role
+→ status
+```
+
+Click:
+
+```text
+select agent
+→ optional subtle camera focus
+→ open Agent Detail Sheet
+```
+
+Mobile:
+
+```text
+tap agent
+→ open bottom sheet
+```
+
+Characters must have generous interaction colliders.
+
+Do not require pixel-perfect clicks.
+
+---
+
+# 15. Accessible Fallback
+
+The 3D scene cannot be the only interface.
+
+Provide:
+
+```text
+[Team]
+```
+
+button.
+
+Team opens a normal DOM-based list of all six agents.
+
+Keyboard users must be able to:
+
+```text
+Tab through agents
+Select agent
+Open detail panel
+Read status
+Use CTA
+```
+
+This accessible Team UI remains available even if WebGL fails.
+
+---
+
+# 16. Visual Design
+
+Follow existing CrewLab Design System.
+
+Core visual identity:
+
+```text
+Background
+#09090B
+
+Surface
+#131316
+
+Muted
+#27272A
+
+Electric Lime
+#D4FF00
+
+Primary Hover
+#E5FF55
+
+Text
+#FAFAFA
+```
+
+The office should feel:
+
+```text
+dark
+clean
+premium
+futuristic
+modern
+alive
+professional
+```
+
+Recommended style:
+
+> Stylized low-poly / medium-poly 3D.
+
+Avoid:
+
+```text
+photorealistic AAA
+excessive cyberpunk neon
+heavy bloom
+children's cartoon style
+```
+
+---
+
+# 17. Lighting
+
+Use a simple optimized lighting system.
+
+Recommended:
+
+```text
+ambient office lighting
+soft overhead light
+localized desk lights
+monitor emissive
+subtle lime accents
+```
+
+Avoid many shadow-casting lights.
+
+Use visual quality without sacrificing browser performance.
+
+---
+
+# 18. Technical Architecture
+
+```text
+                     CREWLAB BACKEND
+                            │
+                            ▼
+                  Office State Adapter
+                            │
+                            ▼
+                  CREWLAB CLIENT PORTAL
+                            │
+                      /office route
+                            │
+             ┌──────────────┴──────────────┐
+             │                             │
+             ▼                             ▼
+        DOM / shadcn UI            React Three Fiber
+                                           │
+                                    Office Scene
+                                           │
+                          ┌────────────────┼──────────────┐
+                          │                │              │
+                         CEO             Agents         Physics
+                          │                │              │
+                        Ecctrl            VRM           Rapier
+```
+
+---
+
+# 19. Target Location
+
+This is a customer feature.
+
+Implement inside:
+
+```text
+portal/
+```
+
+NOT:
+
+```text
+internal-app/
+```
+
+Recommended route:
+
+```text
+/office
+```
+
+Antigravity must inspect current routing conventions before creating the route.
+
+---
+
+# 20. Minimal Technology Stack
+
+## Core 3D
+
+Use:
+
+```text
+three
+@react-three/fiber
+@react-three/drei
+```
+
+---
+
+## Local UI / Scene State
+
+Use:
+
+```text
+zustand
+```
+
+Only for:
+
+```text
+selectedAgent
+camera state
+local interaction
+CEO local state
+panel visibility
+```
+
+Backend remains the source of business truth.
+
+---
+
+## Physics
+
+Use:
+
+```text
+@react-three/rapier
+```
+
+Purpose:
+
+```text
+walls
+desks
+CEO collision
+interaction trigger areas
+```
+
+---
+
+## CEO Controller
+
+Use:
+
+```text
+ecctrl
+```
+
+Purpose:
+
+```text
+third-person movement
+camera follow
+physics character controller
+desktop input
+mobile input
+```
+
+Do NOT write a custom character controller unless Ecctrl is proven incompatible.
+
+---
+
+## Character System
+
+Use:
+
+```text
+@pixiv/three-vrm
+```
+
+Purpose:
+
+```text
+humanoid avatars
+expressions
+face states
+look-at
+animation
+```
+
+---
+
+## 3D Asset Utility
+
+Use:
+
+```text
+gltfjsx
+```
+
+For:
+
+```text
+GLB
+→ optimized React Three Fiber components
+```
+
+---
+
+# 21. FINAL Runtime Dependency Set
+
+V1 should stay approximately within:
+
+```text
+three
+@react-three/fiber
+@react-three/drei
+@react-three/rapier
+ecctrl
+@pixiv/three-vrm
+zustand
+```
+
+`gltfjsx` is a development utility.
+
+Do NOT add another 3D framework.
+
+Do NOT introduce:
+
+```text
+Babylon.js
+Unity WebGL
+Godot Web
+PlayCanvas
+```
+
+unless this architecture is formally changed later.
+
+---
+
+# 22. MCP — Keep Only Two
+
+## 22.1 codebase-memory-mcp
+
+KEEP.
+
+CrewLab already requires this MCP for understanding source-code architecture.
+
+Use it before manually searching source code.
+
+Primary operations:
+
+```text
+get_architecture
+search_graph
+trace_path
+get_code_snippet
+query_graph
+```
+
+Use it to identify:
+
+```text
+existing Portal architecture
+existing API routes
+auth
+client scoping
+state flow
+content workflow
+```
+
+---
+
+## 22.2 Supabase MCP
+
+KEEP existing configuration.
+
+Use it for:
+
+```text
+understanding DB structure
+reading existing data model
+checking existing task/content data
+validating client scoping
+```
+
+Do NOT replace current `.mcp.json`.
+
+Do NOT switch Supabase MCP from read-only to write mode just for this feature.
+
+---
+
+# 23. MCP Explicitly NOT Needed for V1
+
+Do NOT install:
+
+```text
+Blender MCP
+Meshy MCP
+Three.js DevTools MCP
+shadcn MCP
+```
+
+They are not required for V1.
+
+If a real blocker appears later, founder can approve them separately.
+
+---
+
+# 24. Skills
+
+Keep the skill system lightweight.
+
+## Existing CrewLab Skill
+
+Use:
+
+```text
+design-taste-frontend
+```
+
+for:
+
+```text
+Agent Detail UI
+HUD
+loading state
+responsive UI
+visual hierarchy
+```
+
+Existing CrewLab design rules remain the source of truth.
+
+---
+
+# 25. Add One R3F Skill Set
+
+Antigravity may install a React Three Fiber skill source.
+
+Purpose:
+
+```text
+R3F architecture
+loading
+animation
+interaction
+physics
+lighting
+```
+
+Do NOT install ten overlapping 3D skill packs.
+
+One coherent R3F skill source is enough.
+
+If individual skill modules are available, prioritize:
+
+```text
+r3f-fundamentals
+r3f-loaders
+r3f-animation
+r3f-interaction
+r3f-physics
+```
+
+Lighting/textures can be added only if needed.
+
+---
+
+# 26. Add Playwright Skill
+
+Use one Playwright skill for:
+
+```text
+browser automation
+E2E testing
+mobile viewport testing
+agent selection testing
+navigation testing
+fallback testing
+```
+
+No Playwright MCP is required for V1 if the skill/CLI already works.
+
+---
+
+# 27. Final Development Tooling
+
+Antigravity should operate with:
+
+```text
+ANTIGRAVITY
+    │
+    ├── codebase-memory-mcp
+    ├── Supabase MCP
+    │
+    ├── R3F Skill
+    ├── Playwright Skill
+    │
+    └── existing design-taste-frontend
+```
+
+Nothing else is necessary at the start.
+
+---
+
+# 28. Asset Pipeline
+
+Do not over-engineer assets.
+
+V1 pipeline:
+
+```text
+Blender / licensed asset
+        ↓
+      GLB
+        ↓
+     gltfjsx
+        ↓
+React Three Fiber
+```
+
+Blender is used normally.
+
+No Blender MCP.
+
+During early implementation:
+
+```text
+floor = primitive
+wall = primitive
+desk = box
+CEO = capsule
+agent = capsule
+```
+
+Real assets come later.
+
+---
+
+# 29. Asset License Rule
+
+Never blindly copy models from GitHub demo repositories.
+
+For every third-party asset:
+
+```text
+verify license
+record source
+record attribution requirement
+```
+
+Open-source code does NOT automatically mean every bundled model is commercially reusable.
+
+---
+
+# 30. Suggested Folder Structure
+
+```text
+portal/
+├── app/
+│   └── office/
+│       └── page.tsx
+│
+├── features/
+│   └── virtual-office/
+│       ├── components/
+│       │   ├── VirtualOffice.tsx
+│       │   ├── OfficeCanvas.tsx
+│       │   ├── OfficeHUD.tsx
+│       │   ├── AgentDetailSheet.tsx
+│       │   ├── AgentRoster.tsx
+│       │   └── OfficeLoadingScreen.tsx
+│       │
+│       ├── scene/
+│       │   ├── OfficeScene.tsx
+│       │   ├── OfficeEnvironment.tsx
+│       │   └── OfficeLighting.tsx
+│       │
+│       ├── characters/
+│       │   ├── CEOCharacter.tsx
+│       │   ├── AgentCharacter.tsx
+│       │   ├── AnimationController.tsx
+│       │   └── ExpressionController.tsx
+│       │
+│       ├── interaction/
+│       │   ├── AgentInteraction.tsx
+│       │   └── CameraFocusController.tsx
+│       │
+│       ├── data/
+│       │   ├── office-api.ts
+│       │   └── office-state-adapter.ts
+│       │
+│       ├── state/
+│       │   └── office-store.ts
+│       │
+│       ├── config/
+│       │   └── office-layout.ts
+│       │
+│       └── types/
+│           └── office.ts
+│
+└── public/
+    └── virtual-office/
+        ├── characters/
+        ├── furniture/
+        ├── animations/
+        └── textures/
+```
+
+Keep architecture explicit.
+
+Do not create unnecessary abstractions.
+
+---
+
+# 31. Dynamic Loading
+
+The 3D feature must not make every Portal page heavy.
+
+Load the office only when `/office` is opened.
+
+Conceptually:
+
+```tsx
+const VirtualOffice = dynamic(
+  () => import("@/features/virtual-office/components/VirtualOffice"),
+  {
+    ssr: false,
+  }
+);
+```
+
+Exact implementation depends on the current Portal routing architecture.
+
+---
+
+# 32. Office Agent Data Model
+
+Use a normalized type similar to:
+
+```ts
+export interface OfficeAgent {
+  code:
+    | "A01"
+    | "B02"
+    | "B03"
+    | "D01"
+    | "D02"
+    | "E01";
+
+  displayName: string;
+  role: string;
+
+  position: [number, number, number];
+
+  visualState:
+    | "idle"
+    | "working"
+    | "waiting_human"
+    | "reviewing"
+    | "reworking"
+    | "success"
+    | "error"
+    | "rejected";
+
+  emotion:
+    | "neutral"
+    | "focused"
+    | "thinking"
+    | "happy"
+    | "concerned"
+    | "urgent";
+
+  currentTask?: {
+    id?: string;
+    title: string;
+    summary?: string;
+    contentItemId?: string;
+  };
+
+  requiresHumanAction: boolean;
+
+  updatedAt?: string;
+}
+```
+
+---
+
+# 33. Office State API
+
+First search the existing codebase.
+
+Reuse existing APIs whenever possible.
+
+Preferred architecture:
+
+```text
+Existing CrewLab API
+        ↓
+Office State Adapter
+        ↓
+Virtual Office
+```
+
+Avoid:
+
+```text
+Virtual Office
+        ↓
+many direct Supabase queries
+```
+
+If no suitable endpoint exists, create a narrow endpoint conceptually similar to:
+
+```text
+GET /api/portal/office-state
+```
+
+Example response:
+
+```json
+{
+  "client": {
+    "id": "client-id",
+    "name": "Bardinh Coffee"
+  },
+  "agents": [
+    {
+      "code": "A01",
+      "status": "working",
+      "currentTask": {
+        "title": "Coordinating weekly content cycle"
+      },
+      "requiresHumanAction": false,
+      "updatedAt": "..."
+    }
+  ],
+  "summary": {
+    "working": 3,
+    "waitingForCEO": 1
+  }
+}
+```
+
+Never expose:
+
+```text
+API keys
+system prompts
+hidden reasoning
+admin credentials
+cross-client information
+```
+
+---
+
+# 34. Database Rule
+
+Avoid database migrations for V1.
+
+Virtual Office should primarily display existing CrewLab data.
+
+Do NOT create database fields for:
+
+```text
+agent_animation
+agent_emotion
+agent_pose
+agent_is_typing
+```
+
+Those are presentation states.
+
+If genuinely missing business data requires a schema change:
+
+> STOP and request founder confirmation.
+
+---
+
+# 35. Refresh Strategy
+
+V1 does not require WebSockets.
+
+Preferred order:
+
+```text
+reuse existing realtime system if available
+        ↓
+otherwise polling
+```
+
+Initial polling interval:
+
+```text
+5–10 seconds
+```
+
+Only poll while `/office` is active.
+
+Pause polling when browser tab becomes hidden where practical.
+
+Character animations must remain smooth regardless of polling interval.
+
+---
+
+# 36. IMPLEMENTATION PLAN
+
+---
+
+# Phase 0 — Repo Preparation
+
+Antigravity:
+
+1. Read `AGENTS.md`.
+2. Pull latest main.
+3. Inspect architecture using codebase-memory.
+4. Inspect Portal.
+5. Inspect current APIs.
+6. Inspect current authentication/client-scoping.
+7. Create ADR.
+8. Create spec.
+9. Create feature branch.
+10. Verify existing CrewLab design system.
+11. Verify Supabase MCP.
+12. Verify codebase-memory-mcp.
+13. Install/enable R3F skill.
+14. Install/enable Playwright skill.
+
+No 3D production asset work yet.
+
+---
+
+# Phase 1 — Primitive Vertical Slice
+
+This is the most important phase.
+
+Build ONLY:
+
+```text
+1 room
+1 CEO
+1 desk
+1 A01
+1 agent panel
+mock state
+```
+
+Use:
+
+```text
+CEO = capsule
+A01 = capsule
+desk = box
+walls = boxes
+```
+
+Flow:
+
+```text
+Open /office
+        ↓
+Room renders
+        ↓
+CEO appears
+        ↓
+CEO can move
+        ↓
+CEO cannot walk through desk
+        ↓
+A01 appears
+        ↓
+A01 selectable
+        ↓
+A01 panel opens
+        ↓
+mock A01 state changes
+        ↓
+A01 visual behavior changes
+```
+
+Do NOT continue until this vertical slice works.
+
+---
+
+# Phase 2 — Office Layout
+
+After Phase 1 passes:
+
+Add:
+
+```text
+six desks
+four office zones
+all six placeholder agents
+proper collision boundaries
+camera behavior
+basic lighting
+basic HUD
+```
+
+All positions should live in configuration.
+
+Example:
+
+```ts
+export const OFFICE_AGENT_LAYOUT = {
+  A01: { position: [0, 0, 0] },
+  B02: { position: [] },
+  B03: { position: [] },
+  D01: { position: [] },
+  D02: { position: [] },
+  E01: { position: [] },
+};
+```
+
+Do not hardcode coordinates throughout components.
+
+---
+
+# Phase 3 — Character System
+
+Replace ONE placeholder agent first.
+
+Start with:
+
+```text
+A01
+```
+
+Build reusable:
+
+```text
+AgentCharacter
+AnimationController
+ExpressionController
+InteractionCollider
+AgentNameplate
+```
+
+A01 must support:
+
+```text
+idle
+working
+waiting_human
+success
+error
+```
+
+Only after A01 works correctly, apply the character architecture to:
+
+```text
+B02
+B03
+D01
+D02
+E01
+```
+
+---
+
+# Phase 4 — CEO Character
+
+Replace CEO placeholder with humanoid avatar.
+
+Required:
+
+```text
+idle
+walk
+turn
+camera follow
+collision
+desktop controls
+mobile controls
+```
+
+Do NOT spend time on:
+
+```text
+jump
+run combat
+complex physics
+character inventory
+```
+
+---
+
+# Phase 5 — Six Agent Personalities
+
+Add agent-specific:
+
+```text
+desk props
+idle behavior
+working behavior
+waiting behavior
+success reaction
+expressions
+```
+
+Reuse shared animation systems.
+
+Do not build six independent animation frameworks.
+
+---
+
+# Phase 6 — Real CrewLab State
+
+Connect:
+
+```text
+CrewLab Backend
+        ↓
+Office State Adapter
+        ↓
+Virtual Office
+```
+
+State changes should update agents without page reload.
+
+Example:
+
+```text
+D01 begins writing
+        ↓
+office-state-adapter
+        ↓
+D01 = working
+        ↓
+typing animation
+focused expression
+```
+
+Another example:
+
+```text
+D02 waiting for customer image
+        ↓
+D02 = waiting_human
+        ↓
+D02 turns toward CEO
+        ↓
+Agent Detail shows:
+"Waiting for your image"
+        ↓
+Open Asset Request
+```
+
+---
+
+# Phase 7 — Agent Detail UX
+
+Implement polished shadcn panel.
+
+Desktop:
+
+```text
+right Sheet
+```
+
+Mobile:
+
+```text
+bottom Sheet / Drawer
+```
+
+Must show:
+
+```text
+Agent
+Role
+Status
+Task
+Updated time
+Requires customer action
+Relevant CTA
+```
+
+---
+
+# Phase 8 — Team Accessibility UI
+
+Build:
+
+```text
+Team
+```
+
+accessible roster.
+
+It must list all six agents outside Canvas.
+
+User can:
+
+```text
+keyboard navigate
+select agent
+open details
+activate CTA
+```
+
+This also becomes WebGL fallback.
+
+---
+
+# Phase 9 — Asset Polish
+
+ONLY NOW replace:
+
+```text
+boxes
+capsules
+primitive room
+```
+
+with real:
+
+```text
+office furniture
+VRM agents
+CEO avatar
+screens
+plants
+props
+decor
+```
+
+Keep assets optimized.
+
+---
+
+# Phase 10 — Mobile + Performance
+
+Optimize:
+
+```text
+DPR
+shadows
+textures
+GLB size
+repeated geometry
+render loops
+useFrame usage
+```
+
+Desktop target:
+
+```text
+approximately 50–60 FPS
+```
+
+Supported mobile target:
+
+```text
+approximately 30 FPS or higher
+```
+
+Functional correctness is more important than decorative effects.
+
+---
+
+# 37. Performance Rules
+
+Do:
+
+```text
+lazy-load /office
+compress assets
+reuse geometry
+limit shadow lights
+pause unnecessary work
+avoid frame-by-frame React state updates
+```
+
+Do NOT:
+
+```text
+set React state every frame
+create hundreds of independent useFrame hooks
+load all 3D assets globally
+run heavy postprocessing by default
+```
+
+---
+
+# 38. Loading Experience
+
+Use staged loading:
+
+```text
+Portal shell
+        ↓
+Office loading
+        ↓
+Room
+        ↓
+CEO
+        ↓
+Agents
+        ↓
+Decor
+```
+
+The rest of CrewLab must remain usable.
+
+---
+
+# 39. WebGL Failure
+
+If the device cannot start the 3D scene:
+
+Show:
+
+```text
+Virtual Office couldn't start on this device.
+
+Your AI marketing team is still available.
+
+[View Team]
+[Try Again]
+```
+
+Do NOT show a blank screen.
+
+---
+
+# 40. Reduced Motion
+
+Respect:
+
+```text
+prefers-reduced-motion
+```
+
+Reduce:
+
+```text
+camera transitions
+decorative animation
+floating effects
+UI animation
+```
+
+Essential status behavior remains visible.
+
+---
+
+# 41. Mobile Requirements
+
+Must support:
+
+```text
+virtual joystick
+tap agent
+bottom sheet
+44px+ touch targets
+no hover dependency
+readable status
+```
+
+The office should remain usable with one hand where practical.
+
+---
+
+# 42. Testing
+
+Use Playwright skill for E2E.
+
+Minimum E2E scenarios:
+
+## E2E-01
+
+```text
+Authenticated customer can open /office.
+```
+
+## E2E-02
+
+```text
+Office renders without fatal error.
+```
+
+## E2E-03
+
+```text
+A01 can be selected.
+```
+
+## E2E-04
+
+```text
+A01 detail shows correct role.
+```
+
+## E2E-05
+
+```text
+Selecting D02 changes detail panel.
+```
+
+## E2E-06
+
+```text
+waiting_human state displays customer CTA.
+```
+
+## E2E-07
+
+```text
+CTA opens the correct existing CrewLab workflow.
+```
+
+## E2E-08
+
+```text
+Mobile panel works.
+```
+
+## E2E-09
+
+```text
+Keyboard user can use Team roster.
+```
+
+## E2E-10
+
+```text
+WebGL failure shows accessible fallback.
+```
+
+---
+
+# 43. Unit Tests
+
+Test pure mappings such as:
+
+```text
+backend state
+→ office state
+→ visual state
+```
+
+Examples:
+
+```ts
+expect(mapAgentState(...)).toBe("working");
+```
+
+```ts
+expect(mapAgentState(...)).toBe("waiting_human");
+```
+
+Also test:
+
+```text
+agent configuration
+customer-action derivation
+CTA mapping
+```
+
+---
+
+# 44. Security
+
+Virtual Office is client-facing.
+
+Never expose:
+
+```text
+LLM API keys
+provider credentials
+system prompts
+hidden reasoning
+admin-only information
+other clients' content
+other clients' tasks
+```
+
+Reuse existing CrewLab auth and client scoping.
+
+Do NOT build separate authentication.
+
+---
+
+# 45. V1 Acceptance Criteria
+
+## V3D-01
+
+Only these agents appear:
+
+```text
+A01
+B02
+B03
+D01
+D02
+E01
+```
+
+---
+
+## V3D-02
+
+Authenticated client can access:
+
+```text
+/office
+```
+
+---
+
+## V3D-03
+
+CEO can move using desktop controls.
+
+---
+
+## V3D-04
+
+CEO movement works on mobile through touch controls.
+
+---
+
+## V3D-05
+
+CEO cannot walk through walls and desks.
+
+---
+
+## V3D-06
+
+All six agents have distinct workstations.
+
+---
+
+## V3D-07
+
+Every agent can be selected.
+
+---
+
+## V3D-08
+
+Agent detail contains:
+
+```text
+code
+name
+role
+status
+task
+customer-action indicator
+```
+
+---
+
+## V3D-09
+
+Production status comes from real client-scoped CrewLab data.
+
+No permanent mock production states.
+
+---
+
+## V3D-10
+
+At minimum the following visual states are distinguishable:
+
+```text
+idle
+working
+waiting_human
+success
+error
+```
+
+---
+
+## V3D-11
+
+Agent state changes do not require page reload.
+
+---
+
+## V3D-12
+
+Virtual Office does not directly mutate child-agent workflow state.
+
+---
+
+## V3D-13
+
+Human actions navigate to existing CrewLab workflow screens.
+
+---
+
+## V3D-14
+
+Customer cannot directly chat with:
+
+```text
+B02
+B03
+D01
+D02
+E01
+```
+
+---
+
+## V3D-15
+
+Agent information is also available through accessible DOM Team roster.
+
+---
+
+## V3D-16
+
+UI follows existing CrewLab dark design system.
+
+---
+
+## V3D-17
+
+Portal UI uses existing shadcn/UI primitives and Lucide icons.
+
+---
+
+## V3D-18
+
+Mobile interaction is usable.
+
+---
+
+## V3D-19
+
+WebGL failure does not make CrewLab unusable.
+
+---
+
+## V3D-20
+
+Opening normal Portal pages does not load the full office bundle unnecessarily.
+
+---
+
+## V3D-21
+
+One client cannot access another client's office state.
+
+---
+
+## V3D-22
+
+No secrets are sent to the Virtual Office frontend.
+
+---
+
+## V3D-23
+
+No uncontrolled per-frame React re-render loop exists.
+
+---
+
+## V3D-24
+
+Navigating away from `/office` properly cleans up listeners and animation resources.
+
+---
+
+## V3D-25
+
+Unit tests and Playwright E2E tests pass.
+
+---
+
+# 46. Definition of Done
+
+Virtual Office is complete only when:
+
+```text
+ADR exists
+spec exists
+feature branch used
+vertical slice works
+six agents exist
+CEO can move
+collision works
+agents animate
+agent detail works
+real CrewLab state connected
+customer CTA routing works
+accessible Team view works
+mobile works
+WebGL fallback works
+tests pass
+security checks pass
+Acceptance Criteria are explicitly verified
+Pull Request is opened
+```
+
+---
+
+# 47. Antigravity Execution Order
+
+Antigravity must follow this order:
+
+```text
+1. Read AGENTS.md
+
+2. Pull latest main
+
+3. Inspect codebase using codebase-memory-mcp
+
+4. Inspect Supabase data using existing read-only MCP if required
+
+5. Determine next spec number
+
+6. Create ADR
+
+7. Create spec
+
+8. Create feature branch
+
+9. Inspect Portal package versions
+
+10. Install only compatible runtime packages
+
+11. Enable R3F skill
+
+12. Enable Playwright skill
+
+13. Build primitive room
+
+14. Add CEO placeholder
+
+15. Add A01 placeholder
+
+16. Add collision
+
+17. Add A01 selection
+
+18. Add Agent Detail Sheet
+
+19. Add mock state switching
+
+20. Verify vertical slice
+
+21. Write tests for vertical slice
+
+22. Add full office layout
+
+23. Add remaining five placeholder agents
+
+24. Build reusable VRM character system
+
+25. Replace A01 first
+
+26. Validate animation/expression architecture
+
+27. Replace remaining five agents
+
+28. Replace CEO placeholder
+
+29. Connect Office State Adapter
+
+30. Connect real CrewLab data
+
+31. Build Team accessibility roster
+
+32. Build mobile controls
+
+33. Replace primitive assets
+
+34. Optimize performance
+
+35. Run Playwright tests
+
+36. Verify every Acceptance Criterion
+
+37. Write completion report
+
+38. Open Pull Request
+```
+
+---
+
+# 48. Hard Rules for Antigravity
+
+DO NOT:
+
+```text
+install unnecessary MCPs
+install unnecessary plugins
+install multiple overlapping R3F toolkits
+install Blender MCP
+install Meshy MCP
+install Three.js DevTools MCP
+install shadcn MCP
+add Theatre.js
+add Triplex
+add React Three UIKit
+add another UI framework
+add another 3D engine
+```
+
+Unless a specific technical blocker is discovered and founder approval is requested.
+
+---
+
+Also DO NOT:
+
+```text
+expand CrewLab agent scope
+invent workflow logic
+invent fake production state
+alter Reject behavior
+allow direct child-agent commands
+duplicate approval workflows
+add database schema without confirmation
+commit secrets
+commit directly to main
+```
+
+---
+
+# 49. Final Approved Toolchain
+
+## Runtime
+
+```text
+three
+@react-three/fiber
+@react-three/drei
+zustand
+@react-three/rapier
+ecctrl
+@pixiv/three-vrm
+```
+
+## Asset Utility
+
+```text
+gltfjsx
+```
+
+## MCP
+
+```text
+codebase-memory-mcp
+existing Supabase MCP
+```
+
+## Skills
+
+```text
+one React Three Fiber skill set
+one Playwright skill
+existing design-taste-frontend
+```
+
+## UI
+
+```text
+existing CrewLab shadcn/ui
+existing CrewLab Lucide
+```
+
+That is the full V1 toolchain.
+
+Do not add more unless necessary.
+
+---
+
+# 50. Implementation Philosophy
+
+Build:
+
+```text
+SYSTEM
+    ↓
+INTERACTION
+    ↓
+STATE
+    ↓
+CHARACTER
+    ↓
+VISUAL POLISH
+```
+
+Not:
+
+```text
+beautiful office
+    ↓
+beautiful characters
+    ↓
+try to make product work later
+```
+
+The first proof must be:
+
+```text
+CEO walks
+    ↓
+CEO reaches A01
+    ↓
+A01 can be clicked
+    ↓
+A01 panel opens
+    ↓
+A01 state changes
+    ↓
+A01 animation changes
+    ↓
+CTA opens correct CrewLab workflow
+```
+
+Only then scale:
+
+```text
+A01
+↓
+6 agents
+↓
+full office
+```
+
+---
+
+# 51. Final Product Goal
+
+The final V1 experience should allow the customer to enter the office and immediately understand:
+
+```text
+A01 is coordinating.
+
+B02 is developing content direction.
+
+B03 is planning the schedule.
+
+D01 is writing.
+
+D02 is designing.
+
+E01 is reviewing quality.
+```
+
+If an employee needs the customer:
+
+```text
+the character visibly reacts
++
+the UI clearly explains why
++
+the customer can navigate to the correct action
+```
+
+CrewLab should feel less like:
+
+> six invisible AI APIs
+
+and more like:
+
+> a real AI marketing department working for the customer's business.
