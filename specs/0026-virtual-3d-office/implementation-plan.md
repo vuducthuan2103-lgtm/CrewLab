@@ -2,7 +2,7 @@
 
 ## Phase A — Design lock
 
-1. Keep `design-brief.md`, `floor-plan.md`, `art-direction.md`, and `visual-state-contract.md` as the implementation source of truth.
+1. Keep `design-brief.md`, `floor-plan.md`, `art-direction.md`, `reference-adaptation-plan.md`, and `visual-state-contract.md` as the implementation source of truth.
 2. Produce five review keyframes: canonical morning overview, selected-agent popup, factual handoff, localized blocked state, and evening overview; include a mobile crop.
 3. Record any approved third-party visual asset licences.
 

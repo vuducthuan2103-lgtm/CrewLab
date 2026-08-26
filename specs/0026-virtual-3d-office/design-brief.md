@@ -22,6 +22,8 @@ The client is a non-technical Vietnamese F&B owner. Within a few seconds they mu
 
 **Soft Organic Modern / biophilic near-future campus**: warm limestone, pale oak, brushed champagne metal, quiet plant greens, soft daylight, and large glazed openings. Character anatomy is near-realistic but art-directed; it must avoid both pixel art and hyperreal uncanny detail. The dark Portal chrome frames the scene; it does not recolor the architecture into a cyberpunk room.
 
+The approved visual target is now further specified by [reference-adaptation-plan.md](reference-adaptation-plan.md): a Garden Operations Campus with planted desk islands, water-edge framing, a central tree and dark translucent CrewLab HUD. It adapts compositional principles from a user-supplied visual reference without reproducing that reference's branded assets, copy or layout.
+
 Design calibration: low visual density, restrained motion, high information clarity. Electric lime is reserved for selection and genuine system/action moments.
 
 ## Canonical scene
