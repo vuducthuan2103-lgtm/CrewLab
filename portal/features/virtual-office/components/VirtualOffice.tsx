@@ -15,5 +15,5 @@ export function VirtualOffice() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
-  return <main className="relative h-full w-full overflow-hidden bg-[#09090B]"><OfficeCanvas /><OfficeHUD /><AgentFocusPopup /><AccessibleTeamRoster /></main>;
+  return <main aria-label="Văn phòng CrewLab" className="relative h-full w-full overflow-hidden bg-[#09090B]"><OfficeCanvas /><OfficeHUD /><AgentFocusPopup /><AccessibleTeamRoster /></main>;
 }
