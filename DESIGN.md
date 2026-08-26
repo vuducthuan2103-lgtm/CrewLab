@@ -279,6 +279,16 @@ Motion phải nhanh, dứt khoát và phục vụ phản hồi trạng thái:
 - Error message phải mô tả cách khắc phục, không chỉ báo rằng có lỗi.
 - Tôn trọng zoom 200%, text reflow và reduced motion.
 
+## Virtual Office
+
+Virtual Office là lớp trực quan hoá read-only trong Portal, không phải một game hoặc dashboard thứ hai. Shell, popup và control DOM vẫn dùng dark token của CrewLab. Bên trong canvas, scene được phép dùng ánh sáng daylight/evening và vật liệu Soft Organic Modern: đá vôi ấm, gỗ sáng, kim loại champagne mờ, kính kiến trúc và cây xanh tự nhiên.
+
+- Electric lime chỉ là selected/focus state hoặc khoảnh khắc hệ thống có dữ liệu thật; không dùng để viền toàn bộ desk, màn hình hoặc kiến trúc.
+- Text chính xác, trạng thái, lỗi và CTA nằm trong DOM popup/roster. 3D world chỉ dùng silhouette, thumbnail/shape abstraction và name/code ngắn khi hover hoặc focus.
+- Một trạng thái cần chú ý dùng màu semantic **kèm** icon/shape/motion; không đổi đèn toàn cảnh sang đỏ và không dùng lime cho lỗi.
+- Không dùng aesthetic cyberpunk: hologram lớn, grid phát sáng, particles, neon wash hoặc confetti không thuộc visual language này.
+- `prefers-reduced-motion` phải rút guided camera và artifact path xuống fade/chuyển cảnh ngắn nhưng giữ nguyên khả năng đọc state.
+
 ## Do's and Don'ts
 
 - **Do** dùng đúng sáu agent MVP: A01, B02, B03, D01, D02 và E01.

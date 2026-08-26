@@ -1,295 +1,82 @@
 'use client';
 
-import React, { Suspense, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { ContactShadows, Html, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { Physics } from '@react-three/rapier';
-import { OrbitControls, ContactShadows } from '@react-three/drei';
-import { OfficeLighting } from '../scene/OfficeLighting';
-import { OfficeRoom } from '../scene/OfficeRoom';
-import { WorkstationDesk } from '../scene/WorkstationDesk';
-import { AgentCharacter } from '../characters/AgentCharacter';
-import { CEOCharacter } from '../characters/CEOCharacter';
-import { TaskHandoffEffect } from './TaskHandoffEffect';
-import { OfficeCelebrationEffect } from './OfficeCelebrationEffect';
 import { useOfficeStore } from '../state/office-store';
-import { AgentCode } from '../types/office';
+import { OfficeAgent } from '../types/office';
+import { getStatePresentation } from '../config/agent-state-map';
 
-/** Sets Three.js scene background & fog based on time of day */
-const SceneBackground: React.FC = () => {
-  const timeOfDay = useOfficeStore((s) => s.timeOfDay);
-  const isDay = timeOfDay === 'day';
-  return (
-    <>
-      {/* Day: Soft, natural daylight sky; Night: deep-space midnight */}
-      <color attach="background" args={[isDay ? '#93c5fd' : '#090912']} />
-      <fog attach="fog" args={[isDay ? '#bfdbfe' : '#0b0b14', isDay ? 30 : 14, isDay ? 85 : 48]} />
-    </>
-  );
+const deskPositions: Record<string, [number, number, number]> = {
+  A01: [0, 0, -2.2], B02: [-6.1, 0, -2.8], B03: [-6.1, 0, 2.2],
+  D01: [6.1, 0, -2.8], D02: [6.1, 0, 2.2], E01: [0, 0, 6.2],
 };
 
-/**
- * Camera Focus & Return Controller:
- * - Only runs smooth transition animation when an agent is selected OR when closed.
- * - When transition reaches target, stops touching the camera completely so manual
- *   mouse wheel zoom / OrbitControls rotation is 100% smooth, free and unconstrained.
- */
-const AgentCameraAnimator: React.FC = () => {
-  const selectedAgentCode = useOfficeStore((s) => s.selectedAgentCode);
-  const agents = useOfficeStore((s) => s.agents);
-  const { camera, controls } = useThree();
-
-  const prevSelectedRef = useRef<AgentCode | null>(null);
-  const isTransitioningRef = useRef<boolean>(false);
-  const targetPosRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 10, 17));
-  const targetLookAtRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.0, -1.5));
-  const targetFovRef = useRef<number>(46);
-
-  const defaultCamPos = new THREE.Vector3(0, 9.8, 20.5);
-  const defaultTarget = new THREE.Vector3(0, 2.5, -1.0);
-  const defaultFov = 46;
-
-  // Detect selection changes
-  useEffect(() => {
-    if (selectedAgentCode && agents[selectedAgentCode]) {
-      // 🎯 Clicked an agent: Calculate workstation close-up angle
-      const ag = agents[selectedAgentCode];
-      const [ax, , az] = ag.position;
-
-      let camX = ax;
-      let camY = 1.55;
-      let camZ = az + 2.2;
-
-      if (ag.code === 'A01') {
-        camX = 0;
-        camY = 1.55;
-        camZ = -2.8;
-      } else if (ag.code === 'B02') {
-        camX = -5.1;
-        camY = 1.55;
-        camZ = -2.6;
-      } else if (ag.code === 'B03') {
-        camX = -5.1;
-        camY = 1.55;
-        camZ = 2.4;
-      } else if (ag.code === 'D01') {
-        camX = 5.1;
-        camY = 1.55;
-        camZ = -2.6;
-      } else if (ag.code === 'D02') {
-        camX = 5.1;
-        camY = 1.55;
-        camZ = 2.4;
-      } else if (ag.code === 'E01') {
-        camX = 0;
-        camY = 1.55;
-        camZ = 7.6;
-      }
-
-      targetPosRef.current.set(camX, camY, camZ);
-      targetLookAtRef.current.set(ax, 1.0, az);
-      targetFovRef.current = 34;
-      isTransitioningRef.current = true;
-    } else if (prevSelectedRef.current !== null && !selectedAgentCode) {
-      // 🏠 Closed agent detail: Animate back to original overview
-      targetPosRef.current.copy(defaultCamPos);
-      targetLookAtRef.current.copy(defaultTarget);
-      targetFovRef.current = defaultFov;
-      isTransitioningRef.current = true;
-    }
-
-    prevSelectedRef.current = selectedAgentCode;
-  }, [selectedAgentCode, agents]);
-
-  useFrame((_, delta) => {
-    if (!isTransitioningRef.current) return;
-
-    const orbitControls = controls as any;
-    const lerpSpeed = Math.min(1, delta * 12); // Fast snappy transition (~0.3s)
-
-    // Smoothly interpolate position
-    camera.position.lerp(targetPosRef.current, lerpSpeed);
-
-    // Smoothly interpolate OrbitControls look-at target
-    if (orbitControls && orbitControls.target) {
-      orbitControls.target.lerp(targetLookAtRef.current, lerpSpeed);
-      orbitControls.update();
-    }
-
-    // Smoothly interpolate FOV
-    const pCam = camera as THREE.PerspectiveCamera;
-    if (pCam.fov !== undefined) {
-      pCam.fov = THREE.MathUtils.lerp(pCam.fov, targetFovRef.current, lerpSpeed);
-      pCam.updateProjectionMatrix();
-    }
-
-    // Check if close enough to target to stop transition and release control
-    const distPos = camera.position.distanceTo(targetPosRef.current);
-    const distTarget = orbitControls?.target ? orbitControls.target.distanceTo(targetLookAtRef.current) : 0;
-
-    if (distPos < 0.04 && distTarget < 0.04) {
-      // Snap exact final values and release full manual control to user
-      camera.position.copy(targetPosRef.current);
-      if (orbitControls && orbitControls.target) {
-        orbitControls.target.copy(targetLookAtRef.current);
-        orbitControls.update();
-      }
-      pCam.fov = targetFovRef.current;
-      pCam.updateProjectionMatrix();
-      isTransitioningRef.current = false;
-    }
+function FocusCamera() {
+  const selected = useOfficeStore((s) => s.selectedAgentCode);
+  const { camera } = useThree();
+  const target = useRef(new THREE.Vector3(0, 10.5, 18));
+  useFrame(() => {
+    const point = selected ? deskPositions[selected] : undefined;
+    target.current.set(point ? point[0] * 0.7 : 0, point ? 5.2 : 10.5, point ? point[2] + 9.5 : 18);
+    camera.position.lerp(target.current, 0.045);
+    camera.lookAt(point ? point[0] * 0.58 : 0, point ? 1.1 : 0, point ? point[2] * 0.55 : 0.5);
   });
-
   return null;
-};
+}
 
-export const OfficeCanvas: React.FC = () => {
+function SculpturalTree() {
+  const leaves = useRef<THREE.Group>(null);
+  useFrame((state) => { if (leaves.current) leaves.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.12) * 0.025; });
+  return <group position={[0, 0, 1.2]}>
+    <mesh castShadow><cylinderGeometry args={[0.24, 0.42, 3.1, 10]} /><meshStandardMaterial color="#6a4a33" roughness={0.82} /></mesh>
+    <group ref={leaves} position={[0, 3.15, 0]}>{[[0, 0, 0], [0.65, 0.1, 0.12], [-0.6, 0.25, -0.1], [0.15, 0.75, 0.22], [-0.18, 1.1, -0.15]].map((position, index) => <mesh key={index} position={position as [number, number, number]} castShadow><icosahedronGeometry args={[0.95 - index * 0.07, 2]} /><meshStandardMaterial color={index % 2 ? '#4c7555' : '#5d865f'} roughness={0.9} /></mesh>)}</group>
+  </group>;
+}
+
+function CampusShell() {
+  return <group>
+    <color attach="background" args={["#dfe5d7"]} />
+    <mesh receiveShadow position={[0, -0.12, 0]}><boxGeometry args={[22, 0.22, 19]} /><meshStandardMaterial color="#ddd6c8" roughness={0.96} /></mesh>
+    <mesh position={[0, 6.2, -8.8]} receiveShadow><boxGeometry args={[22, 12.5, 0.25]} /><meshStandardMaterial color="#eae7df" roughness={0.88} /></mesh>
+    <mesh position={[-10.8, 5.3, 0]}><boxGeometry args={[0.25, 10.6, 18]} /><meshStandardMaterial color="#e6e1d6" roughness={0.85} /></mesh>
+    <mesh position={[10.8, 5.3, 0]}><boxGeometry args={[0.25, 10.6, 18]} /><meshStandardMaterial color="#e6e1d6" roughness={0.85} /></mesh>
+    <mesh position={[0, 8.7, 0]} rotation={[Math.PI / 2, 0, 0]}><planeGeometry args={[13, 12]} /><meshPhysicalMaterial color="#e9f2eb" transparent opacity={0.34} roughness={0.12} /></mesh>
+    {[-8, 8].map((x) => <mesh key={x} position={[x, 3.5, -8.5]}><boxGeometry args={[0.2, 7, 0.32]} /><meshStandardMaterial color="#c9b596" metalness={0.35} roughness={0.45} /></mesh>)}
+    <mesh position={[0, 0.02, 1.2]}><cylinderGeometry args={[3.2, 3.2, 0.035, 48]} /><meshStandardMaterial color="#d1c5ad" roughness={0.92} /></mesh>
+  </group>;
+}
+
+function Station({ agent }: { agent: OfficeAgent }) {
+  const group = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
+  const selected = useOfficeStore((s) => s.selectedAgentCode === agent.code);
+  const select = useOfficeStore((s) => s.selectAgent);
+  const setHoveredAgent = useOfficeStore((s) => s.setHoveredAgent);
+  const position = deskPositions[agent.code];
+  const state = getStatePresentation(agent.visualState);
+  const palette = useMemo(() => ({ A01: '#607d6a', B02: '#84745a', B03: '#667f8a', D01: '#9b725e', D02: '#877093', E01: '#68756b' }[agent.code] || '#68756b'), [agent.code]);
+  useFrame((frame) => { if (group.current) group.current.position.y = agent.visualState === 'working' ? Math.sin(frame.clock.elapsedTime * 1.4 + position[0]) * 0.018 : 0; });
+  return <group ref={group} position={position}>
+    <mesh position={[0, 0.68, 0]} castShadow receiveShadow><boxGeometry args={[2.4, 0.16, 1.15]} /><meshStandardMaterial color="#9b7c59" roughness={0.7} /></mesh>
+    <mesh position={[0, 0.34, 0]} castShadow><boxGeometry args={[1.65, 0.65, 0.7]} /><meshStandardMaterial color="#ede7dc" roughness={0.88} /></mesh>
+    <mesh position={[0.55, 1.18, -0.2]} rotation={[-0.15, 0, 0]}><boxGeometry args={[0.64, 0.44, 0.05]} /><meshStandardMaterial color="#37544a" emissive="#182b25" emissiveIntensity={0.25} roughness={0.35} /></mesh>
+    <group position={[0, 0.8, 0.45]} onPointerOver={(e) => { e.stopPropagation(); setHovered(true); setHoveredAgent(agent.code); document.body.style.cursor = 'pointer'; }} onPointerOut={(e) => { e.stopPropagation(); setHovered(false); setHoveredAgent(null); document.body.style.cursor = 'auto'; }} onClick={(e) => { e.stopPropagation(); select(agent.code); }}>
+      <mesh castShadow><cylinderGeometry args={[0.28, 0.33, 0.84, 16]} /><meshStandardMaterial color={palette} roughness={0.72} /></mesh>
+      <mesh position={[0, 0.62, 0]} castShadow><sphereGeometry args={[0.28, 20, 20]} /><meshStandardMaterial color="#d8a27e" roughness={0.68} /></mesh>
+      <mesh position={[0, 0.82, -0.03]} castShadow><sphereGeometry args={[0.285, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color="#3f332c" roughness={0.9} /></mesh>
+      <mesh visible={selected || hovered} position={[0, 0.52, 0]}><torusGeometry args={[0.52, 0.035, 8, 32]} /><meshBasicMaterial color={selected ? '#D4FF00' : '#efe4bd'} /></mesh>
+    </group>
+    {(hovered || selected) && <Html position={[0, 2.05, 0]} center distanceFactor={13}><div className="pointer-events-none whitespace-nowrap rounded-lg border border-white/25 bg-[#111612]/90 px-2 py-1 text-[10px] font-medium text-white shadow-lg"><span className="text-[#D4FF00]">{agent.code}</span> · {agent.displayName.replace(/^\w+\s+—\s+/, '')}<span className="ml-1 inline-block h-1.5 w-1.5 rounded-full" style={{ background: state.dotColor }} /></div></Html>}
+  </group>;
+}
+
+function CampusScene() {
   const agents = useOfficeStore((s) => s.agents);
+  return <><ambientLight intensity={1.65} color="#f5efdf" /><directionalLight castShadow position={[-6, 13, 7]} intensity={2.4} color="#fff6db" shadow-mapSize={[1024, 1024]} shadow-camera-left={-14} shadow-camera-right={14} shadow-camera-top={14} shadow-camera-bottom={-14} /><hemisphereLight args={["#dcefe7", "#8a765e", 1.1]} /><CampusShell /><SculpturalTree />{Object.values(agents).map((agent) => <Station key={agent.code} agent={agent} />)}<ContactShadows position={[0, 0.01, 0]} opacity={0.22} scale={24} blur={2.8} far={10} /></>;
+}
 
-  return (
-    <div className="absolute inset-0 w-full h-full z-0">
-      <Canvas
-        shadows
-        // Camera framed to view the towering 9m walls and all agent workstations
-        camera={{ position: [0, 9.8, 20.5], fov: 46 }}
-        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
-        dpr={[1, 2]}
-      >
-
-        {/* Transition-based Agent Focus Animator */}
-        <AgentCameraAnimator />
-
-        {/* Orbit controls tuned with exact zoom bounds */}
-        <OrbitControls
-          makeDefault
-          enableDamping
-          dampingFactor={0.08}
-          minDistance={4.0}
-          maxDistance={23.5}
-          minPolarAngle={Math.PI / 8}
-          maxPolarAngle={Math.PI / 2 - 0.04}
-          target={[0, 2.5, -1.0]}
-        />
-
-        {/* Scene-level background & fog — must be outside group for correct attach */}
-        <SceneBackground />
-
-        <Suspense fallback={null}>
-          <Physics gravity={[0, -9.81, 0]}>
-            {/* 1. LIGHTING & ENVIRONMENT */}
-            <OfficeLighting />
-            <OfficeRoom />
-
-            {/* Soft contact shadows for grounding */}
-            <ContactShadows position={[0, 0.012, 0]} opacity={0.4} scale={32} blur={2.4} far={6} />
-
-            {/* 2. CEO CHARACTER — walks in front area */}
-            <CEOCharacter />
-
-            {/* ═══════════════════════════════════════════
-                3. AGENT WORKSTATIONS
-                Layout:
-                  Back-Center:  A01 (Orchestrator)
-                  Left column:  B02 (top-left), B03 (mid-left)
-                  Right column: D01 (top-right), D02 (mid-right)
-                  Front-Center: E01 (QA Gate)
-               ═══════════════════════════════════════════ */}
-
-            {/* Zone 1: Coordination — A01 Center desk (larger, prominent) */}
-            {agents['A01'] && (
-              <group>
-                <WorkstationDesk
-                  position={agents['A01'].position}
-                  rotation={agents['A01'].rotation}
-                  screenColor="#38bdf8"
-                  screenType="coordination"
-                  hasDualMonitors={true}
-                />
-                <AgentCharacter agent={agents['A01']} />
-              </group>
-            )}
-
-            {/* Zone 2: Strategy — B02 top-left */}
-            {agents['B02'] && (
-              <group>
-                <WorkstationDesk
-                  position={agents['B02'].position}
-                  rotation={agents['B02'].rotation}
-                  screenColor="#10b981"
-                  screenType="strategy"
-                  hasDualMonitors={false}
-                />
-                <AgentCharacter agent={agents['B02']} />
-              </group>
-            )}
-
-            {/* Zone 2: Strategy — B03 mid-left */}
-            {agents['B03'] && (
-              <group>
-                <WorkstationDesk
-                  position={agents['B03'].position}
-                  rotation={agents['B03'].rotation}
-                  screenColor="#14b8a6"
-                  screenType="calendar"
-                  hasDualMonitors={false}
-                />
-                <AgentCharacter agent={agents['B03']} />
-              </group>
-            )}
-
-            {/* Zone 3: Creative — D01 top-right */}
-            {agents['D01'] && (
-              <group>
-                <WorkstationDesk
-                  position={agents['D01'].position}
-                  rotation={agents['D01'].rotation}
-                  screenColor="#f59e0b"
-                  screenType="copywriting"
-                  hasDualMonitors={true}
-                />
-                <AgentCharacter agent={agents['D01']} />
-              </group>
-            )}
-
-            {/* Zone 3: Creative — D02 mid-right */}
-            {agents['D02'] && (
-              <group>
-                <WorkstationDesk
-                  position={agents['D02'].position}
-                  rotation={agents['D02'].rotation}
-                  screenColor="#ea580c"
-                  screenType="design"
-                  hasDualMonitors={true}
-                />
-                <AgentCharacter agent={agents['D02']} />
-              </group>
-            )}
-
-            {/* Zone 4: QA Gate — E01 front-center */}
-            {agents['E01'] && (
-              <group>
-                <WorkstationDesk
-                  position={agents['E01'].position}
-                  rotation={agents['E01'].rotation}
-                  screenColor="#a855f7"
-                  screenType="qa"
-                  hasDualMonitors={false}
-                />
-                <AgentCharacter agent={agents['E01']} />
-              </group>
-            )}
-
-            {/* ═══════════════════════════════════════════
-                P2.1 & P2.4 SIGNATURE INTERACTIVE EFFECTS
-               ═══════════════════════════════════════════ */}
-            {/* P2.1: Visual 3D Task Handoff Trajectory */}
-            <TaskHandoffEffect />
-
-            {/* P2.4: Weekly Milestone Confetti Celebration */}
-            <OfficeCelebrationEffect />
-          </Physics>
-        </Suspense>
-      </Canvas>
-    </div>
-  );
-};
+export function OfficeCanvas() {
+  return <div className="absolute inset-0"><Canvas shadows camera={{ position: [0, 10.5, 18], fov: 44 }} dpr={[1, 1.75]} gl={{ antialias: true, powerPreference: 'high-performance' }}><FocusCamera /><OrbitControls enablePan enableZoom minDistance={7} maxDistance={25} minPolarAngle={Math.PI / 5} maxPolarAngle={Math.PI / 2.05} target={[0, 0.8, 0.5]} /><CampusScene /></Canvas></div>;
+}
