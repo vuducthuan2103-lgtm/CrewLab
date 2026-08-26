@@ -5,6 +5,18 @@ import { OfficeCanvas } from '@/features/virtual-office/components/OfficeCanvas'
 import { AgentFocusPopup } from '@/features/virtual-office/components/AgentFocusPopup';
 import { useOfficeStore } from '@/features/virtual-office/state/office-store';
 
+vi.mock('@react-three/fiber', () => ({
+  Canvas: () => null,
+  useFrame: vi.fn(),
+  useThree: vi.fn(),
+}));
+
+vi.mock('@react-three/drei', () => ({
+  ContactShadows: () => null,
+  Html: () => null,
+  OrbitControls: () => null,
+}));
+
 vi.mock('next/image', () => ({
   default: ({ fill: _fill, priority: _priority, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean; priority?: boolean }) => <img {...props} alt={props.alt || ''} />,
 }));
