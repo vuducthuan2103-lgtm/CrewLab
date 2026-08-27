@@ -1,4 +1,5 @@
 import { OfficeAgent } from '../types/office';
+import type { AgentCode } from '../types/office';
 
 export const OFFICE_ROOM_CONFIG = {
   width: 26,
@@ -17,6 +18,23 @@ export const CLIENT_BRAND_CONFIG = {
   primaryColor: '#8B5E3C',
   accentColor: '#C49A6C',
   logoUrl: null as string | null,
+};
+
+export interface GardenStationLayout {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: number;
+  monitorCount: 2 | 3;
+}
+
+/** Authored overview composition for the cinematic garden-office diorama. */
+export const GARDEN_STATION_LAYOUT: Record<AgentCode, GardenStationLayout> = {
+  A01: { position: [0, 0, 0.85], rotation: [0, 0, 0], scale: 1.05, monitorCount: 3 },
+  B02: { position: [-5.45, 0, -3.65], rotation: [0, 0, 0], scale: 0.91, monitorCount: 2 },
+  B03: { position: [5.45, 0, -3.65], rotation: [0, 0, 0], scale: 0.91, monitorCount: 2 },
+  D01: { position: [-5.65, 0, 2.75], rotation: [0, 0, 0], scale: 0.94, monitorCount: 3 },
+  D02: { position: [0, 0, 5.15], rotation: [0, 0, 0], scale: 0.96, monitorCount: 3 },
+  E01: { position: [5.65, 0, 2.75], rotation: [0, 0, 0], scale: 0.94, monitorCount: 2 },
 };
 
 export const INITIAL_OFFICE_AGENTS: Record<string, OfficeAgent> = {

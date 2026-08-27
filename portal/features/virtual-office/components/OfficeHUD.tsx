@@ -16,7 +16,7 @@ export function OfficeHUD() {
 
   return (
     <>
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-16 items-center justify-between border-b border-white/10 bg-[#0b0e0c]/84 px-4 text-zinc-100 backdrop-blur-xl md:px-6">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-16 items-center justify-between border-b border-white/10 bg-[rgba(8,13,11,0.92)] px-4 text-zinc-100 shadow-[0_12px_40px_rgba(0,0,0,0.2)] backdrop-blur-xl md:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <div className="hidden h-8 w-8 items-center justify-center border border-[#D4FF00]/30 bg-[#D4FF00]/10 text-[#D4FF00] sm:flex">
             <Map size={16} />
@@ -40,7 +40,7 @@ export function OfficeHUD() {
         </div>
       </header>
 
-      <section className="pointer-events-none absolute left-4 top-20 z-30 hidden w-64 border border-white/15 bg-[#0d120f]/88 p-4 text-zinc-100 shadow-2xl backdrop-blur-xl md:block">
+      <section className="pointer-events-none absolute left-4 top-20 z-30 hidden w-64 rounded-sm border border-white/15 bg-[rgba(9,16,13,0.9)] p-4 text-zinc-100 shadow-2xl backdrop-blur-xl md:block">
         <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-400">Tổng quan hệ thống</p>
         <div className="mt-3 flex items-center gap-2 text-sm font-medium"><span className="h-2 w-2 rounded-full bg-emerald-400" /> Tất cả dịch vụ hoạt động</div>
         <div className="mt-4 border-t border-white/10 pt-3">
@@ -50,7 +50,7 @@ export function OfficeHUD() {
       </section>
 
       {!selectedAgentCode && (
-        <aside className="pointer-events-none absolute bottom-5 right-5 z-30 hidden w-72 border border-white/15 bg-[#0d120f]/90 p-4 text-zinc-100 shadow-2xl backdrop-blur-xl lg:block">
+        <aside className="pointer-events-none absolute bottom-5 right-5 z-30 hidden w-72 rounded-sm border border-white/15 bg-[rgba(9,16,13,0.92)] p-4 text-zinc-100 shadow-2xl backdrop-blur-xl lg:block">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-400">Ưu tiên hiện tại</p>
             <Bell size={15} className="text-amber-300" />
@@ -67,7 +67,7 @@ export function OfficeHUD() {
         </aside>
       )}
 
-      <nav aria-label="Điều hướng nhanh văn phòng" className="pointer-events-auto absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center border border-white/15 bg-[#0b0e0c]/92 p-1.5 text-zinc-300 shadow-2xl backdrop-blur-xl">
+      <nav aria-label="Điều hướng nhanh văn phòng" className="pointer-events-auto absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center rounded-sm border border-white/15 bg-[rgba(8,13,11,0.94)] p-1.5 text-zinc-300 shadow-2xl backdrop-blur-xl">
         <Link href="/tasks" className="flex min-h-11 items-center gap-2 px-3 text-xs font-medium transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D4FF00]"><LayoutList size={16} /><span className="hidden sm:inline">Công việc</span></Link>
         <Button variant="ghost" size="sm" onClick={() => openRoster(true)} className="rounded-none border-x border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white"><Users size={16} /><span className="hidden sm:inline">Agent</span></Button>
         <Link href="/settings" className="flex min-h-11 items-center gap-2 px-3 text-xs font-medium transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D4FF00]"><Settings size={16} /><span className="hidden sm:inline">Cài đặt</span></Link>

@@ -15,6 +15,8 @@ vi.mock('@react-three/drei', () => ({
   ContactShadows: () => null,
   Html: () => null,
   OrbitControls: () => null,
+  SoftShadows: () => null,
+  useGLTF: Object.assign(vi.fn(), { preload: vi.fn() }),
 }));
 
 vi.mock('next/image', () => ({

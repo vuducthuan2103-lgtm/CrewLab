@@ -34,7 +34,15 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const isPublicPath = PUBLIC_PATHS.has(request.nextUrl.pathname);
+  const isLocalOfficePreview =
+    process.env.NODE_ENV === 'development' &&
+    (request.nextUrl.hostname === 'localhost' || request.nextUrl.hostname === '127.0.0.1') &&
+    request.nextUrl.pathname === '/office';
+  const isLocalOfficeAsset =
+    process.env.NODE_ENV === 'development' &&
+    (request.nextUrl.hostname === 'localhost' || request.nextUrl.hostname === '127.0.0.1') &&
+    (request.nextUrl.pathname.startsWith('/virtual-office/') || request.nextUrl.pathname.startsWith('/logo_crewlab'));
+  const isPublicPath = PUBLIC_PATHS.has(request.nextUrl.pathname) || isLocalOfficePreview || isLocalOfficeAsset;
 
   if (!user && !isPublicPath) {
     const loginUrl = request.nextUrl.clone();

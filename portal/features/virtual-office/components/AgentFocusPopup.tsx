@@ -24,7 +24,7 @@ export function AgentFocusPopup() {
     <section
       data-testid="agent-focus-popup"
       aria-label={`Thông tin ${agent.code}`}
-      className="absolute bottom-20 left-4 right-4 z-40 max-h-[calc(100%-6rem)] overflow-y-auto border border-white/15 bg-[#0d120f]/96 p-5 text-zinc-100 shadow-[0_24px_70px_rgba(0,0,0,0.6)] backdrop-blur-xl md:bottom-auto md:left-auto md:right-5 md:top-20 md:w-[330px]"
+      className="absolute bottom-20 left-4 right-4 z-40 max-h-[calc(100%-6rem)] overflow-y-auto rounded-sm border border-white/15 bg-[rgba(8,14,12,0.95)] p-5 text-zinc-100 shadow-[0_24px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl md:bottom-auto md:left-auto md:right-5 md:top-20 md:w-[330px]"
     >
       <div className="flex items-start justify-between gap-4">
         <div>
