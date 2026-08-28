@@ -27,14 +27,14 @@ export interface GardenStationLayout {
   monitorCount: 2 | 3;
 }
 
-/** Authored overview composition for the cinematic garden-office diorama. */
+/** Authored station coordinates for the v4 glass-atrium office. */
 export const GARDEN_STATION_LAYOUT: Record<AgentCode, GardenStationLayout> = {
-  A01: { position: [0, 0, 0.85], rotation: [0, 0, 0], scale: 1.05, monitorCount: 3 },
-  B02: { position: [-5.45, 0, -3.65], rotation: [0, 0, 0], scale: 0.91, monitorCount: 2 },
-  B03: { position: [5.45, 0, -3.65], rotation: [0, 0, 0], scale: 0.91, monitorCount: 2 },
-  D01: { position: [-5.65, 0, 2.75], rotation: [0, 0, 0], scale: 0.94, monitorCount: 3 },
-  D02: { position: [0, 0, 5.15], rotation: [0, 0, 0], scale: 0.96, monitorCount: 3 },
-  E01: { position: [5.65, 0, 2.75], rotation: [0, 0, 0], scale: 0.94, monitorCount: 2 },
+  A01: { position: [0, 0, 0.7], rotation: [0, 0, 0], scale: 1.02, monitorCount: 3 },
+  B02: { position: [-5.9, 0, -3.55], rotation: [0, 0, 0], scale: 0.94, monitorCount: 2 },
+  B03: { position: [5.9, 0, -3.55], rotation: [0, 0, 0], scale: 0.94, monitorCount: 2 },
+  D01: { position: [-5.9, 0, 3.25], rotation: [0, 0, 0], scale: 0.96, monitorCount: 3 },
+  D02: { position: [0, 0, 5.95], rotation: [0, 0, 0], scale: 0.98, monitorCount: 3 },
+  E01: { position: [5.9, 0, 3.25], rotation: [0, 0, 0], scale: 0.96, monitorCount: 2 },
 };
 
 export const INITIAL_OFFICE_AGENTS: Record<string, OfficeAgent> = {

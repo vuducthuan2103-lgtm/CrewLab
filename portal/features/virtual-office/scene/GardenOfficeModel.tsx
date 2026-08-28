@@ -9,7 +9,7 @@ import { GARDEN_STATION_LAYOUT } from '../config/office-layout';
 import { useOfficeStore } from '../state/office-store';
 import type { AgentCode, OfficeAgent } from '../types/office';
 
-const MODEL_URL = '/virtual-office/garden-office-v3.glb?v=20260828';
+const MODEL_URL = '/virtual-office/garden-office-v4.glb?v=20260828';
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
 const LABEL_OFFSETS: Record<AgentCode, [number, number, number]> = {
   A01: [0, 3.35, -0.25],

@@ -1,12 +1,11 @@
-"""Build CrewLab's photoreal garden office and export a browser-ready GLB.
+"""Build CrewLab's reference-driven archviz garden office v4.
 
 Run with Blender 5.2+:
   blender --background --python scripts/blender/build_virtual_office.py
 
-The script is the source of truth for the authored 3D asset. Version 3 uses a
-project-owned ficus alpha atlas plus deterministic Blender geometry. Reference
-boards live beside the atlas and are art-direction inputs, never flat scene
-backgrounds.
+The script is the source of truth for the authored 3D asset. Version 4 follows
+six fixed visual references, uses project-owned PBR maps and keeps all UI as
+live HTML. Reference images are art-direction inputs, never flat backplates.
 """
 
 from __future__ import annotations
@@ -22,15 +21,21 @@ from mathutils import Vector
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = ROOT / "portal" / "public" / "virtual-office"
-REFERENCE_DIR = OUTPUT_DIR / "references" / "v3"
-LEAF_ATLAS_PATH = REFERENCE_DIR / "tex-ficus-clusters.png"
-TEXTURE_DIR = OUTPUT_DIR / "textures" / "v3"
+REFERENCE_DIR = OUTPUT_DIR / "references" / "v4"
+LEAF_ATLAS_PATH = OUTPUT_DIR / "references" / "v3" / "tex-ficus-clusters.png"
+TEXTURE_DIR = OUTPUT_DIR / "textures" / "v4"
 STONE_TEXTURE_PATH = TEXTURE_DIR / "tex-limestone-albedo.jpg"
+STONE_NORMAL_PATH = TEXTURE_DIR / "tex-limestone-normal.jpg"
+STONE_ROUGHNESS_PATH = TEXTURE_DIR / "tex-limestone-roughness.jpg"
 OAK_TEXTURE_PATH = TEXTURE_DIR / "tex-oak-albedo.jpg"
+OAK_NORMAL_PATH = TEXTURE_DIR / "tex-oak-normal.jpg"
+OAK_ROUGHNESS_PATH = TEXTURE_DIR / "tex-oak-roughness.jpg"
 BARK_TEXTURE_PATH = TEXTURE_DIR / "tex-ficus-bark-albedo.jpg"
-BLEND_PATH = OUTPUT_DIR / "garden-office-v3.blend"
-GLB_PATH = OUTPUT_DIR / "garden-office-v3.glb"
-PREVIEW_PATH = OUTPUT_DIR / "garden-office-v3-preview.png"
+BARK_NORMAL_PATH = TEXTURE_DIR / "tex-ficus-bark-normal.jpg"
+BARK_ROUGHNESS_PATH = TEXTURE_DIR / "tex-ficus-bark-roughness.jpg"
+BLEND_PATH = OUTPUT_DIR / "garden-office-v4.blend"
+GLB_PATH = OUTPUT_DIR / "garden-office-v4.glb"
+PREVIEW_PATH = OUTPUT_DIR / "garden-office-v4-preview.png"
 
 TAU = math.tau
 
@@ -78,20 +83,47 @@ def material(
     return mat
 
 
-def attach_base_color_texture(mat: bpy.types.Material, path: Path) -> None:
-    if not path.exists():
-        raise FileNotFoundError(f"Missing project texture: {path}")
-    image = bpy.data.images.load(str(path), check_existing=True)
-    image.colorspace_settings.name = "sRGB"
+def attach_pbr_textures(
+    mat: bpy.types.Material,
+    albedo_path: Path,
+    normal_path: Path,
+    roughness_path: Path,
+    *,
+    normal_strength: float,
+) -> None:
+    for path in (albedo_path, normal_path, roughness_path):
+        if not path.exists():
+            raise FileNotFoundError(f"Missing project texture: {path}")
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     bsdf = nodes.get("Principled BSDF")
-    texture = nodes.new("ShaderNodeTexImage")
-    texture.name = f"{mat.name} albedo"
-    texture.image = image
-    texture.interpolation = "Linear"
-    texture.extension = "REPEAT"
-    links.new(texture.outputs["Color"], bsdf.inputs["Base Color"])
+
+    albedo = nodes.new("ShaderNodeTexImage")
+    albedo.name = f"{mat.name} albedo"
+    albedo.image = bpy.data.images.load(str(albedo_path), check_existing=True)
+    albedo.image.colorspace_settings.name = "sRGB"
+    albedo.interpolation = "Linear"
+    albedo.extension = "REPEAT"
+    links.new(albedo.outputs["Color"], bsdf.inputs["Base Color"])
+
+    roughness = nodes.new("ShaderNodeTexImage")
+    roughness.name = f"{mat.name} roughness"
+    roughness.image = bpy.data.images.load(str(roughness_path), check_existing=True)
+    roughness.image.colorspace_settings.name = "Non-Color"
+    roughness.interpolation = "Linear"
+    roughness.extension = "REPEAT"
+    links.new(roughness.outputs["Color"], bsdf.inputs["Roughness"])
+
+    normal = nodes.new("ShaderNodeTexImage")
+    normal.name = f"{mat.name} normal"
+    normal.image = bpy.data.images.load(str(normal_path), check_existing=True)
+    normal.image.colorspace_settings.name = "Non-Color"
+    normal.interpolation = "Linear"
+    normal.extension = "REPEAT"
+    normal_map = nodes.new("ShaderNodeNormalMap")
+    normal_map.inputs["Strength"].default_value = normal_strength
+    links.new(normal.outputs["Color"], normal_map.inputs["Color"])
+    links.new(normal_map.outputs["Normal"], bsdf.inputs["Normal"])
 
 
 STONE = None
@@ -103,6 +135,7 @@ IVORY = None
 BRASS = None
 GRAPHITE = None
 FABRIC = None
+HAIR = None
 GLASS = None
 WATER = None
 SCREEN = None
@@ -117,20 +150,21 @@ WARM_GLOW = None
 
 
 def make_materials() -> None:
-    global STONE, STONE_DARK, STONE_JOINT, OAK, OAK_DARK, IVORY, BRASS, GRAPHITE, FABRIC
+    global STONE, STONE_DARK, STONE_JOINT, OAK, OAK_DARK, IVORY, BRASS, GRAPHITE, FABRIC, HAIR
     global GLASS, WATER, SCREEN, LIME, LEAF, LEAF_LIGHT, LEAF_ATLAS, TRUNK, SKIN, WHITE, WARM_GLOW
 
-    STONE = material("Limestone warm", (0.58, 0.48, 0.36, 1), roughness=0.70)
+    STONE = material("Limestone warm", (0.72, 0.66, 0.56, 1), roughness=0.70)
     STONE_DARK = material("Limestone joint", (0.14, 0.13, 0.105, 1), roughness=0.90)
     STONE_JOINT = material("Limestone soft joint", (0.32, 0.275, 0.21, 1), roughness=0.88)
     IVORY = material("Ivory fluted stone", (0.76, 0.68, 0.55, 1), roughness=0.68)
-    OAK = material("Quarter sawn oak", (0.34, 0.16, 0.055, 1), roughness=0.38, coat=0.12)
+    OAK = material("Quarter sawn oak", (0.52, 0.29, 0.11, 1), roughness=0.42, coat=0.10)
     OAK_DARK = material("Dark oak", (0.105, 0.045, 0.018, 1), roughness=0.44, coat=0.08)
-    BRASS = material("Champagne bronze", (0.34, 0.19, 0.058, 1), roughness=0.34, metallic=0.80)
+    BRASS = material("Champagne bronze", (0.27, 0.145, 0.045, 1), roughness=0.42, metallic=0.78)
     GRAPHITE = material("Graphite", (0.018, 0.026, 0.025, 1), roughness=0.28, metallic=0.48)
     FABRIC = material("Graphite fabric", (0.025, 0.032, 0.031, 1), roughness=0.88)
-    GLASS = material("Low iron architectural glass", (0.055, 0.23, 0.215, 0.20), roughness=0.06, transmission=0.78, alpha=0.20, coat=0.5)
-    WATER = material("Shallow turquoise water", (0.028, 0.27, 0.245, 0.68), roughness=0.075, transmission=0.42, alpha=0.72, coat=0.78)
+    HAIR = material("Natural dark hair", (0.020, 0.014, 0.010, 1), roughness=0.66, metallic=0.0)
+    GLASS = material("Low iron architectural glass", (0.20, 0.34, 0.31, 0.12), roughness=0.035, transmission=0.88, alpha=0.12, coat=0.46)
+    WATER = material("Shallow turquoise water", (0.025, 0.24, 0.215, 0.62), roughness=0.055, transmission=0.50, alpha=0.66, coat=0.80)
     SCREEN = material(
         "Teal display glass",
         (0.018, 0.13, 0.13, 0.72),
@@ -150,8 +184,8 @@ def make_materials() -> None:
     )
     LEAF = material("Deep garden leaf", (0.028, 0.14, 0.045, 1), roughness=0.78)
     LEAF_LIGHT = material("Sunlit garden leaf", (0.09, 0.31, 0.075, 1), roughness=0.74)
-    TRUNK = material("Old ficus bark", (0.16, 0.095, 0.052, 1), roughness=0.94)
-    SKIN = material("Warm skin", (0.53, 0.255, 0.14, 1), roughness=0.62)
+    TRUNK = material("Old ficus bark", (0.26, 0.20, 0.14, 1), roughness=0.86)
+    SKIN = material("Warm skin", (0.56, 0.31, 0.20, 1), roughness=0.58)
     WHITE = material("Warm ceramic", (0.83, 0.79, 0.68, 1), roughness=0.5)
     WARM_GLOW = material(
         "Warm practical glow",
@@ -161,9 +195,24 @@ def make_materials() -> None:
         emission_strength=3.0,
     )
 
-    attach_base_color_texture(STONE, STONE_TEXTURE_PATH)
-    attach_base_color_texture(OAK, OAK_TEXTURE_PATH)
-    attach_base_color_texture(TRUNK, BARK_TEXTURE_PATH)
+    attach_pbr_textures(STONE, STONE_TEXTURE_PATH, STONE_NORMAL_PATH, STONE_ROUGHNESS_PATH, normal_strength=0.34)
+    attach_pbr_textures(OAK, OAK_TEXTURE_PATH, OAK_NORMAL_PATH, OAK_ROUGHNESS_PATH, normal_strength=0.24)
+    attach_pbr_textures(TRUNK, BARK_TEXTURE_PATH, BARK_NORMAL_PATH, BARK_ROUGHNESS_PATH, normal_strength=0.58)
+
+    # Cycles detail for the validation render. The GLB keeps the physically
+    # based water surface while unsupported procedural ripples are omitted.
+    water_nodes = WATER.node_tree.nodes
+    water_links = WATER.node_tree.links
+    water_bsdf = water_nodes.get("Principled BSDF")
+    water_noise = water_nodes.new("ShaderNodeTexNoise")
+    water_noise.inputs["Scale"].default_value = 3.2
+    water_noise.inputs["Detail"].default_value = 5.0
+    water_noise.inputs["Roughness"].default_value = 0.62
+    water_bump = water_nodes.new("ShaderNodeBump")
+    water_bump.inputs["Strength"].default_value = 0.16
+    water_bump.inputs["Distance"].default_value = 0.10
+    water_links.new(water_noise.outputs["Fac"], water_bump.inputs["Height"])
+    water_links.new(water_bump.outputs["Normal"], water_bsdf.inputs["Normal"])
 
     if not LEAF_ATLAS_PATH.exists():
         raise FileNotFoundError(f"Missing project leaf atlas: {LEAF_ATLAS_PATH}")
@@ -441,41 +490,125 @@ def annular_sector(
     return obj
 
 
+def organic_slab(
+    name: str,
+    outline: list[tuple[float, float]],
+    z: float,
+    depth: float,
+    mat: bpy.types.Material,
+    *,
+    bevel: float = 0.12,
+) -> bpy.types.Object:
+    """Create an extruded freeform slab for paths, water and planted islands."""
+    count = len(outline)
+    verts = [(x, y, z - depth / 2) for x, y in outline] + [(x, y, z + depth / 2) for x, y in outline]
+    faces: list[tuple[int, ...]] = [tuple(range(count - 1, -1, -1)), tuple(range(count, count * 2))]
+    for index in range(count):
+        nxt = (index + 1) % count
+        faces.append((index, nxt, count + nxt, count + index))
+    mesh = bpy.data.meshes.new(name + "Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    uv_layer = mesh.uv_layers.new(name="UVMap")
+    xs = [point[0] for point in outline]
+    ys = [point[1] for point in outline]
+    width = max(max(xs) - min(xs), 0.001)
+    height = max(max(ys) - min(ys), 0.001)
+    for polygon in mesh.polygons:
+        for loop_index in polygon.loop_indices:
+            vertex = mesh.vertices[mesh.loops[loop_index].vertex_index].co
+            uv_layer.data[loop_index].uv = ((vertex.x - min(xs)) / width * 4.0, (vertex.y - min(ys)) / height * 4.0)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(mat)
+    smooth_and_bevel(obj, bevel, 4)
+    return obj
+
+
+def ellipse_disc(
+    name: str,
+    location: tuple[float, float, float],
+    radius_x: float,
+    radius_y: float,
+    depth: float,
+    mat: bpy.types.Material,
+    *,
+    bevel: float = 0.04,
+) -> bpy.types.Object:
+    obj = cylinder(name, location, 1.0, depth, mat, vertices=72, bevel=bevel)
+    obj.scale = (radius_x, radius_y, 1.0)
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    return obj
+
+
+def ellipse_ring(name: str, location: tuple[float, float, float], radius_x: float, radius_y: float, thickness: float, mat: bpy.types.Material) -> bpy.types.Object:
+    obj = torus(name, location, 1.0, thickness, mat, major_segments=96)
+    obj.scale = (radius_x, radius_y, 1.0)
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    return obj
+
+
 def create_water_and_plaza() -> None:
-    cube("Atrium foundation", (0, 0.2, -0.62), (14.6, 11.4, 0.40), STONE_DARK, bevel=0.72)
-    cube("Perimeter water basin", (0, 0.15, -0.16), (14.05, 10.85, 0.16), WATER, bevel=0.96)
+    # The stage extends beyond the hero camera so the office reads as a real
+    # atrium rather than a finite tabletop. An organic water layer sits below a
+    # freeform limestone plate and reappears in recessed pools.
+    cube("Atrium structural foundation", (0, 1.0, -0.70), (18.5, 14.2, 0.48), STONE_DARK, bevel=1.25)
+    water_outline = [
+        (-17.4, -10.7), (-11.0, -12.3), (-4.5, -11.5), (0.0, -12.2), (5.2, -11.4),
+        (12.0, -12.0), (17.5, -8.8), (16.6, -2.8), (17.6, 3.6), (15.2, 10.2),
+        (9.2, 12.0), (3.4, 11.6), (-2.5, 12.4), (-8.8, 11.7), (-15.6, 8.6), (-17.2, 2.4),
+    ]
+    organic_slab("Atrium water garden", water_outline, -0.08, 0.34, WATER, bevel=0.44)
 
-    # Limestone is now the dominant read. Water is a recessed perimeter channel
-    # rather than the glossy teal slab that made v2 feel like a toy diorama.
-    cube("Main limestone plaza", (0, -0.05, 0.09), (9.92, 7.38, 0.27), STONE, bevel=1.18)
-    cube("Rear pavilion promenade", (0, 6.96, 0.10), (9.95, 1.05, 0.28), STONE, bevel=0.52)
-    cube("Left waterfall walk", (-8.95, 4.25, 0.10), (1.05, 2.20, 0.28), STONE, bevel=0.48)
-    cube("Right focus walk", (8.95, 4.25, 0.10), (1.05, 2.20, 0.28), STONE, bevel=0.48)
+    plaza_outline = [
+        (-11.2, -7.1), (-8.6, -8.5), (-4.2, -7.9), (-0.2, -9.0), (4.0, -8.0), (8.6, -8.3),
+        (11.0, -6.0), (10.1, -3.2), (11.5, -0.1), (10.4, 2.8), (11.2, 5.6), (8.9, 7.8),
+        (5.0, 7.2), (2.5, 8.6), (0.0, 7.4), (-3.0, 8.5), (-5.5, 7.0), (-9.2, 7.6),
+        (-11.2, 5.0), (-10.3, 2.0), (-11.6, -0.8), (-10.3, -3.8),
+    ]
+    plaza_outline = [(x * 1.24, y * 1.24) for x, y in plaza_outline]
+    organic_slab("Flowing limestone plaza", plaza_outline, 0.18, 0.38, STONE, bevel=0.34)
 
-    torus("Central brass inlay", (0, 0.25, 0.385), 3.08, 0.035, BRASS)
-    torus("Outer plaza inlay", (0, 0.15, 0.38), 7.34, 0.026, BRASS, major_segments=96)
+    # Pool windows break the limestone mass and establish foreground depth.
+    pools = (
+        ("West garden pool", -10.25, -0.8, 1.42, 3.35),
+        ("East garden pool", 10.35, -2.2, 1.52, 3.58),
+        ("Rear west pool", -7.65, 7.15, 2.45, 1.18),
+        ("Rear east pool", 7.72, 7.10, 2.52, 1.20),
+        ("Foreground water court", 7.35, -7.70, 2.65, 1.16),
+    )
+    for name, x, y, rx, ry in pools:
+        ellipse_disc(name, (x, y, 0.405), rx, ry, 0.075, WATER, bevel=0.10)
+        ellipse_ring(f"{name} limestone coping", (x, y, 0.455), rx, ry, 0.085, STONE)
 
-    # Fine expansion joints and staggered tile seams establish architectural
-    # scale at the production camera distance.
-    for index, x in enumerate((-7.8, -5.2, -2.6, 0, 2.6, 5.2, 7.8)):
-        cube(f"Limestone vertical joint {index}", (x, -0.10, 0.372), (0.010, 6.65, 0.006), STONE_JOINT, bevel=0)
-    for index, y in enumerate((-5.7, -3.8, -1.9, 0.0, 1.9, 3.8, 5.7)):
-        cube(f"Limestone horizontal joint {index}", (0, y, 0.374), (8.95, 0.010, 0.006), STONE_JOINT, bevel=0)
+    # Architectural inlays and expansion joints follow the radial circulation.
+    for radius in (3.05, 6.85):
+        torus(f"Plaza bronze inlay {radius}", (0, 0.45, 0.405), radius, 0.022, BRASS, major_segments=112)
+    for index, angle in enumerate((0.10, 0.88, 1.68, 2.46, 3.25, 4.03, 4.82, 5.58)):
+        start = (math.cos(angle) * 2.1, 0.45 + math.sin(angle) * 2.1, 0.414)
+        end = (math.cos(angle) * 9.2, 0.45 + math.sin(angle) * 7.0, 0.414)
+        tube_between(f"Radial limestone joint {index}", start, end, 0.010, STONE_JOINT, vertices=8)
 
-    # Water glints and lily pads are real geometry so both the Cycles preview
-    # and WebGL runtime retain the same material hierarchy.
-    for index, (x, y, length) in enumerate(((-9.7, -3.8, 3.2), (9.65, -3.1, 3.6), (-8.7, 5.6, 1.8), (8.7, 5.6, 1.8))):
-        cube(f"Water glint {index}", (x, y, 0.025), (0.018, length, 0.012), SCREEN, bevel=0.01)
-    for index, (x, y, radius) in enumerate(((8.9, -5.8, 0.34), (9.7, -5.1, 0.26), (-9.4, -5.5, 0.22), (8.3, -6.5, 0.19))):
-        cylinder(f"Lily pad {index}", (x, y, 0.045), radius, 0.025, LEAF_LIGHT, vertices=28, bevel=0.01)
+    for index, (x, y, radius) in enumerate(((10.0, -4.6, 0.30), (9.7, -5.2, 0.22), (-10.1, -2.2, 0.21), (7.8, -7.5, 0.18))):
+        cylinder(f"Lily pad {index}", (x, y, 0.465), radius, 0.018, LEAF_LIGHT, vertices=28, bevel=0.008)
 
 
 def create_platform(name: str, x: float, y: float, radius: float, *, central: bool = False) -> None:
-    cylinder(f"{name} foundation", (x, y, 0.40), radius, 0.14, STONE, vertices=64, bevel=0.045)
-    cylinder(f"{name} inner stone", (x, y, 0.485), radius - 0.18, 0.055, IVORY, vertices=64, bevel=0.018)
-    torus(f"{name} brass edge", (x, y, 0.52), radius - 0.10, 0.024, BRASS)
+    # Only the hero workstation receives a readable circular dais. Secondary
+    # stations are set directly into the plaza with a hairline floor inlay, as
+    # in the architectural reference; six repeated plinths read as a tabletop.
     if central:
-        torus(f"{name} active lime ring", (x, y, 0.525), radius - 0.40, 0.018, LIME)
+        cylinder(f"{name} foundation", (x, y, 0.425), radius, 0.10, STONE, vertices=96, bevel=0.045)
+        torus(f"{name} brass edge", (x, y, 0.490), radius - 0.08, 0.014, BRASS, major_segments=96)
+        torus(f"{name} active lime ring", (x, y, 0.492), radius - 0.34, 0.006, LIME, major_segments=96)
+    else:
+        torus(f"{name} floor joint", (x, y, 0.414), radius - 0.10, 0.009, STONE_JOINT, major_segments=72)
 
 
 def create_monitor(name: str, x: float, y: float, z: float, angle: float, width: float = 0.92) -> None:
@@ -513,51 +646,73 @@ def create_monitor(name: str, x: float, y: float, z: float, angle: float, width:
 
 
 def create_chair(name: str, x: float, y: float) -> None:
-    cylinder(f"{name} chair lift", (x, y, 0.76), 0.055, 0.72, GRAPHITE, vertices=20)
-    uv_sphere(f"{name} chair seat", (x, y, 1.05), (0.46, 0.40, 0.11), FABRIC)
-    cube(f"{name} chair back frame", (x, y + 0.31, 1.56), (0.43, 0.045, 0.54), GRAPHITE, rotation=(math.radians(-7), 0, 0), bevel=0.13)
-    cube(f"{name} chair back mesh", (x, y + 0.255, 1.56), (0.37, 0.025, 0.46), FABRIC, rotation=(math.radians(-7), 0, 0), bevel=0.11)
-    cube(f"{name} chair headrest", (x, y + 0.36, 2.03), (0.27, 0.07, 0.14), FABRIC, rotation=(math.radians(-7), 0, 0), bevel=0.09)
+    cylinder(f"{name} chair lift", (x, y, 0.67), 0.042, 0.45, GRAPHITE, vertices=20)
+    uv_sphere(f"{name} chair seat", (x, y, 0.86), (0.39, 0.35, 0.075), FABRIC)
+    cube(f"{name} chair back frame", (x, y + 0.285, 1.23), (0.37, 0.035, 0.40), GRAPHITE, rotation=(math.radians(-7), 0, 0), bevel=0.11)
+    cube(f"{name} chair back mesh", (x, y + 0.248, 1.23), (0.32, 0.018, 0.34), FABRIC, rotation=(math.radians(-7), 0, 0), bevel=0.09)
+    cube(f"{name} chair lumbar", (x, y + 0.205, 1.10), (0.25, 0.030, 0.07), GRAPHITE, rotation=(math.radians(-7), 0, 0), bevel=0.045)
+    cube(f"{name} chair headrest", (x, y + 0.33, 1.61), (0.23, 0.055, 0.095), FABRIC, rotation=(math.radians(-7), 0, 0), bevel=0.07)
     for side in (-1, 1):
-        tube_between(f"{name} chair arm post {side}", (x + side * 0.40, y, 1.06), (x + side * 0.40, y - 0.02, 1.38), 0.028, GRAPHITE, vertices=10)
-        cube(f"{name} chair arm pad {side}", (x + side * 0.40, y - 0.13, 1.40), (0.055, 0.21, 0.04), FABRIC, bevel=0.035)
+        tube_between(f"{name} chair arm post {side}", (x + side * 0.34, y, 0.88), (x + side * 0.34, y - 0.02, 1.12), 0.024, GRAPHITE, vertices=10)
+        cube(f"{name} chair arm pad {side}", (x + side * 0.34, y - 0.11, 1.14), (0.045, 0.18, 0.032), FABRIC, bevel=0.028)
     for i in range(5):
         angle = TAU * i / 5
-        end = (x + math.cos(angle) * 0.44, y + math.sin(angle) * 0.44, 0.48)
-        tube_between(f"{name} chair base {i}", (x, y, 0.52), end, 0.028, GRAPHITE, vertices=10)
-        cylinder(f"{name} chair caster {i}", (end[0], end[1], 0.43), 0.052, 0.055, GRAPHITE, vertices=12, rotation=(math.radians(90), 0, 0), bevel=0.015)
+        end = (x + math.cos(angle) * 0.39, y + math.sin(angle) * 0.39, 0.47)
+        tube_between(f"{name} chair base {i}", (x, y, 0.51), end, 0.024, GRAPHITE, vertices=10)
+        cylinder(f"{name} chair caster {i}", (end[0], end[1], 0.425), 0.045, 0.047, GRAPHITE, vertices=12, rotation=(math.radians(90), 0, 0), bevel=0.012)
 
 
 def create_person(name: str, x: float, y: float, suit: bpy.types.Material, hair: bpy.types.Material) -> None:
-    # Seated, slightly forward-leaning, with distinct anatomical masses rather
-    # than a capsule mascot. Hands meet the keyboard plane.
-    uv_sphere(f"{name} hips", (x, y - 0.01, 1.17), (0.29, 0.24, 0.18), GRAPHITE)
-    uv_sphere(f"{name} torso", (x, y - 0.04, 1.58), (0.34, 0.23, 0.47), suit)
-    cube(f"{name} shirt placket", (x, y - 0.267, 1.59), (0.018, 0.012, 0.31), OAK_DARK, bevel=0.008)
-    cylinder(f"{name} neck", (x, y - 0.03, 1.96), 0.09, 0.18, SKIN, vertices=20)
-    uv_sphere(f"{name} head", (x, y - 0.07, 2.18), (0.22, 0.205, 0.27), SKIN)
-    hair_scale = (0.245, 0.222, 0.17) if name in {"B03", "D02"} else (0.232, 0.214, 0.15)
-    uv_sphere(f"{name} hair", (x, y - 0.035, 2.31), hair_scale, hair)
+    # Realistic adult seated proportions: small head, long limbs and a forward
+    # working posture derived from the dedicated v4 character reference.
+    uv_sphere(f"{name} hips", (x, y - 0.01, 0.91), (0.24, 0.20, 0.13), GRAPHITE)
+    uv_sphere(f"{name} torso", (x, y - 0.06, 1.22), (0.255, 0.16, 0.35), suit)
+    cube(f"{name} shirt placket", (x, y - 0.222, 1.22), (0.010, 0.008, 0.23), OAK_DARK, bevel=0.005)
+    cylinder(f"{name} neck", (x, y - 0.07, 1.50), 0.055, 0.12, SKIN, vertices=20)
+    uv_sphere(f"{name} head", (x, y - 0.10, 1.67), (0.125, 0.112, 0.155), SKIN)
+    uv_sphere(f"{name} jaw", (x, y - 0.115, 1.615), (0.100, 0.096, 0.092), SKIN, segments=20, rings=10)
+    # Overlapping matte clumps break the plastic helmet silhouette while
+    # remaining lightweight enough for six live WebGL characters.
+    hair_clumps = (
+        (-0.070, 0.018, 0.078, 0.080, 0.085, 0.068),
+        (0.000, 0.026, 0.094, 0.084, 0.090, 0.074),
+        (0.070, 0.018, 0.075, 0.078, 0.084, 0.065),
+        (-0.045, -0.055, 0.062, 0.064, 0.054, 0.060),
+        (0.045, -0.058, 0.064, 0.066, 0.052, 0.060),
+    )
+    for clump_index, (dx, dy, dz, sx, sy, sz) in enumerate(hair_clumps):
+        uv_sphere(
+            f"{name} hair clump {clump_index}",
+            (x + dx, y - 0.075 + dy, 1.70 + dz),
+            (sx, sy, sz),
+            hair,
+            segments=14,
+            rings=7,
+        )
+    uv_sphere(f"{name} hair fringe", (x, y - 0.198, 1.72), (0.096, 0.026, 0.046), hair, segments=16, rings=8)
     if name in {"B03", "D02"}:
         for side in (-1, 1):
-            uv_sphere(f"{name} long hair {side}", (x + side * 0.20, y + 0.01, 2.06), (0.09, 0.10, 0.30), hair, segments=16, rings=8)
-    # Nose and small ear details help the close camera read as a person.
-    uv_sphere(f"{name} nose", (x, y - 0.274, 2.17), (0.035, 0.04, 0.055), SKIN, segments=16, rings=8)
-    uv_sphere(f"{name} left ear", (x - 0.22, y - 0.065, 2.18), (0.04, 0.025, 0.055), SKIN, segments=12, rings=6)
-    uv_sphere(f"{name} right ear", (x + 0.22, y - 0.065, 2.18), (0.04, 0.025, 0.055), SKIN, segments=12, rings=6)
+            uv_sphere(f"{name} long hair {side}", (x + side * 0.112, y - 0.02, 1.60), (0.048, 0.060, 0.18), hair, segments=16, rings=8)
+    uv_sphere(f"{name} nose", (x, y - 0.216, 1.665), (0.019, 0.024, 0.030), SKIN, segments=12, rings=6)
+    uv_sphere(f"{name} left ear", (x - 0.127, y - 0.095, 1.67), (0.022, 0.014, 0.032), SKIN, segments=12, rings=6)
+    uv_sphere(f"{name} right ear", (x + 0.127, y - 0.095, 1.67), (0.022, 0.014, 0.032), SKIN, segments=12, rings=6)
     for side in (-1, 1):
-        shoulder = (x + side * 0.27, y - 0.06, 1.72)
-        elbow = (x + side * 0.37, y - 0.31, 1.43)
-        hand = (x + side * 0.24, y - 0.66, 1.38)
-        tube_between(f"{name} arm upper {side}", shoulder, elbow, 0.085, suit)
-        tube_between(f"{name} arm lower {side}", elbow, hand, 0.072, SKIN)
-        uv_sphere(f"{name} hand {side}", hand, (0.09, 0.06, 0.045), SKIN, segments=16, rings=8)
-        # Complete seated leg chain and shoes are visible in side/focus views.
-        knee = (x + side * 0.18, y - 0.30, 0.91)
-        ankle = (x + side * 0.18, y - 0.37, 0.56)
-        tube_between(f"{name} thigh {side}", (x + side * 0.15, y, 1.11), knee, 0.115, GRAPHITE)
-        tube_between(f"{name} shin {side}", knee, ankle, 0.088, GRAPHITE)
-        cube(f"{name} shoe {side}", (x + side * 0.18, y - 0.47, 0.50), (0.12, 0.24, 0.075), OAK_DARK, bevel=0.055)
+        uv_sphere(f"{name} eye {side}", (x + side * 0.045, y - 0.208, 1.695), (0.010, 0.006, 0.007), GRAPHITE, segments=10, rings=5)
+    for side in (-1, 1):
+        shoulder = (x + side * 0.215, y - 0.08, 1.37)
+        elbow = (x + side * 0.275, y - 0.30, 1.17)
+        hand = (x + side * 0.20, y - 0.61, 1.15)
+        tapered_tube_between(f"{name} arm upper {side}", shoulder, elbow, 0.067, 0.055, suit, vertices=14)
+        tapered_tube_between(f"{name} arm lower {side}", elbow, hand, 0.053, 0.040, SKIN, vertices=14)
+        uv_sphere(f"{name} hand {side}", hand, (0.065, 0.045, 0.028), SKIN, segments=16, rings=8)
+        for finger in range(4):
+            fx = hand[0] + side * (finger - 1.5) * 0.013
+            tube_between(f"{name} finger {side}-{finger}", (fx, hand[1] - 0.018, hand[2]), (fx, hand[1] - 0.080, hand[2] - 0.006), 0.006, SKIN, vertices=8)
+        knee = (x + side * 0.16, y - 0.28, 0.72)
+        ankle = (x + side * 0.16, y - 0.38, 0.43)
+        tapered_tube_between(f"{name} thigh {side}", (x + side * 0.13, y, 0.89), knee, 0.090, 0.074, GRAPHITE, vertices=14)
+        tapered_tube_between(f"{name} shin {side}", knee, ankle, 0.073, 0.052, GRAPHITE, vertices=14)
+        cube(f"{name} shoe {side}", (x + side * 0.16, y - 0.47, 0.38), (0.085, 0.18, 0.050), OAK_DARK, bevel=0.040)
 
 
 def create_station(
@@ -571,55 +726,67 @@ def create_station(
 ) -> None:
     before = set(bpy.context.scene.objects)
 
-    create_platform(code, x, y, 1.76 * scale, central=code == "A01")
+    create_platform(code, x, y, 1.62 * scale, central=code == "A01")
 
     # Oak crescent desk: thick bullnose top, dark shadow-line, fluted stone
     # carcass and two readable drawer banks from the workstation reference.
-    top_z = 1.42
-    annular_sector(f"{code} oak crescent", (x, y - 0.08, top_z), 0.74 * scale, 1.52 * scale, 0.18, math.radians(205), math.radians(335), OAK, 38)
-    annular_sector(f"{code} dark oak reveal", (x, y - 0.08, top_z - 0.13), 0.81 * scale, 1.47 * scale, 0.08, math.radians(207), math.radians(333), OAK_DARK, 38)
+    top_z = 1.10
+    annular_sector(f"{code} oak crescent", (x, y - 0.08, top_z), 0.67 * scale, 1.40 * scale, 0.14, math.radians(205), math.radians(335), OAK, 44)
+    annular_sector(f"{code} dark oak reveal", (x, y - 0.08, top_z - 0.10), 0.73 * scale, 1.36 * scale, 0.055, math.radians(207), math.radians(333), OAK_DARK, 40)
 
     for i in range(17):
         angle = math.radians(212 + i * (116 / 16))
-        radius = 1.28 * scale
+        radius = 1.18 * scale
         px = x + math.cos(angle) * radius
         py = y - 0.08 + math.sin(angle) * radius
-        cylinder(f"{code} fluted cabinet {i:02}", (px, py, 0.91), 0.075, 0.88, IVORY, vertices=12, bevel=0.018)
+        cylinder(f"{code} fluted cabinet {i:02}", (px, py, 0.79), 0.060, 0.52, IVORY, vertices=12, bevel=0.014)
 
     # Bronze kick plate and a restrained warm under-desk light.
-    annular_sector(f"{code} brass kick", (x, y - 0.08, 0.49), 1.16 * scale, 1.34 * scale, 0.055, math.radians(210), math.radians(330), BRASS, 32)
-    annular_sector(f"{code} bronze bullnose", (x, y - 0.08, 1.525), 1.46 * scale, 1.51 * scale, 0.025, math.radians(216), math.radians(324), BRASS, 32)
-    for bank_index, bank_x in enumerate((-0.96, 0.96)):
-        cube(f"{code} drawer bank {bank_index}", (x + bank_x * scale, y - 0.18, 0.98), (0.31, 0.36, 0.46), OAK, bevel=0.075)
+    annular_sector(f"{code} brass kick", (x, y - 0.08, 0.535), 1.06 * scale, 1.24 * scale, 0.045, math.radians(210), math.radians(330), BRASS, 32)
+    annular_sector(f"{code} bronze bullnose", (x, y - 0.08, 1.178), 1.34 * scale, 1.40 * scale, 0.022, math.radians(216), math.radians(324), BRASS, 36)
+    for bank_index, bank_x in enumerate((-0.88, 0.88)):
+        cube(f"{code} drawer bank {bank_index}", (x + bank_x * scale, y - 0.18, 0.80), (0.27, 0.31, 0.27), OAK, bevel=0.065)
         for drawer in range(3):
-            drawer_z = 0.70 + drawer * 0.28
-            cube(f"{code} drawer line {bank_index}-{drawer}", (x + bank_x * scale, y - 0.548, drawer_z), (0.24, 0.012, 0.008), OAK_DARK, bevel=0.004)
-            cube(f"{code} drawer pull {bank_index}-{drawer}", (x + bank_x * scale, y - 0.565, drawer_z + 0.08), (0.075, 0.012, 0.012), BRASS, bevel=0.008)
+            drawer_z = 0.63 + drawer * 0.17
+            cube(f"{code} drawer line {bank_index}-{drawer}", (x + bank_x * scale, y - 0.498, drawer_z), (0.21, 0.010, 0.006), OAK_DARK, bevel=0.003)
+            cube(f"{code} drawer pull {bank_index}-{drawer}", (x + bank_x * scale, y - 0.510, drawer_z + 0.045), (0.060, 0.010, 0.009), BRASS, bevel=0.006)
 
     # Monitors sit on the far/inner desk edge and fan toward the operator.
     offsets = [0.0] if monitors == 1 else ([-0.68, 0.0, 0.68] if monitors == 3 else [-0.46, 0.46])
     for index, offset in enumerate(offsets):
         angle = -offset * 0.34
-        create_monitor(f"{code} monitor {index + 1}", x + offset * scale, y - 0.34, 2.05, angle, width=0.86 * scale)
+        create_monitor(f"{code} monitor {index + 1}", x + offset * scale, y - 0.34, 1.52, angle, width=0.82 * scale)
 
     # Desk objects: keyboard, cup, folio and small equipment block.
-    cube(f"{code} keyboard", (x, y - 0.62, 1.56), (0.34, 0.13, 0.025), GRAPHITE, bevel=0.03)
+    cube(f"{code} keyboard", (x, y - 0.62, 1.205), (0.31, 0.115, 0.018), GRAPHITE, bevel=0.025)
     for key_index in range(9):
         key_x = x - 0.27 + (key_index % 5) * 0.135
         key_y = y - 0.68 + (key_index // 5) * 0.12
-        cube(f"{code} keyboard key {key_index}", (key_x, key_y, 1.59), (0.045, 0.035, 0.008), IVORY, bevel=0.008)
-    cube(f"{code} mouse", (x + 0.46, y - 0.63, 1.59), (0.07, 0.10, 0.025), GRAPHITE, bevel=0.04)
-    cylinder(f"{code} ceramic cup", (x + 0.72, y - 0.54, 1.69), 0.105, 0.25, WHITE, vertices=24, bevel=0.025)
-    cube(f"{code} notebook", (x - 0.67, y - 0.48, 1.55), (0.22, 0.15, 0.025), IVORY, rotation=(0, 0, math.radians(-8)), bevel=0.018)
-    cube(f"{code} compute unit", (x + 1.04, y + 0.10, 0.94), (0.22, 0.33, 0.48), GRAPHITE, bevel=0.07)
-    torus(f"{code} compute LED", (x + 1.04, y - 0.236, 0.98), 0.095, 0.018, LIME, rotation=(math.radians(90), 0, 0), major_segments=24)
+        cube(f"{code} keyboard key {key_index}", (key_x, key_y, 1.229), (0.041, 0.030, 0.006), IVORY, bevel=0.006)
+    cube(f"{code} mouse", (x + 0.42, y - 0.63, 1.225), (0.058, 0.088, 0.020), GRAPHITE, bevel=0.032)
+    cylinder(f"{code} ceramic cup", (x + 0.68, y - 0.52, 1.30), 0.078, 0.17, WHITE, vertices=24, bevel=0.020)
+    cube(f"{code} notebook", (x - 0.63, y - 0.48, 1.205), (0.19, 0.13, 0.018), IVORY, rotation=(0, 0, math.radians(-8)), bevel=0.014)
+    cube(f"{code} tablet", (x - 0.82, y - 0.17, 1.215), (0.18, 0.12, 0.012), GRAPHITE, rotation=(0, 0, math.radians(14)), bevel=0.014)
+    cube(f"{code} mouse pad", (x + 0.43, y - 0.61, 1.194), (0.18, 0.14, 0.006), FABRIC, bevel=0.018)
+    cylinder(f"{code} desk planter", (x - 0.92, y - 0.31, 1.26), 0.075, 0.13, WHITE, vertices=20, bevel=0.018)
+    create_leaf_cards(
+        f"{code} desk plant",
+        [(x - 0.92, y - 0.31, 1.39)],
+        count=10,
+        spread=(0.10, 0.09, 0.12),
+        seed=400 + sum(ord(char) for char in code),
+        size_range=(0.09, 0.16),
+    )
+    tube_between(f"{code} keyboard cable", (x, y - 0.51, 1.202), (x, y - 0.34, 1.188), 0.006, GRAPHITE, vertices=8)
+    cube(f"{code} compute unit", (x + 0.98, y + 0.10, 0.82), (0.18, 0.29, 0.29), GRAPHITE, bevel=0.060)
+    torus(f"{code} compute LED", (x + 0.98, y - 0.196, 0.84), 0.070, 0.012, LIME, rotation=(math.radians(90), 0, 0), major_segments=24)
 
-    create_chair(code, x, y + 0.72)
+    create_chair(code, x, y + 0.61)
     suit = material(f"{code} wardrobe", suit_color, roughness=0.56)
-    create_person(code, x, y + 0.68, suit, GRAPHITE)
+    create_person(code, x, y + 0.57, suit, HAIR)
 
     # Named empty keeps exact interaction coordinates available after GLB export.
-    bpy.ops.object.empty_add(type="PLAIN_AXES", location=(x, y, 1.6))
+    bpy.ops.object.empty_add(type="PLAIN_AXES", location=(x, y, 1.28))
     hotspot = bpy.context.object
     hotspot.name = f"AgentHotspot_{code}"
     hotspot.empty_display_size = 0.45
@@ -638,10 +805,10 @@ def create_station(
 
 
 def create_tree() -> None:
-    tx, ty = 0.0, 2.35
-    cylinder("Ficus limestone planter", (tx, ty, 0.61), 1.92, 0.38, STONE, vertices=96, bevel=0.075)
-    torus("Ficus planter bronze rim", (tx, ty, 0.82), 1.71, 0.038, BRASS, major_segments=96)
-    cylinder("Ficus soil", (tx, ty, 0.82), 1.64, 0.065, STONE_DARK, vertices=72, bevel=0.02)
+    tx, ty = 0.0, 2.80
+    cylinder("Ficus limestone planter", (tx, ty, 0.65), 2.28, 0.48, STONE, vertices=112, bevel=0.095)
+    torus("Ficus planter bronze rim", (tx, ty, 0.91), 2.06, 0.032, BRASS, major_segments=112)
+    cylinder("Ficus soil", (tx, ty, 0.91), 1.98, 0.070, STONE_DARK, vertices=88, bevel=0.02)
 
     # Buttress roots radiate across the soil and converge into several fused
     # trunks, matching the mature ficus silhouette in the production board.
@@ -650,32 +817,36 @@ def create_tree() -> None:
         angle = TAU * index / 13 + (index % 3) * 0.08
         sx, sy = root_starts[index % len(root_starts)]
         start = (tx + sx, ty + sy, 0.90 + (index % 2) * 0.05)
-        end = (tx + math.cos(angle) * 1.48, ty + math.sin(angle) * 1.34, 0.86)
-        tapered_tube_between(f"Ficus buttress root {index:02}", start, end, 0.26, 0.055, TRUNK, vertices=18)
+        end = (tx + math.cos(angle) * 1.86, ty + math.sin(angle) * 1.68, 0.93)
+        tapered_tube_between(f"Ficus buttress root {index:02}", start, end, 0.30, 0.050, TRUNK, vertices=20)
 
     trunk_paths = [
-        ((-0.30, -0.04, 0.90), (-0.20, 0.03, 2.55), (-0.58, -0.08, 4.12)),
-        ((-0.05, -0.16, 0.90), (0.02, -0.07, 2.70), (0.30, -0.22, 4.32)),
-        ((0.26, -0.04, 0.90), (0.18, 0.06, 2.45), (0.80, 0.05, 4.06)),
-        ((-0.18, 0.18, 0.90), (-0.02, 0.18, 2.36), (-0.24, 0.58, 4.22)),
-        ((0.12, 0.20, 0.90), (0.08, 0.24, 2.62), (0.48, 0.62, 4.38)),
+        ((-0.34, -0.06, 0.94), (-0.25, 0.02, 3.05), (-0.78, -0.10, 5.12)),
+        ((-0.08, -0.18, 0.94), (0.02, -0.08, 3.18), (0.34, -0.28, 5.34)),
+        ((0.30, -0.05, 0.94), (0.22, 0.08, 2.98), (0.96, 0.02, 5.06)),
+        ((-0.22, 0.20, 0.94), (-0.03, 0.20, 2.88), (-0.32, 0.72, 5.24)),
+        ((0.14, 0.23, 0.94), (0.10, 0.26, 3.12), (0.58, 0.78, 5.40)),
+        ((-0.02, 0.02, 0.96), (-0.44, -0.10, 2.72), (-1.18, 0.42, 4.88)),
+        ((0.04, 0.08, 0.96), (0.48, 0.02, 2.74), (1.24, 0.52, 4.92)),
     ]
     for trunk_index, path in enumerate(trunk_paths):
         world_path = [(tx + px, ty + py, pz) for px, py, pz in path]
-        tapered_tube_between(f"Ficus trunk {trunk_index} lower", world_path[0], world_path[1], 0.34, 0.26, TRUNK, vertices=24)
-        tapered_tube_between(f"Ficus trunk {trunk_index} upper", world_path[1], world_path[2], 0.26, 0.13, TRUNK, vertices=22)
+        tapered_tube_between(f"Ficus trunk {trunk_index} lower", world_path[0], world_path[1], 0.42, 0.30, TRUNK, vertices=26)
+        tapered_tube_between(f"Ficus trunk {trunk_index} upper", world_path[1], world_path[2], 0.30, 0.13, TRUNK, vertices=24)
 
     branch_specs = [
-        ((-0.20, 0.02, 2.60), (-1.55, -0.35, 4.55), 0.24, 0.095),
-        ((0.04, -0.04, 2.82), (1.58, -0.28, 4.62), 0.24, 0.095),
-        ((-0.06, 0.16, 3.08), (-0.82, 1.18, 5.05), 0.21, 0.075),
-        ((0.18, 0.22, 3.15), (0.92, 1.28, 5.16), 0.21, 0.075),
-        ((-0.50, -0.02, 3.72), (-2.30, -0.64, 4.88), 0.15, 0.052),
-        ((0.52, -0.02, 3.78), (2.35, -0.56, 4.92), 0.15, 0.052),
-        ((-0.28, 0.48, 3.86), (-1.65, 1.52, 5.32), 0.14, 0.050),
-        ((0.35, 0.52, 3.92), (1.72, 1.58, 5.38), 0.14, 0.050),
-        ((-0.10, 0.34, 4.15), (-0.24, 2.05, 5.54), 0.13, 0.045),
-        ((0.20, 0.30, 4.18), (0.55, 2.03, 5.50), 0.13, 0.045),
+        ((-0.24, 0.02, 3.08), (-1.88, -0.45, 5.72), 0.28, 0.090),
+        ((0.06, -0.05, 3.26), (1.92, -0.38, 5.80), 0.28, 0.090),
+        ((-0.08, 0.18, 3.42), (-1.02, 1.46, 6.32), 0.24, 0.070),
+        ((0.20, 0.24, 3.48), (1.10, 1.58, 6.40), 0.24, 0.070),
+        ((-0.64, -0.02, 4.44), (-2.92, -0.82, 6.18), 0.18, 0.050),
+        ((0.66, -0.02, 4.48), (3.00, -0.72, 6.24), 0.18, 0.050),
+        ((-0.34, 0.60, 4.58), (-2.10, 1.92, 6.62), 0.17, 0.048),
+        ((0.42, 0.64, 4.64), (2.18, 2.02, 6.68), 0.17, 0.048),
+        ((-0.12, 0.42, 4.82), (-0.34, 2.62, 6.88), 0.16, 0.044),
+        ((0.24, 0.38, 4.88), (0.72, 2.58, 6.84), 0.16, 0.044),
+        ((-0.92, 0.18, 4.70), (-3.35, 0.72, 6.10), 0.14, 0.040),
+        ((0.96, 0.20, 4.74), (3.42, 0.82, 6.14), 0.14, 0.040),
     ]
     world_branches = []
     for index, (start, end, r1, r2) in enumerate(branch_specs):
@@ -689,35 +860,63 @@ def create_tree() -> None:
         side = -1 if index % 2 else 1
         fork_end = Vector(b) + Vector((side * 0.52, 0.32 if index % 3 else -0.28, 0.38))
         tapered_tube_between(f"Ficus fork branch {index:02}", tuple(fork_start), tuple(fork_end), r2 * 0.82, r2 * 0.34, TRUNK, vertices=14)
+        for twig in (-1, 1):
+            twig_start = Vector(b) - branch_vector * 0.08
+            twig_end = Vector(b) + Vector((side * 0.34, twig * 0.48, 0.42 + (index % 2) * 0.14))
+            tapered_tube_between(
+                f"Ficus twig {index:02}-{twig}",
+                tuple(twig_start),
+                tuple(twig_end),
+                max(r2 * 0.38, 0.018),
+                max(r2 * 0.12, 0.007),
+                TRUNK,
+                vertices=10,
+            )
 
     crown_centers = [
-        (-2.25, -0.40, 5.08), (-1.62, -0.52, 5.42), (-0.86, -0.42, 5.70),
-        (0.0, -0.38, 5.86), (0.88, -0.42, 5.72), (1.62, -0.48, 5.44), (2.28, -0.32, 5.10),
-        (-1.66, 0.58, 5.48), (-0.88, 0.86, 5.86), (0.0, 0.98, 6.05),
-        (0.90, 0.88, 5.90), (1.68, 0.62, 5.50), (-0.58, 1.58, 5.72), (0.52, 1.62, 5.76),
+        (-3.28, -0.58, 6.25), (-2.45, -0.72, 6.62), (-1.35, -0.62, 7.02),
+        (0.0, -0.56, 7.28), (1.35, -0.62, 7.04), (2.48, -0.65, 6.66), (3.32, -0.48, 6.28),
+        (-2.70, 0.62, 6.70), (-1.52, 1.02, 7.20), (0.0, 1.18, 7.58),
+        (1.55, 1.04, 7.24), (2.72, 0.68, 6.74), (-1.02, 2.18, 7.10), (1.04, 2.20, 7.12),
+        (-3.15, 1.48, 6.42), (3.18, 1.52, 6.46), (0.0, 2.78, 6.72),
     ]
     crown_centers = [(tx + x, ty + y, z) for x, y, z in crown_centers]
-    create_leaf_cards("Ficus photoreal canopy", crown_centers, count=720, spread=(0.76, 0.58, 0.52), seed=2608)
+    create_leaf_cards("Ficus photoreal canopy", crown_centers, count=1280, spread=(0.92, 0.72, 0.58), seed=2608, size_range=(0.42, 0.74))
 
     understory_centers = [
-        (tx + math.cos(angle) * 1.18, ty + math.sin(angle) * 1.10, 1.10 + (index % 3) * 0.08)
+        (tx + math.cos(angle) * 1.54, ty + math.sin(angle) * 1.42, 1.16 + (index % 3) * 0.08)
         for index, angle in enumerate(i * TAU / 14 for i in range(14))
     ]
-    create_leaf_cards("Ficus planter understory", understory_centers, count=86, spread=(0.18, 0.18, 0.15), seed=8226, size_range=(0.16, 0.32))
+    create_leaf_cards("Ficus planter understory", understory_centers, count=132, spread=(0.24, 0.22, 0.19), seed=8226, size_range=(0.15, 0.30))
 
 
 def create_landscape_details() -> None:
     """Add restrained planted islands and warm lantern rhythm."""
     bed_specs = (
-        (-3.18, 1.72, 0.84), (3.28, 1.62, 0.86),
-        (-3.12, -2.05, 0.72), (3.18, -2.12, 0.74),
-        (-2.62, -5.08, 0.78), (2.70, -5.02, 0.80),
-        (-8.02, -0.15, 0.72), (8.10, -0.02, 0.72),
+        (-3.30, 1.70, 1.12), (3.42, 1.56, 1.10),
+        (-3.15, -2.15, 0.96), (3.22, -2.18, 0.98),
+        (-8.10, -0.10, 1.06), (8.18, -0.02, 1.06),
     )
     foliage_centers = []
     for index, (x, y, radius) in enumerate(bed_specs):
-        cylinder(f"Landscape bed {index}", (x, y, 0.49), radius, 0.24, STONE, vertices=48, bevel=0.065)
-        cylinder(f"Landscape soil {index}", (x, y, 0.625), radius - 0.12, 0.055, STONE_DARK, vertices=40, bevel=0.018)
+        rng = random.Random(8200 + index)
+        point_count = 13
+        stretch_x = 1.0 + rng.uniform(-0.16, 0.22)
+        stretch_y = 1.0 + rng.uniform(-0.20, 0.18)
+        rotation = rng.uniform(-0.55, 0.55)
+        outer_outline = []
+        inner_outline = []
+        for point_index in range(point_count):
+            angle = TAU * point_index / point_count
+            wobble = 1.0 + rng.uniform(-0.18, 0.16)
+            local_x = math.cos(angle) * radius * stretch_x * wobble
+            local_y = math.sin(angle) * radius * stretch_y * wobble
+            rotated_x = local_x * math.cos(rotation) - local_y * math.sin(rotation)
+            rotated_y = local_x * math.sin(rotation) + local_y * math.cos(rotation)
+            outer_outline.append((x + rotated_x, y + rotated_y))
+            inner_outline.append((x + rotated_x * 0.78, y + rotated_y * 0.78))
+        organic_slab(f"Landscape bed {index}", outer_outline, 0.50, 0.18, STONE, bevel=0.055)
+        organic_slab(f"Landscape soil {index}", inner_outline, 0.605, 0.055, STONE_DARK, bevel=0.018)
         foliage_centers.extend(
             (
                 (x - radius * 0.30, y, 0.92),
@@ -725,7 +924,7 @@ def create_landscape_details() -> None:
                 (x, y - radius * 0.24, 0.86),
             )
         )
-    create_leaf_cards("Plaza tropical planting", foliage_centers, count=188, spread=(0.28, 0.24, 0.26), seed=3126, size_range=(0.17, 0.38))
+    create_leaf_cards("Plaza tropical planting", foliage_centers, count=252, spread=(0.42, 0.36, 0.40), seed=3126, size_range=(0.18, 0.44))
 
     lanterns = (
         (-3.55, 0.15), (3.62, 0.10), (-3.72, -4.05), (3.78, -4.02),
@@ -742,10 +941,16 @@ def create_landscape_details() -> None:
 def create_pavilions() -> None:
     # Greenhouse envelope gives real architectural depth behind the two hero
     # volumes without turning the office into a closed box.
-    cube("Atrium rear glass", (0, 10.15, 4.10), (13.75, 0.055, 3.75), GLASS, bevel=0.02)
-    for index, x in enumerate((-13.2, -10.2, -7.65, -5.1, -2.55, 0, 2.55, 5.1, 7.65, 10.2, 13.2)):
-        cube(f"Atrium rear mullion {index}", (x, 10.08, 4.05), (0.045, 0.065, 3.70), GRAPHITE, bevel=0.018)
-    cube("Atrium rear beam", (0, 10.06, 7.60), (13.78, 0.09, 0.08), GRAPHITE, bevel=0.025)
+    cube("Atrium rear glass", (0, 11.65, 5.18), (17.0, 0.055, 4.95), GLASS, bevel=0.02)
+    rear_mullions = (-16.4, -13.2, -10.0, -6.8, -3.4, 0, 3.4, 6.8, 10.0, 13.2, 16.4)
+    for index, x in enumerate(rear_mullions):
+        cube(f"Atrium rear mullion {index}", (x, 11.58, 5.10), (0.050, 0.065, 4.88), GRAPHITE, bevel=0.018)
+    cube("Atrium rear beam", (0, 11.56, 10.05), (17.1, 0.09, 0.10), GRAPHITE, bevel=0.025)
+    for side in (-1, 1):
+        x = side * 17.0
+        cube(f"Atrium side glass {side}", (x, 0.55, 5.18), (0.055, 11.0, 4.95), GLASS, bevel=0.02)
+        for index, y in enumerate((-9.8, -6.4, -3.0, 0.4, 3.8, 7.2, 10.6)):
+            cube(f"Atrium side mullion {side}-{index}", (x - side * 0.07, y, 5.10), (0.065, 0.050, 4.88), GRAPHITE, bevel=0.018)
 
     # Left signature waterfall wall.
     wx, wy = -7.72, 6.30
@@ -754,9 +959,16 @@ def create_pavilions() -> None:
     cube("Waterfall bronze header", (wx, wy - 0.12, 4.38), (1.72, 0.18, 0.13), BRASS, bevel=0.08)
     cube("Waterfall basin", (wx, wy - 0.48, 0.62), (2.06, 0.84, 0.27), STONE, bevel=0.32)
     cube("Waterfall basin water", (wx, wy - 0.68, 0.89), (1.78, 0.58, 0.055), WATER, bevel=0.22)
-    for index in range(18):
-        x = wx - 1.34 + index * (2.68 / 17)
-        cube(f"Waterfall stream {index:02}", (x, wy - 0.205, 2.58), (0.018 + (index % 3) * 0.006, 0.012, 1.62), WATER, bevel=0.008)
+    for index in range(36):
+        x = wx - 1.34 + index * (2.68 / 35)
+        z_offset = (index % 5) * 0.025
+        cube(
+            f"Waterfall stream {index:02}",
+            (x, wy - 0.205, 2.58 - z_offset),
+            (0.006 + (index % 4) * 0.004, 0.010, 1.58 - z_offset),
+            WATER,
+            bevel=0.004,
+        )
     for side in (-1, 1):
         cube(f"Waterfall ribbed pier {side}", (wx + side * 1.62, wy + 0.06, 2.48), (0.20, 0.26, 2.14), STONE, bevel=0.09)
         for rib in range(6):
@@ -767,9 +979,22 @@ def create_pavilions() -> None:
     # readable in both Cycles and WebGL.
     px, py = 6.86, 6.28
     cube("Focus pavilion plinth", (px, py, 0.62), (3.15, 1.58, 0.30), STONE, bevel=0.58)
+    for index, (step_y, step_z, step_depth) in enumerate(((4.50, 0.48, 0.34), (4.82, 0.58, 0.31), (5.10, 0.68, 0.28))):
+        cube(f"Focus pavilion step {index}", (px, step_y, step_z), (2.15 - index * 0.12, step_depth, 0.09), STONE, bevel=0.11)
     cube("Focus pavilion oak back", (px, py + 1.25, 2.62), (2.78, 0.16, 1.82), OAK_DARK, bevel=0.30)
     cube("Focus pavilion glass left", (px - 2.86, py, 2.65), (0.04, 1.12, 1.84), GLASS, bevel=0.18)
     cube("Focus pavilion glass right", (px + 2.86, py, 2.65), (0.04, 1.12, 1.84), GLASS, bevel=0.18)
+    for index in range(-4, 5):
+        glass_x = px + index * 0.64
+        glass_y = py - 1.30 + (index * index) * 0.020
+        cube(
+            f"Focus curved front glass {index}",
+            (glass_x, glass_y, 2.66),
+            (0.31, 0.018, 1.78),
+            GLASS,
+            rotation=(0, 0, math.radians(index * -2.2)),
+            bevel=0.055,
+        )
     cube("Focus pavilion bronze roof", (px, py + 0.02, 4.58), (3.08, 1.48, 0.16), BRASS, bevel=0.46)
     cube("Focus pavilion timber ceiling", (px, py + 0.02, 4.38), (2.86, 1.28, 0.08), OAK, bevel=0.32)
     for side in (-1, 1):
@@ -801,6 +1026,11 @@ def create_pavilions() -> None:
     for index, center in enumerate(border_centers):
         cylinder(f"Pavilion planter {index}", (center[0], center[1], 0.62), 0.58, 0.45, STONE, vertices=36, bevel=0.08)
     create_leaf_cards("Pavilion border foliage", border_centers, count=44, spread=(0.34, 0.28, 0.34), seed=9042, size_range=(0.22, 0.42))
+    exterior_centers = [
+        (-14.5, 12.25, 5.4), (-10.0, 12.45, 6.0), (-5.2, 12.25, 5.6),
+        (0.0, 12.50, 6.2), (5.2, 12.30, 5.7), (10.0, 12.45, 6.1), (14.6, 12.25, 5.5),
+    ]
+    create_leaf_cards("Exterior garden canopy", exterior_centers, count=430, spread=(1.75, 0.42, 2.25), seed=4128, size_range=(0.52, 0.92))
 
 
 def create_lighting_and_camera() -> None:
@@ -808,21 +1038,21 @@ def create_lighting_and_camera() -> None:
     bpy.context.scene.world = world
     world.use_nodes = True
     background = world.node_tree.nodes.get("Background")
-    background.inputs["Color"].default_value = (0.16, 0.22, 0.19, 1)
-    background.inputs["Strength"].default_value = 0.52
+    background.inputs["Color"].default_value = (0.30, 0.38, 0.31, 1)
+    background.inputs["Strength"].default_value = 0.56
 
     bpy.ops.object.light_add(type="SUN", location=(-5.0, -8.0, 15.0))
     sun = bpy.context.object
     sun.name = "Late morning atrium sun"
-    sun.data.energy = 2.15
-    sun.data.angle = math.radians(5.2)
+    sun.data.energy = 3.05
+    sun.data.angle = math.radians(2.2)
     sun.data.color = (1.0, 0.78, 0.52)
     sun.rotation_euler = (math.radians(24), math.radians(-18), math.radians(-34))
 
     bpy.ops.object.light_add(type="AREA", location=(-7.5, -8.0, 14.5))
     key = bpy.context.object
     key.name = "Warm atrium key light"
-    key.data.energy = 2350
+    key.data.energy = 820
     key.data.shape = "DISK"
     key.data.size = 7.0
     key.data.color = (1.0, 0.83, 0.64)
@@ -831,7 +1061,7 @@ def create_lighting_and_camera() -> None:
     bpy.ops.object.light_add(type="AREA", location=(7.5, -2.0, 9.0))
     fill = bpy.context.object
     fill.name = "Cool glass fill"
-    fill.data.energy = 1150
+    fill.data.energy = 460
     fill.data.size = 8.0
     fill.data.color = (0.48, 0.70, 0.66)
     fill.rotation_euler = (math.radians(40), 0, math.radians(145))
@@ -839,7 +1069,7 @@ def create_lighting_and_camera() -> None:
     bpy.ops.object.light_add(type="AREA", location=(0, 8.0, 10.0))
     rim = bpy.context.object
     rim.name = "Pavilion rim light"
-    rim.data.energy = 760
+    rim.data.energy = 420
     rim.data.size = 6.0
     rim.data.color = (1.0, 0.78, 0.48)
     rim.rotation_euler = (math.radians(8), 0, math.radians(180))
@@ -847,11 +1077,11 @@ def create_lighting_and_camera() -> None:
     bpy.ops.object.light_add(type="AREA", location=(6.86, 5.72, 3.55))
     pavilion_light = bpy.context.object
     pavilion_light.name = "Focus pavilion practical light"
-    pavilion_light.data.energy = 520
+    pavilion_light.data.energy = 300
     pavilion_light.data.shape = "RECTANGLE"
     pavilion_light.data.size = 4.2
     pavilion_light.data.size_y = 1.8
-    pavilion_light.data.color = (1.0, 0.61, 0.32)
+    pavilion_light.data.color = (1.0, 0.78, 0.52)
     pavilion_light.rotation_euler = (math.radians(18), 0, math.radians(180))
 
     bpy.ops.object.light_add(type="AREA", location=(-7.72, 5.75, 3.55))
@@ -862,15 +1092,15 @@ def create_lighting_and_camera() -> None:
     waterfall_light.data.color = (0.30, 0.78, 0.82)
     waterfall_light.rotation_euler = (math.radians(28), 0, math.radians(180))
 
-    bpy.ops.object.camera_add(location=(18.4, -25.8, 20.7))
+    bpy.ops.object.camera_add(location=(16.25, -25.4, 15.6))
     camera = bpy.context.object
     camera.name = "CrewLab overview camera"
-    camera.data.lens = 52
+    camera.data.lens = 50
     camera.data.sensor_width = 36
     camera.data.dof.use_dof = True
-    camera.data.dof.focus_distance = 27.0
-    camera.data.dof.aperture_fstop = 10.0
-    target = Vector((0, 0.70, 1.32))
+    camera.data.dof.focus_distance = 28.0
+    camera.data.dof.aperture_fstop = 14.0
+    target = Vector((0, 1.20, 2.34))
     camera.rotation_euler = (target - camera.location).to_track_quat("-Z", "Y").to_euler()
     bpy.context.scene.camera = camera
 
@@ -882,11 +1112,12 @@ def configure_render() -> None:
     # headless/remote GPUs even though the exported GLB works in WebGL.
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
-    scene.cycles.samples = 32
+    draft = os.environ.get("CREWLAB_RENDER_DRAFT", "0") == "1"
+    scene.cycles.samples = 8 if draft else 32
     scene.cycles.use_denoising = True
-    scene.cycles.preview_samples = 16
-    scene.render.resolution_x = 1600
-    scene.render.resolution_y = 900
+    scene.cycles.preview_samples = 6 if draft else 16
+    scene.render.resolution_x = 1280 if draft else 1600
+    scene.render.resolution_y = 720 if draft else 900
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
     scene.render.filepath = str(PREVIEW_PATH)
@@ -911,16 +1142,19 @@ def render_comparison_views() -> None:
     scene = bpy.context.scene
     camera = scene.camera
     views = (
-        ("workstation", (4.9, -8.1, 4.9), (0.0, -0.82, 1.42)),
-        ("tree-water", (-7.0, -5.2, 6.4), (0.0, 2.35, 3.20)),
-        ("pavilion", (11.9, -1.8, 6.5), (6.55, 6.18, 2.28)),
+        ("workstation", (4.6, -8.4, 3.15), (0.0, -0.70, 1.12)),
+        ("agent", (2.8, -4.7, 2.35), (0.0, -0.15, 1.15)),
+        ("ficus", (-7.8, -3.8, 5.2), (0.0, 2.80, 3.80)),
+        ("waterfall", (-13.6, -0.6, 4.1), (-7.72, 6.25, 2.45)),
+        ("pavilion", (12.8, -0.8, 4.8), (6.86, 6.20, 2.25)),
+        ("hardscape", (0.0, -15.8, 14.2), (0.0, 0.5, 0.4)),
     )
-    scene.cycles.samples = 18
-    scene.render.resolution_x = 1200
-    scene.render.resolution_y = 800
+    scene.cycles.samples = 8
+    scene.render.resolution_x = 1000
+    scene.render.resolution_y = 667
     for name, location, target in views:
         point_camera(camera, location, target)
-        scene.render.filepath = str(OUTPUT_DIR / f"garden-office-v3-{name}.png")
+        scene.render.filepath = str(OUTPUT_DIR / f"garden-office-v4-{name}.png")
         bpy.ops.render.render(write_still=True)
 
 
@@ -961,38 +1195,9 @@ def prepare_runtime_meshes() -> None:
             active.name += "_Screen"
 
 
-def build_scene() -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    clear_scene()
-    make_materials()
-    create_water_and_plaza()
-
-    station_specs = [
-        ("A01", 0.0, -0.85, (0.07, 0.14, 0.28, 1), 3, 1.05, 180),
-        ("B02", -5.45, 3.65, (0.05, 0.29, 0.17, 1), 2, 0.91, 56),
-        ("B03", 5.45, 3.65, (0.06, 0.30, 0.40, 1), 2, 0.91, -56),
-        ("D01", -5.65, -2.75, (0.56, 0.21, 0.035, 1), 3, 0.94, 124),
-        ("D02", 0.0, -5.15, (0.30, 0.10, 0.44, 1), 3, 0.96, 180),
-        ("E01", 5.65, -2.75, (0.28, 0.10, 0.40, 1), 2, 0.94, -124),
-    ]
-    for spec in station_specs:
-        create_station(*spec)
-
-    create_tree()
-    create_landscape_details()
-    create_pavilions()
-    create_lighting_and_camera()
-    configure_render()
-
-    bpy.ops.wm.save_as_mainfile(filepath=str(BLEND_PATH))
-    if os.environ.get("CREWLAB_SKIP_RENDER", "0") != "1":
-        bpy.ops.render.render(write_still=True)
-        if os.environ.get("CREWLAB_RENDER_DETAILS", "1") != "0":
-            render_comparison_views()
+def export_runtime_glb() -> None:
+    """Batch and export the approved scene without persisting runtime joins."""
     prepare_runtime_meshes()
-
-    # Lights and camera are authored for the validation render; React Three
-    # Fiber supplies its own responsive camera and performant runtime lighting.
     export_objects = [obj for obj in bpy.context.scene.objects if obj.type not in {"LIGHT", "CAMERA"}]
     bpy.ops.object.select_all(action="DESELECT")
     for obj in export_objects:
@@ -1010,10 +1215,68 @@ def build_scene() -> None:
         export_extras=True,
         export_animations=False,
     )
+
+
+def finalize_existing_scene() -> None:
+    """Render fixed QA views and export an already-approved authored blend."""
+    if not BLEND_PATH.exists():
+        raise FileNotFoundError(f"Missing approved Blender scene: {BLEND_PATH}")
+    bpy.ops.wm.open_mainfile(filepath=str(BLEND_PATH))
+    scene = bpy.context.scene
+    scene.cycles.samples = 24
+    scene.render.resolution_x = 1600
+    scene.render.resolution_y = 900
+    scene.render.filepath = str(PREVIEW_PATH)
+    bpy.ops.render.render(write_still=True)
+    render_comparison_views()
+    export_runtime_glb()
+    print(f"CREWLAB_BLEND={BLEND_PATH}")
+    print(f"CREWLAB_GLB={GLB_PATH}")
+    print(f"CREWLAB_PREVIEW={PREVIEW_PATH}")
+
+
+def build_scene() -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    clear_scene()
+    make_materials()
+    create_water_and_plaza()
+
+    station_specs = [
+        ("A01", 0.0, -0.70, (0.07, 0.14, 0.28, 1), 3, 1.02, 180),
+        ("B02", -5.90, 3.55, (0.05, 0.29, 0.17, 1), 2, 0.94, 58),
+        ("B03", 5.90, 3.55, (0.06, 0.30, 0.40, 1), 2, 0.94, -58),
+        ("D01", -5.90, -3.25, (0.34, 0.16, 0.05, 1), 3, 0.96, 124),
+        ("D02", 0.0, -5.95, (0.22, 0.10, 0.32, 1), 3, 0.98, 180),
+        ("E01", 5.90, -3.25, (0.08, 0.25, 0.28, 1), 2, 0.96, -124),
+    ]
+    for spec in station_specs:
+        create_station(*spec)
+
+    create_tree()
+    create_landscape_details()
+    create_pavilions()
+    create_lighting_and_camera()
+    configure_render()
+
+    bpy.ops.wm.save_as_mainfile(filepath=str(BLEND_PATH))
+    if os.environ.get("CREWLAB_SKIP_RENDER", "0") != "1":
+        bpy.ops.render.render(write_still=True)
+        if os.environ.get("CREWLAB_RENDER_DETAILS", "1") != "0":
+            render_comparison_views()
+    if os.environ.get("CREWLAB_SKIP_EXPORT", "0") == "1":
+        print(f"CREWLAB_BLEND={BLEND_PATH}")
+        print(f"CREWLAB_PREVIEW={PREVIEW_PATH}")
+        return
+    # Lights and camera are authored for the validation render; React Three
+    # Fiber supplies its own responsive camera and performant runtime lighting.
+    export_runtime_glb()
     print(f"CREWLAB_BLEND={BLEND_PATH}")
     print(f"CREWLAB_GLB={GLB_PATH}")
     print(f"CREWLAB_PREVIEW={PREVIEW_PATH}")
 
 
 if __name__ == "__main__":
-    build_scene()
+    if os.environ.get("CREWLAB_FINALIZE_EXISTING", "0") == "1":
+        finalize_existing_scene()
+    else:
+        build_scene()

@@ -11,8 +11,9 @@ import { useOfficeStore } from '../state/office-store';
 import type { AgentCode } from '../types/office';
 
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
-const HOME_POSITION = new THREE.Vector3(10.8, 11.2, 15.0);
-const HOME_TARGET = new THREE.Vector3(0, 1.45, -0.6);
+// Mirrors the approved Blender 50 mm overview after glTF's Z-up to Y-up axis conversion.
+const HOME_POSITION = new THREE.Vector3(16.25, 15.6, 25.4);
+const HOME_TARGET = new THREE.Vector3(0, 2.34, -1.2);
 
 interface OrbitControlsHandle {
   target?: THREE.Vector3;
@@ -100,7 +101,7 @@ export function OfficeCanvas() {
           enablePan={false}
           enableZoom
           minDistance={6.8}
-          maxDistance={34}
+          maxDistance={38}
           minPolarAngle={Math.PI / 5.4}
           maxPolarAngle={Math.PI / 2.12}
           minAzimuthAngle={-Math.PI / 3.2}
