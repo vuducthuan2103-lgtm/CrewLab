@@ -11,9 +11,10 @@ import { useOfficeStore } from '../state/office-store';
 import type { AgentCode } from '../types/office';
 
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
-// Mirrors the approved Blender 50 mm overview after glTF's Z-up to Y-up axis conversion.
-const HOME_POSITION = new THREE.Vector3(16.25, 15.6, 25.4);
-const HOME_TARGET = new THREE.Vector3(0, 2.34, -1.2);
+// Mirrors the approved v5 Blender 52 mm hero camera after glTF's Z-up to Y-up
+// axis conversion: Blender (x, y, z) becomes Three.js (x, z, -y).
+const HOME_POSITION = new THREE.Vector3(13.8, 13.2, 21.8);
+const HOME_TARGET = new THREE.Vector3(0, 2.42, -1.15);
 
 interface OrbitControlsHandle {
   target?: THREE.Vector3;
