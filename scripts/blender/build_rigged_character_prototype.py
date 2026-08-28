@@ -73,12 +73,15 @@ def apply_manual_office_pose(rig: bpy.types.Object) -> None:
     aim_bone("thigh_r", (-0.17, -0.33, -0.03))
     aim_bone("calf_r", (-0.18, -0.31, -0.45))
     aim_bone("foot_r", (-0.18, -0.48, -0.47))
-    aim_bone("upperarm_l", (0.34, -0.20, 0.31))
-    aim_bone("lowerarm_l", (0.24, -0.46, 0.23))
-    aim_bone("hand_l", (0.22, -0.53, 0.20))
-    aim_bone("upperarm_r", (-0.34, -0.18, 0.32))
-    aim_bone("lowerarm_r", (-0.24, -0.45, 0.23))
-    aim_bone("hand_r", (-0.22, -0.52, 0.20))
+    # Keep elbows tucked and wrists over the keyboard footprint. Wider elbow
+    # targets looked acceptable in a turntable but became visibly stretched
+    # once the web character was scaled up beside the real desk.
+    aim_bone("upperarm_l", (0.25, -0.17, 0.34))
+    aim_bone("lowerarm_l", (0.15, -0.38, 0.25))
+    aim_bone("hand_l", (0.12, -0.43, 0.23))
+    aim_bone("upperarm_r", (-0.25, -0.17, 0.34))
+    aim_bone("lowerarm_r", (-0.15, -0.38, 0.25))
+    aim_bone("hand_r", (-0.12, -0.43, 0.23))
     for bone_name, rotation in {
         "spine_02": (math.radians(5), 0, 0),
         "spine_03": (math.radians(-4), 0, 0),

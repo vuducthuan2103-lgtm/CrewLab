@@ -10,7 +10,8 @@ import { useOfficeStore } from '../state/office-store';
 import type { AgentCode, OfficeAgent } from '../types/office';
 import { RiggedAgentCharacter } from './RiggedAgentCharacter';
 
-const MODEL_URL = '/virtual-office/garden-office-v6.glb?v=20260828-v6';
+const MODEL_URL = '/virtual-office/garden-office-v7.glb?v=20260828-v7';
+const CHARACTER_SCALE = 1.36;
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
 const LABEL_OFFSETS: Record<AgentCode, [number, number, number]> = {
   A01: [0, 3.35, -0.25],
@@ -33,32 +34,75 @@ function BakedGardenOffice() {
   const gltf = useGLTF(MODEL_URL);
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const screenMaterials = useMemo<THREE.MeshStandardMaterial[]>(() => [], []);
+  const waterMaterials = useMemo<THREE.MeshStandardMaterial[]>(() => [], []);
+  const ownedMaterials = useMemo<THREE.MeshStandardMaterial[]>(() => [], []);
 
   useEffect(() => {
     screenMaterials.length = 0;
+    waterMaterials.length = 0;
+    ownedMaterials.length = 0;
     model.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       object.castShadow = !object.name.toLowerCase().includes('water');
       object.receiveShadow = true;
 
-      if (object.name.includes('Screen') && object.material instanceof THREE.MeshStandardMaterial) {
-        object.material = object.material.clone();
-        object.material.emissive = new THREE.Color('#0c8f88');
-        object.material.emissiveIntensity = 0.58;
+      if (!(object.material instanceof THREE.MeshStandardMaterial)) return;
+      object.material = object.material.clone();
+      ownedMaterials.push(object.material);
+      const materialName = object.material.name.toLowerCase();
+
+      object.material.envMapIntensity = 1.25;
+      if (materialName.includes('limestone warm')) {
+        object.material.color.multiplyScalar(0.76);
+        object.material.roughness = 0.56;
+      } else if (materialName.includes('ivory fluted')) {
+        object.material.color.multiply(new THREE.Color('#d4b77e'));
+        object.material.roughness = 0.54;
+      } else if (materialName.includes('quarter sawn oak')) {
+        object.material.color.multiply(new THREE.Color('#d59a5d'));
+        object.material.roughness = 0.38;
+      } else if (materialName.includes('ficus bark')) {
+        object.material.color.multiply(new THREE.Color('#a9855e'));
+      } else if (materialName.includes('garden leaf') || materialName.includes('cluster atlas')) {
+        object.material.color.multiply(new THREE.Color('#91bd62'));
+      } else if (materialName.includes('architectural glass')) {
+        object.material.transparent = true;
+        object.material.opacity = 0.16;
+        object.material.depthWrite = false;
+      } else if (materialName.includes('water')) {
+        object.material.transparent = true;
+        object.material.opacity = 0.82;
+        object.material.depthWrite = false;
+        object.material.roughness = 0.055;
+        object.material.emissive = new THREE.Color('#063f39');
+        object.material.emissiveIntensity = 0.16;
+        waterMaterials.push(object.material);
+      }
+
+      if (object.name.includes('Screen')) {
+        object.material.emissive = new THREE.Color('#0aa89d');
+        object.material.emissiveIntensity = 0.72;
         screenMaterials.push(object.material);
       }
+      object.material.needsUpdate = true;
     });
 
     return () => {
-      screenMaterials.forEach((item) => item.dispose());
+      ownedMaterials.forEach((item) => item.dispose());
       screenMaterials.length = 0;
+      waterMaterials.length = 0;
+      ownedMaterials.length = 0;
     };
-  }, [model, screenMaterials]);
+  }, [model, ownedMaterials, screenMaterials, waterMaterials]);
 
   useFrame(({ clock }) => {
-    const pulse = 0.58 + Math.sin(clock.elapsedTime * 1.35) * 0.045;
+    const pulse = 0.72 + Math.sin(clock.elapsedTime * 1.35) * 0.055;
     screenMaterials.forEach((item) => {
       item.emissiveIntensity = pulse;
+    });
+    const shimmer = 0.14 + Math.sin(clock.elapsedTime * 0.72) * 0.035;
+    waterMaterials.forEach((item) => {
+      item.emissiveIntensity = shimmer;
     });
   });
 
@@ -92,7 +136,7 @@ function AgentHotspot({ agent }: { agent: OfficeAgent }) {
 
   return (
     <group position={layout.position}>
-      <group position={[0, -0.015, 0]} rotation={[0, CHARACTER_ROTATIONS[agent.code], 0]}>
+      <group position={[0, -0.22, 0]} rotation={[0, CHARACTER_ROTATIONS[agent.code], 0]} scale={CHARACTER_SCALE}>
         <group position={[0, 0, -0.57]}>
           <RiggedAgentCharacter code={agent.code} visualState={agent.visualState} />
         </group>

@@ -87,8 +87,8 @@ def main() -> int:
         "Idle",
         [
             (1, {}),
-            (36, {"spine_03": ("X", math.radians(1.4)), "head": ("Z", math.radians(1.0))}),
-            (72, {}),
+            (42, {"spine_03": ("X", math.radians(0.65)), "head": ("Z", math.radians(0.35))}),
+            (84, {}),
         ],
         base_rotations,
     )
@@ -96,11 +96,11 @@ def main() -> int:
         rig,
         "Typing",
         [
-            (1, {"lowerarm_l": ("X", math.radians(5)), "lowerarm_r": ("X", math.radians(-5))}),
-            (12, {"hand_l": ("Z", math.radians(6)), "hand_r": ("Z", math.radians(-3)), "head": ("X", math.radians(3))}),
-            (24, {"hand_l": ("Z", math.radians(-3)), "hand_r": ("Z", math.radians(6)), "head": ("X", math.radians(2))}),
-            (36, {"hand_l": ("Z", math.radians(5)), "hand_r": ("Z", math.radians(-4)), "head": ("X", math.radians(3))}),
-            (48, {"lowerarm_l": ("X", math.radians(5)), "lowerarm_r": ("X", math.radians(-5))}),
+            (1, {"lowerarm_l": ("X", math.radians(1.4)), "lowerarm_r": ("X", math.radians(-1.4))}),
+            (12, {"hand_l": ("Z", math.radians(3.2)), "hand_r": ("Z", math.radians(-1.6)), "head": ("X", math.radians(1.0))}),
+            (24, {"hand_l": ("Z", math.radians(-1.6)), "hand_r": ("Z", math.radians(3.2)), "spine_02": ("X", math.radians(0.55))}),
+            (36, {"hand_l": ("Z", math.radians(2.8)), "hand_r": ("Z", math.radians(-2.0)), "head": ("X", math.radians(0.8))}),
+            (48, {"lowerarm_l": ("X", math.radians(1.4)), "lowerarm_r": ("X", math.radians(-1.4))}),
         ],
         base_rotations,
     )
@@ -108,9 +108,9 @@ def main() -> int:
         rig,
         "Reviewing",
         [
-            (1, {"spine_02": ("X", math.radians(2)), "head": ("Z", math.radians(-5))}),
-            (32, {"spine_02": ("X", math.radians(3)), "head": ("Z", math.radians(5))}),
-            (64, {"spine_02": ("X", math.radians(2)), "head": ("Z", math.radians(-5))}),
+            (1, {"spine_02": ("X", math.radians(0.8)), "head": ("Z", math.radians(-3.2))}),
+            (36, {"spine_02": ("X", math.radians(1.2)), "head": ("Z", math.radians(3.2))}),
+            (72, {"spine_02": ("X", math.radians(0.8)), "head": ("Z", math.radians(-3.2))}),
         ],
         base_rotations,
     )
@@ -119,8 +119,8 @@ def main() -> int:
         "Success",
         [
             (1, {}),
-            (18, {"upperarm_l": ("Z", math.radians(-14)), "upperarm_r": ("Z", math.radians(14)), "head": ("X", math.radians(-5))}),
-            (38, {"upperarm_l": ("Z", math.radians(-10)), "upperarm_r": ("Z", math.radians(10)), "head": ("Z", math.radians(3))}),
+            (18, {"hand_l": ("Z", math.radians(-4.5)), "hand_r": ("Z", math.radians(4.5)), "head": ("X", math.radians(-2.4)), "spine_03": ("X", math.radians(-1.2))}),
+            (40, {"hand_l": ("Z", math.radians(2.2)), "hand_r": ("Z", math.radians(-2.2)), "head": ("Z", math.radians(1.8))}),
             (60, {}),
         ],
         base_rotations,

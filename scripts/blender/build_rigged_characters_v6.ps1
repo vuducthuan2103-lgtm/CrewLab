@@ -13,6 +13,7 @@ $animator = Join-Path $PSScriptRoot 'add_character_animation_clips.py'
 $dataRoot = Join-Path $Toolchain 'mpfb-user\data'
 $sourceRoot = Join-Path $Toolchain 'output\crewlab-v6-sources'
 $publicRoot = Join-Path $repoRoot 'portal\public\virtual-office\characters'
+$officePose = Join-Path $dataRoot 'poses\callharvey3d_sittingdefault\callharvey3d_sittingdefault.bvh'
 
 New-Item -ItemType Directory -Force -Path $sourceRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $publicRoot | Out-Null
@@ -44,7 +45,7 @@ foreach ($character in $characters) {
         --weight $character.Weight `
         --height $character.Height `
         --proportions $character.Proportions `
-        --manual-office-pose `
+        --pose $officePose `
         --no-render
     if ($LASTEXITCODE -ne 0) { throw "Static character build failed: $code" }
 

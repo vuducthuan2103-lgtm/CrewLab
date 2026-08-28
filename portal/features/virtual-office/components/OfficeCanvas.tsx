@@ -13,8 +13,8 @@ import type { AgentCode } from '../types/office';
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
 // Mirrors the approved v5 Blender 52 mm hero camera after glTF's Z-up to Y-up
 // axis conversion: Blender (x, y, z) becomes Three.js (x, z, -y).
-const HOME_POSITION = new THREE.Vector3(13.8, 13.2, 21.8);
-const HOME_TARGET = new THREE.Vector3(0, 2.42, -1.15);
+const HOME_POSITION = new THREE.Vector3(11.2, 10.8, 18.2);
+const HOME_TARGET = new THREE.Vector3(0, 2.08, -0.35);
 
 interface OrbitControlsHandle {
   target?: THREE.Vector3;
@@ -31,8 +31,8 @@ function GuidedCamera() {
   useEffect(() => {
     if (selectedAgentCode) {
       const [x, , z] = GARDEN_STATION_LAYOUT[selectedAgentCode].position;
-      destination.current.set(x + 4.7, 5.5, z + 6.4);
-      lookAt.current.set(x, 1.35, z);
+      destination.current.set(x + 3.65, 4.65, z + 5.05);
+      lookAt.current.set(x, 1.48, z);
     } else {
       const narrowScreenOffset = size.width / Math.max(size.height, 1) < 1.25 ? 3.2 : 0;
       destination.current.set(HOME_POSITION.x, HOME_POSITION.y + narrowScreenOffset * 0.4, HOME_POSITION.z + narrowScreenOffset);
@@ -79,8 +79,8 @@ export function OfficeCanvas() {
     <div className="absolute inset-0 overflow-hidden bg-[#193c3b]">
       <Canvas
         shadows
-        camera={{ position: [HOME_POSITION.x, HOME_POSITION.y, HOME_POSITION.z], fov: 39, near: 0.1, far: 90 }}
-        dpr={[1, 1.5]}
+        camera={{ position: [HOME_POSITION.x, HOME_POSITION.y, HOME_POSITION.z], fov: 38, near: 0.1, far: 90 }}
+        dpr={[1.25, 2]}
         fallback={<WebGLFallback />}
         gl={{
           antialias: true,
@@ -90,7 +90,7 @@ export function OfficeCanvas() {
           outputColorSpace: THREE.SRGBColorSpace,
         }}
         onCreated={({ gl }) => {
-          gl.toneMappingExposure = 1.03;
+          gl.toneMappingExposure = 0.94;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
         }}
       >
@@ -101,8 +101,8 @@ export function OfficeCanvas() {
           dampingFactor={0.075}
           enablePan={false}
           enableZoom
-          minDistance={6.8}
-          maxDistance={38}
+          minDistance={5.8}
+          maxDistance={31}
           minPolarAngle={Math.PI / 5.4}
           maxPolarAngle={Math.PI / 2.12}
           minAzimuthAngle={-Math.PI / 3.2}

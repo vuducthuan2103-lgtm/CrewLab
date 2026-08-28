@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { AgentCode, AgentVisualState } from '../types/office';
 
-const CHARACTER_VERSION = '20260828-v6';
+const CHARACTER_VERSION = '20260828-v7h';
 const LOCAL_DRACO_DECODER = '/draco/';
 
 const CLIP_BY_STATE: Record<AgentVisualState, string> = {
