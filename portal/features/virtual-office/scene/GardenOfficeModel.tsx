@@ -5,7 +5,7 @@ import { Html, useGLTF } from '@react-three/drei';
 import { ThreeEvent, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { getStatePresentation } from '../config/agent-state-map';
-import { GARDEN_STATION_LAYOUT } from '../config/office-layout';
+import { GARDEN_CHARACTER_SEAT_TRANSFORMS, GARDEN_STATION_LAYOUT } from '../config/office-layout';
 import { useOfficeStore } from '../state/office-store';
 import type { AgentCode, OfficeAgent } from '../types/office';
 import { RiggedAgentCharacter } from './RiggedAgentCharacter';
@@ -25,15 +25,6 @@ const LABEL_OFFSETS: Record<AgentCode, [number, number, number]> = {
   D02: [-0.78, 3.0, -0.15],
   E01: [0.78, 3.0, -0.15],
 };
-const CHARACTER_ROTATIONS: Record<AgentCode, number> = {
-  A01: -Math.PI,
-  B02: THREE.MathUtils.degToRad(-58),
-  B03: THREE.MathUtils.degToRad(58),
-  D01: THREE.MathUtils.degToRad(-124),
-  D02: -Math.PI,
-  E01: THREE.MathUtils.degToRad(124),
-};
-
 function BakedGardenOffice() {
   const gltf = useGLTF(MODEL_URL);
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
@@ -122,6 +113,7 @@ function AgentHotspot({ agent }: { agent: OfficeAgent }) {
   const setHoveredAgent = useOfficeStore((state) => state.setHoveredAgent);
   const presentation = getStatePresentation(agent.visualState);
   const layout = GARDEN_STATION_LAYOUT[agent.code];
+  const seat = GARDEN_CHARACTER_SEAT_TRANSFORMS[agent.code];
   const radius = agent.code === 'A01' ? 1.78 : 1.48;
 
   const enter = (event: ThreeEvent<PointerEvent>) => {
@@ -140,10 +132,12 @@ function AgentHotspot({ agent }: { agent: OfficeAgent }) {
 
   return (
     <group position={layout.position}>
-      <group position={[0, CHARACTER_SEAT_ANCHOR_Y, 0]} rotation={[0, CHARACTER_ROTATIONS[agent.code], 0]} scale={CHARACTER_SCALE}>
-        <group position={[0, 0, -0.57]}>
-          <RiggedAgentCharacter code={agent.code} visualState={agent.visualState} />
-        </group>
+      <group
+        position={[seat.seatOffset[0], CHARACTER_SEAT_ANCHOR_Y, seat.seatOffset[1]]}
+        rotation={[0, seat.rotationY, 0]}
+        scale={CHARACTER_SCALE}
+      >
+        <RiggedAgentCharacter code={agent.code} visualState={agent.visualState} />
       </group>
 
       <mesh
