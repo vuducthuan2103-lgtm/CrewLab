@@ -8,8 +8,9 @@ import { getStatePresentation } from '../config/agent-state-map';
 import { GARDEN_STATION_LAYOUT } from '../config/office-layout';
 import { useOfficeStore } from '../state/office-store';
 import type { AgentCode, OfficeAgent } from '../types/office';
+import { RiggedAgentCharacter } from './RiggedAgentCharacter';
 
-const MODEL_URL = '/virtual-office/garden-office-v5.glb?v=20260828';
+const MODEL_URL = '/virtual-office/garden-office-v6.glb?v=20260828-v6';
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
 const LABEL_OFFSETS: Record<AgentCode, [number, number, number]> = {
   A01: [0, 3.35, -0.25],
@@ -18,6 +19,14 @@ const LABEL_OFFSETS: Record<AgentCode, [number, number, number]> = {
   D01: [-0.65, 3.0, 0],
   D02: [-0.78, 3.0, -0.15],
   E01: [0.78, 3.0, -0.15],
+};
+const CHARACTER_ROTATIONS: Record<AgentCode, number> = {
+  A01: -Math.PI,
+  B02: THREE.MathUtils.degToRad(-58),
+  B03: THREE.MathUtils.degToRad(58),
+  D01: THREE.MathUtils.degToRad(-124),
+  D02: -Math.PI,
+  E01: THREE.MathUtils.degToRad(124),
 };
 
 function BakedGardenOffice() {
@@ -58,7 +67,9 @@ function BakedGardenOffice() {
 
 function AgentHotspot({ agent }: { agent: OfficeAgent }) {
   const [hovered, setHovered] = useState(false);
-  const selected = useOfficeStore((state) => state.selectedAgentCode === agent.code);
+  const selectedAgentCode = useOfficeStore((state) => state.selectedAgentCode);
+  const selected = selectedAgentCode === agent.code;
+  const focusMuted = selectedAgentCode !== null && !selected;
   const selectAgent = useOfficeStore((state) => state.selectAgent);
   const setHoveredAgent = useOfficeStore((state) => state.setHoveredAgent);
   const presentation = getStatePresentation(agent.visualState);
@@ -81,6 +92,12 @@ function AgentHotspot({ agent }: { agent: OfficeAgent }) {
 
   return (
     <group position={layout.position}>
+      <group position={[0, -0.015, 0]} rotation={[0, CHARACTER_ROTATIONS[agent.code], 0]}>
+        <group position={[0, 0, -0.57]}>
+          <RiggedAgentCharacter code={agent.code} visualState={agent.visualState} />
+        </group>
+      </group>
+
       <mesh
         visible={false}
         position={[0, 1.35, 0]}
@@ -119,7 +136,7 @@ function AgentHotspot({ agent }: { agent: OfficeAgent }) {
             setHovered(false);
             setHoveredAgent(null);
           }}
-          className={`group min-w-[124px] rounded-sm border px-2.5 py-1.5 text-left text-white shadow-[0_12px_30px_rgba(0,0,0,0.42)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 ${selected ? 'border-[#D4FF00]/90 bg-[#07100d]/98' : 'border-white/20 bg-[#09120f]/95 hover:border-white/45'}`}
+          className={`group min-w-[124px] rounded-sm border px-2.5 py-1.5 text-left text-white shadow-[0_12px_30px_rgba(0,0,0,0.42)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 ${focusMuted ? 'pointer-events-none opacity-0' : 'opacity-100'} ${selected ? 'border-[#D4FF00]/90 bg-[#07100d]/98' : 'border-white/20 bg-[#09120f]/95 hover:border-white/45'}`}
         >
           <span className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full shadow-[0_0_10px_currentColor]" style={{ color: presentation.dotColor, backgroundColor: presentation.dotColor }} />
