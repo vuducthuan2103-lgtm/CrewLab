@@ -76,11 +76,11 @@ export function OfficeCanvas() {
   const setHoveredAgent = useOfficeStore((state) => state.setHoveredAgent);
 
   return (
-    <div className="absolute inset-0 overflow-hidden bg-[#193c3b]">
+    <div className="absolute inset-0 overflow-hidden bg-[#c9e2df]">
       <Canvas
         shadows
         camera={{ position: [HOME_POSITION.x, HOME_POSITION.y, HOME_POSITION.z], fov: 38, near: 0.1, far: 90 }}
-        dpr={[1.25, 2]}
+        dpr={[1.1, 1.7]}
         fallback={<WebGLFallback />}
         gl={{
           antialias: true,
@@ -90,7 +90,7 @@ export function OfficeCanvas() {
           outputColorSpace: THREE.SRGBColorSpace,
         }}
         onCreated={({ gl }) => {
-          gl.toneMappingExposure = 0.94;
+          gl.toneMappingExposure = 1.08;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
         }}
       >
@@ -114,8 +114,8 @@ export function OfficeCanvas() {
         </Suspense>
       </Canvas>
 
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_52%_36%,transparent_0%,transparent_47%,rgba(7,18,15,0.22)_100%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#07110e]/45 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_52%_36%,transparent_0%,transparent_60%,rgba(35,72,65,0.1)_100%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#173b34]/15 to-transparent" />
 
       <div className="sr-only" aria-label="Chọn agent trong văn phòng 3D">
         {AGENT_ORDER.map((code) => {

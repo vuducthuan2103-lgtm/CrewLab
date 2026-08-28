@@ -11,7 +11,11 @@ import type { AgentCode, OfficeAgent } from '../types/office';
 import { RiggedAgentCharacter } from './RiggedAgentCharacter';
 
 const MODEL_URL = '/virtual-office/garden-office-v7.glb?v=20260828-v7';
-const CHARACTER_SCALE = 1.36;
+const CHARACTER_SCALE = 1.1;
+// The procedural rig is authored in a true seated frame: feet at 0.08 m and
+// pelvis at 0.58 m. This anchor puts the shoes on the raised plaza (0.45 m)
+// while the pelvis intersects the authored cushion instead of hovering.
+const CHARACTER_SEAT_ANCHOR_Y = 0.36;
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
 const LABEL_OFFSETS: Record<AgentCode, [number, number, number]> = {
   A01: [0, 3.35, -0.25],
@@ -51,20 +55,20 @@ function BakedGardenOffice() {
       ownedMaterials.push(object.material);
       const materialName = object.material.name.toLowerCase();
 
-      object.material.envMapIntensity = 1.25;
+      object.material.envMapIntensity = 0.95;
       if (materialName.includes('limestone warm')) {
-        object.material.color.multiplyScalar(0.76);
-        object.material.roughness = 0.56;
+        object.material.color.multiply(new THREE.Color('#f0f2e9'));
+        object.material.roughness = 0.62;
       } else if (materialName.includes('ivory fluted')) {
-        object.material.color.multiply(new THREE.Color('#d4b77e'));
-        object.material.roughness = 0.54;
+        object.material.color.multiply(new THREE.Color('#f4f1e8'));
+        object.material.roughness = 0.58;
       } else if (materialName.includes('quarter sawn oak')) {
-        object.material.color.multiply(new THREE.Color('#d59a5d'));
-        object.material.roughness = 0.38;
+        object.material.color.multiply(new THREE.Color('#d9b185'));
+        object.material.roughness = 0.44;
       } else if (materialName.includes('ficus bark')) {
-        object.material.color.multiply(new THREE.Color('#a9855e'));
+        object.material.color.multiply(new THREE.Color('#a98260'));
       } else if (materialName.includes('garden leaf') || materialName.includes('cluster atlas')) {
-        object.material.color.multiply(new THREE.Color('#91bd62'));
+        object.material.color.multiply(new THREE.Color('#8fc37a'));
       } else if (materialName.includes('architectural glass')) {
         object.material.transparent = true;
         object.material.opacity = 0.16;
@@ -74,8 +78,8 @@ function BakedGardenOffice() {
         object.material.opacity = 0.82;
         object.material.depthWrite = false;
         object.material.roughness = 0.055;
-        object.material.emissive = new THREE.Color('#063f39');
-        object.material.emissiveIntensity = 0.16;
+        object.material.emissive = new THREE.Color('#0b665f');
+        object.material.emissiveIntensity = 0.1;
         waterMaterials.push(object.material);
       }
 
@@ -136,7 +140,7 @@ function AgentHotspot({ agent }: { agent: OfficeAgent }) {
 
   return (
     <group position={layout.position}>
-      <group position={[0, -0.22, 0]} rotation={[0, CHARACTER_ROTATIONS[agent.code], 0]} scale={CHARACTER_SCALE}>
+      <group position={[0, CHARACTER_SEAT_ANCHOR_Y, 0]} rotation={[0, CHARACTER_ROTATIONS[agent.code], 0]} scale={CHARACTER_SCALE}>
         <group position={[0, 0, -0.57]}>
           <RiggedAgentCharacter code={agent.code} visualState={agent.visualState} />
         </group>
