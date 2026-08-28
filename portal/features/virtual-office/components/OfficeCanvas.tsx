@@ -11,8 +11,8 @@ import { useOfficeStore } from '../state/office-store';
 import type { AgentCode } from '../types/office';
 
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
-const HOME_POSITION = new THREE.Vector3(11.7, 11.5, 15.5);
-const HOME_TARGET = new THREE.Vector3(0, 1.3, 0.15);
+const HOME_POSITION = new THREE.Vector3(10.8, 11.2, 15.0);
+const HOME_TARGET = new THREE.Vector3(0, 1.45, -0.6);
 
 interface OrbitControlsHandle {
   target?: THREE.Vector3;
@@ -77,7 +77,7 @@ export function OfficeCanvas() {
     <div className="absolute inset-0 overflow-hidden bg-[#193c3b]">
       <Canvas
         shadows
-        camera={{ position: [HOME_POSITION.x, HOME_POSITION.y, HOME_POSITION.z], fov: 43, near: 0.1, far: 80 }}
+        camera={{ position: [HOME_POSITION.x, HOME_POSITION.y, HOME_POSITION.z], fov: 39, near: 0.1, far: 90 }}
         dpr={[1, 1.5]}
         fallback={<WebGLFallback />}
         gl={{
@@ -100,7 +100,7 @@ export function OfficeCanvas() {
           enablePan={false}
           enableZoom
           minDistance={6.8}
-          maxDistance={30}
+          maxDistance={34}
           minPolarAngle={Math.PI / 5.4}
           maxPolarAngle={Math.PI / 2.12}
           minAzimuthAngle={-Math.PI / 3.2}
