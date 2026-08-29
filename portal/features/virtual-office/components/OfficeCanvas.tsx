@@ -80,7 +80,7 @@ export function OfficeCanvas() {
       <Canvas
         shadows
         camera={{ position: [HOME_POSITION.x, HOME_POSITION.y, HOME_POSITION.z], fov: 38, near: 0.1, far: 90 }}
-        dpr={[1.1, 1.7]}
+        dpr={[1, 1.5]}
         fallback={<WebGLFallback />}
         gl={{
           antialias: true,
@@ -90,7 +90,7 @@ export function OfficeCanvas() {
           outputColorSpace: THREE.SRGBColorSpace,
         }}
         onCreated={({ gl }) => {
-          gl.toneMappingExposure = 1.08;
+          gl.toneMappingExposure = 1.1;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
         }}
       >
@@ -114,8 +114,8 @@ export function OfficeCanvas() {
         </Suspense>
       </Canvas>
 
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_52%_36%,transparent_0%,transparent_60%,rgba(35,72,65,0.1)_100%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#173b34]/15 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_52%_36%,transparent_0%,transparent_66%,rgba(35,72,65,0.06)_100%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#173b34]/10 to-transparent" />
 
       <div className="sr-only" aria-label="Chọn agent trong văn phòng 3D">
         {AGENT_ORDER.map((code) => {

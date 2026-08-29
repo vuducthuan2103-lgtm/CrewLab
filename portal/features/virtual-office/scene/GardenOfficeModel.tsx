@@ -10,20 +10,20 @@ import { useOfficeStore } from '../state/office-store';
 import type { AgentCode, OfficeAgent } from '../types/office';
 import { RiggedAgentCharacter } from './RiggedAgentCharacter';
 
-const MODEL_URL = '/virtual-office/garden-office-v7.glb?v=20260828-v7';
-const CHARACTER_SCALE = 1.1;
+const MODEL_URL = '/virtual-office/garden-office-v8.glb?v=20260829-v8';
+const CHARACTER_SCALE = 1.14;
 // Blender v10 assets use a 0.038 m shoe sole and a 0.62 m seated pelvis.
 // The plaza sits at roughly 0.45 m, so this keeps the shoes planted while the
 // pelvis meets the authored cushion instead of hovering above the chair.
 const CHARACTER_SEAT_ANCHOR_Y = 0.41;
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
 const LABEL_OFFSETS: Record<AgentCode, [number, number, number]> = {
-  A01: [0, 3.35, -0.25],
-  B02: [-0.55, 3.1, 0],
-  B03: [0.55, 3.1, 0],
-  D01: [-0.65, 3.0, 0],
-  D02: [-0.78, 3.0, -0.15],
-  E01: [0.78, 3.0, -0.15],
+  A01: [0, 2.82, -0.18],
+  B02: [-0.48, 2.68, 0],
+  B03: [0.48, 2.68, 0],
+  D01: [-0.55, 2.62, 0],
+  D02: [-0.65, 2.62, -0.1],
+  E01: [0.65, 2.62, -0.1],
 };
 function BakedGardenOffice() {
   const gltf = useGLTF(MODEL_URL);
@@ -46,37 +46,34 @@ function BakedGardenOffice() {
       ownedMaterials.push(object.material);
       const materialName = object.material.name.toLowerCase();
 
-      object.material.envMapIntensity = 0.95;
+      object.material.envMapIntensity = 1.28;
       if (materialName.includes('limestone warm')) {
-        object.material.color.multiply(new THREE.Color('#f0f2e9'));
-        object.material.roughness = 0.62;
+        object.material.roughness = 0.68;
       } else if (materialName.includes('ivory fluted')) {
-        object.material.color.multiply(new THREE.Color('#f4f1e8'));
-        object.material.roughness = 0.58;
+        object.material.roughness = 0.62;
       } else if (materialName.includes('quarter sawn oak')) {
-        object.material.color.multiply(new THREE.Color('#d9b185'));
-        object.material.roughness = 0.44;
+        object.material.roughness = 0.46;
       } else if (materialName.includes('ficus bark')) {
-        object.material.color.multiply(new THREE.Color('#a98260'));
+        object.material.color.multiply(new THREE.Color('#a47e60'));
       } else if (materialName.includes('garden leaf') || materialName.includes('cluster atlas')) {
-        object.material.color.multiply(new THREE.Color('#8fc37a'));
+        object.material.color.multiply(new THREE.Color('#92bd7e'));
       } else if (materialName.includes('architectural glass')) {
         object.material.transparent = true;
-        object.material.opacity = 0.16;
+        object.material.opacity = 0.18;
         object.material.depthWrite = false;
       } else if (materialName.includes('water')) {
         object.material.transparent = true;
-        object.material.opacity = 0.82;
+        object.material.opacity = 0.78;
         object.material.depthWrite = false;
-        object.material.roughness = 0.055;
-        object.material.emissive = new THREE.Color('#0b665f');
-        object.material.emissiveIntensity = 0.1;
+        object.material.roughness = 0.075;
+        object.material.emissive = new THREE.Color('#0c716a');
+        object.material.emissiveIntensity = 0.075;
         waterMaterials.push(object.material);
       }
 
-      if (object.name.includes('Screen')) {
+      if (object.name.includes('Screen') || materialName.includes('display')) {
         object.material.emissive = new THREE.Color('#0aa89d');
-        object.material.emissiveIntensity = 0.72;
+        object.material.emissiveIntensity = 0.66;
         screenMaterials.push(object.material);
       }
       object.material.needsUpdate = true;
@@ -91,11 +88,11 @@ function BakedGardenOffice() {
   }, [model, ownedMaterials, screenMaterials, waterMaterials]);
 
   useFrame(({ clock }) => {
-    const pulse = 0.72 + Math.sin(clock.elapsedTime * 1.35) * 0.055;
+    const pulse = 0.66 + Math.sin(clock.elapsedTime * 1.15) * 0.045;
     screenMaterials.forEach((item) => {
       item.emissiveIntensity = pulse;
     });
-    const shimmer = 0.14 + Math.sin(clock.elapsedTime * 0.72) * 0.035;
+    const shimmer = 0.09 + Math.sin(clock.elapsedTime * 0.66) * 0.025;
     waterMaterials.forEach((item) => {
       item.emissiveIntensity = shimmer;
     });
@@ -164,7 +161,7 @@ function AgentHotspot({ agent }: { agent: OfficeAgent }) {
         />
       </mesh>
 
-      <Html position={LABEL_OFFSETS[agent.code]} center distanceFactor={selected ? 7.5 : 11} zIndexRange={[34, 0]}>
+      <Html position={LABEL_OFFSETS[agent.code]} center distanceFactor={selected ? 7.2 : 10.5} zIndexRange={[34, 0]}>
         <button
           type="button"
           data-agent-label={agent.code}
@@ -178,7 +175,7 @@ function AgentHotspot({ agent }: { agent: OfficeAgent }) {
             setHovered(false);
             setHoveredAgent(null);
           }}
-          className={`group min-w-[124px] rounded-sm border px-2.5 py-1.5 text-left text-white shadow-[0_12px_30px_rgba(0,0,0,0.42)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 ${focusMuted ? 'pointer-events-none opacity-0' : 'opacity-100'} ${selected ? 'border-[#D4FF00]/90 bg-[#07100d]/98' : 'border-white/20 bg-[#09120f]/95 hover:border-white/45'}`}
+          className={`group min-w-[114px] rounded-md border px-2.5 py-1.5 text-left text-white shadow-[0_10px_24px_rgba(0,0,0,0.34)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 ${focusMuted ? 'pointer-events-none opacity-0' : 'opacity-100'} ${selected ? 'border-[#D4FF00]/90 bg-[#07100d]/96' : 'border-white/18 bg-[#09120f]/88 hover:border-white/40'}`}
         >
           <span className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full shadow-[0_0_10px_currentColor]" style={{ color: presentation.dotColor, backgroundColor: presentation.dotColor }} />
