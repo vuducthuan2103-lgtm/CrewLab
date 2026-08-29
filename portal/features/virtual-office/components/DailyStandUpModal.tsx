@@ -79,7 +79,7 @@ export const DailyStandUpModal: React.FC = () => {
               <div className="text-[10px] uppercase font-bold text-amber-400 flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" /> Cần bạn duyệt
               </div>
-              <div className="text-xl font-black text-amber-300 mt-1">{summary.waitingForCeoCount} bài viết</div>
+              <div className="text-xl font-black text-amber-300 mt-1">{summary.waitingForHumanCount} bài viết</div>
             </div>
 
             <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
@@ -97,7 +97,7 @@ export const DailyStandUpModal: React.FC = () => {
             Nhiệm vụ ưu tiên hôm nay:
           </div>
 
-          {summary.waitingForCeoCount > 0 ? (
+          {summary.waitingForHumanCount > 0 ? (
             <div
               onClick={handleOpenAttention}
               className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 hover:border-amber-400/60 cursor-pointer transition-all flex items-center justify-between group"
@@ -108,7 +108,7 @@ export const DailyStandUpModal: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors">
-                    Có {summary.waitingForCeoCount} nội dung đang chờ bạn phê duyệt
+                    Có {summary.waitingForHumanCount} nội dung đang chờ bạn phê duyệt
                   </div>
                   <div className="text-[11px] text-zinc-400">
                     Bao gồm bài viết từ D01 và hình ảnh từ D02

@@ -31,7 +31,7 @@ export const AgentAvatarIllustration: React.FC<AgentAvatarProps> = ({
 
   const renderAvatarContent = () => {
     switch (code) {
-      case 'A01': // Sếp Vũ - Executive CEO / Leader with AR glasses & navy cyber suit
+      case 'A01': // Sếp Vũ - Team lead with AR glasses & navy cyber suit
         return (
           <svg viewBox="0 0 100 100" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -328,7 +328,7 @@ export const AgentAvatarIllustration: React.FC<AgentAvatarProps> = ({
           </svg>
         );
 
-      default: // Fallback / CEO
+      default: // Generic fallback
         return (
           <svg viewBox="0 0 100 100" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect width="100" height="100" rx="24" fill="#1e293b" />

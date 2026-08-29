@@ -65,7 +65,7 @@ export const INITIAL_OFFICE_AGENTS: Record<string, OfficeAgent> = {
     code: 'A01',
     displayName: 'A01 — Orchestrator',
     role: 'Trưởng phòng Điều phối Chiến dịch',
-    fullDesc: 'Quản trị luồng công việc marketing, phân bổ tác vụ cho các Agent chuyên môn và liên kết với CEO quán.',
+    fullDesc: 'Quản trị luồng công việc marketing, phân bổ tác vụ cho các Agent chuyên môn và liên kết với chủ quán.',
     zoneName: 'Khu 1: Điều phối Trung tâm',
     position: [0, 0, -5.0],
     rotation: [0, 0, 0],
@@ -232,7 +232,7 @@ export const INITIAL_OFFICE_AGENTS: Record<string, OfficeAgent> = {
     currentTask: {
       id: 'task-d02-1',
       title: 'Tạo ảnh Banner Khuyến Mãi Cuối Tuần (1080x1080)',
-      summary: 'Đang chờ CEO cung cấp ảnh chụp thực tế ly nước để ghép khung thiết kế thương hiệu.',
+      summary: 'Đang chờ bạn cung cấp ảnh chụp thực tế ly nước để ghép khung thiết kế thương hiệu.',
       time: 'Đang đợi bạn',
     },
     recentTasks: [

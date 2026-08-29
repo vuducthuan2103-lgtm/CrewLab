@@ -59,7 +59,7 @@ This feature is strictly a **visualization and interaction layer** on top of exi
 
 ### AC-04: Real-time State & Visual Presentation
 - `office-state-adapter` maps CrewLab backend task status into visual presentation states (`idle`, `working`, `waiting_human`, `reviewing`, `success`, `error`).
-- When an agent is waiting for customer feedback (e.g. D02 asset or E01 approval), the agent turns toward the CEO and displays an urgent indicator.
+- When an agent is waiting for customer feedback (e.g. D02 asset or E01 approval), the agent displays an urgent indicator without requiring a player avatar or proximity trigger.
 
 ### AC-05: Agent Detail Panel & Workflow Continuity
 - Clicking or tapping an agent opens the shadcn Sheet displaying current status, task summary, and CTA link.
@@ -72,4 +72,4 @@ This feature is strictly a **visualization and interaction layer** on top of exi
 
 ## 5. Verification & Test Plan
 1. **Unit Tests**: State adapter tests verifying correct mapping from backend domain state to visual states.
-2. **E2E Tests**: Playwright tests verifying `/office` loads, CEO collision, agent click interaction, detail sheet rendering, and `[Team]` DOM fallback.
+2. **E2E Tests**: Playwright tests verifying `/office` loads, direct agent interaction, detail sheet rendering, and `[Team]` DOM fallback.

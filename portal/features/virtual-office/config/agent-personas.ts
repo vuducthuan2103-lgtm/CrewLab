@@ -62,7 +62,7 @@ export const AGENT_PERSONA_CATALOG: Record<string, AgentPersonaData> = {
     strengths: ['Tối ưu chi phí ngân sách', 'Phán đoán xu hướng thị trường', 'Kiểm soát nhịp độ chiến dịch'],
     biggestFear: 'Quán bị đứt gãy lịch đăng bài giữa tuần hoặc hết ngân sách giữa giờ trưa.',
     quirk: 'Hay nhắc câu: "Chữ ít thôi, món ngon để hình ảnh và giá trị lên tiếng!"',
-    avatarSeed: 'orchestrator-ceo',
+    avatarSeed: 'orchestrator-lead',
     primaryColor: '#2563eb',
     accentColor: '#60a5fa',
     gradientBg: 'from-blue-600 via-indigo-700 to-slate-900',

@@ -37,7 +37,6 @@ export const AgentDossierView: React.FC<AgentDossierViewProps> = ({ onSelectAgen
 
   const agents = useOfficeStore((s) => s.agents);
   const selectAgent = useOfficeStore((s) => s.selectAgent);
-  const startAutoWalk = useOfficeStore((s) => s.startAutoWalk);
 
   const personas = Object.values(AGENT_PERSONA_CATALOG);
   const activePersona = AGENT_PERSONA_CATALOG[selectedCode] || AGENT_PERSONA_CATALOG['A01'];
@@ -60,7 +59,7 @@ export const AgentDossierView: React.FC<AgentDossierViewProps> = ({ onSelectAgen
   });
 
   const handleJumpTo3D = (code: string) => {
-    startAutoWalk(code as AgentCode);
+    selectAgent(code as AgentCode);
     if (onSelectAgentIn3D) {
       onSelectAgentIn3D(code as AgentCode);
     }

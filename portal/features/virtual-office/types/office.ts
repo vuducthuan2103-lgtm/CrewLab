@@ -66,6 +66,6 @@ export interface OfficeAgent {
 
 export interface OfficeSummary {
   workingCount: number;
-  waitingForCeoCount: number;
+  waitingForHumanCount: number;
   totalAgents: number;
 }

@@ -44,7 +44,7 @@ export const AgentDetailSheet: React.FC = () => {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30 animate-pulse">
           <AlertTriangle className="w-3.5 h-3.5" />
-          Cần CEO can thiệp
+          Cần bạn xử lý
         </span>
       );
     }
@@ -230,12 +230,12 @@ export const AgentDetailSheet: React.FC = () => {
           )}
         </div>
 
-        {/* 3. CẢNH BÁO CẦN CEO CAN THIỆP (Nếu có) */}
+        {/* 3. CẢNH BÁO CẦN NGƯỜI DÙNG XỬ LÝ (Nếu có) */}
         {agent.requiresHumanAction && (
           <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm space-y-1.5">
             <div className="font-semibold text-amber-400 flex items-center gap-1.5 text-xs">
               <AlertTriangle className="w-4 h-4" />
-              Yêu cầu can thiệp từ CEO:
+              Yêu cầu bạn xử lý:
             </div>
             <p className="text-xs text-amber-200/90 leading-relaxed">
               {agent.actionPrompt || 'Vui lòng kiểm tra và xử lý tác vụ đang chờ.'}

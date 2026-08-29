@@ -3,14 +3,12 @@
 import React from 'react';
 import { useOfficeStore } from '../state/office-store';
 import { AgentAvatarIllustration } from './AgentAvatarIllustration';
-import { Zap, X, CheckCircle2, Play, Sparkles, UserCheck, ArrowRight, Footprints } from 'lucide-react';
-import { AgentCode } from '../types/office';
+import { Zap, X, CheckCircle2, Play, Sparkles, UserCheck, ArrowRight } from 'lucide-react';
 
 export const OfficeActivityFeed: React.FC = () => {
   const isOpen = useOfficeStore((s) => s.isActivityFeedOpen);
   const setOpen = useOfficeStore((s) => s.setActivityFeedOpen);
   const getActivityFeedEvents = useOfficeStore((s) => s.getActivityFeedEvents);
-  const startAutoWalk = useOfficeStore((s) => s.startAutoWalk);
   const selectAgent = useOfficeStore((s) => s.selectAgent);
 
   if (!isOpen) return null;
@@ -104,21 +102,12 @@ export const OfficeActivityFeed: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
-                        startAutoWalk(ev.agentCode);
-                      }}
-                      className="text-[10px] font-bold text-[#D4FF00] hover:underline flex items-center gap-1"
-                    >
-                      <Footprints className="w-3 h-3" />
-                      <span>Đi tới Agent</span>
-                    </button>
-                    <button
-                      onClick={() => {
                         selectAgent(ev.agentCode);
                         setOpen(false);
                       }}
-                      className="text-[10px] text-zinc-400 hover:text-white hover:underline"
+                      className="text-[10px] font-bold text-[#D4FF00] hover:underline"
                     >
-                      Xem chi tiết →
+                      Mở Agent →
                     </button>
                   </div>
                 </div>

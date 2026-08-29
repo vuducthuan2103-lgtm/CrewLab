@@ -26,9 +26,6 @@ interface OfficeState {
   agents: Record<string, OfficeAgent>;
   selectedAgentCode: AgentCode | null;
   hoveredAgentCode: AgentCode | null;
-  nearbyAgentCode: AgentCode | null; // Triggered when CEO walks near an agent
-  dismissedNearbyAgentCode: AgentCode | null; // Agent whose proximity tab was manually closed by CEO
-  autoWalkTargetAgentCode: AgentCode | null; // Target agent CEO is walking to
   isDetailOpen: boolean;
   isAccessibleRosterOpen: boolean;
   isAttentionQueueOpen: boolean;
@@ -36,7 +33,6 @@ interface OfficeState {
   activeZoneFilter: string | null;
   activeTab: '3d_office' | 'dossier';
   timeOfDay: 'day' | 'night';
-  ceoPosition: [number, number, number];
   isStandUpModalOpen: boolean;
   isCelebrationActive: boolean;
   activeHandoff: {
@@ -46,7 +42,6 @@ interface OfficeState {
   } | null;
 
   // Actions
-  setCeoPosition: (pos: [number, number, number]) => void;
   setStandUpModalOpen: (open: boolean) => void;
   triggerCelebration: () => void;
   triggerTaskHandoff: (from: AgentCode, to: AgentCode, title: string) => void;
@@ -54,11 +49,6 @@ interface OfficeState {
   selectAgent: (code: AgentCode | null) => void;
   closeDetail: () => void;
   setHoveredAgent: (code: AgentCode | null) => void;
-  setNearbyAgentCode: (code: AgentCode | null) => void;
-  dismissNearbyHUD: (code: AgentCode) => void;
-  clearDismissedNearby: () => void;
-  startAutoWalk: (code: AgentCode) => void;
-  cancelAutoWalk: () => void;
   setAccessibleRosterOpen: (open: boolean) => void;
   setAttentionQueueOpen: (open: boolean) => void;
   setActivityFeedOpen: (open: boolean) => void;
@@ -84,9 +74,6 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
   agents: INITIAL_OFFICE_AGENTS,
   selectedAgentCode: null,
   hoveredAgentCode: null,
-  nearbyAgentCode: null,
-  dismissedNearbyAgentCode: null,
-  autoWalkTargetAgentCode: null,
   isDetailOpen: false,
   isAccessibleRosterOpen: false,
   isAttentionQueueOpen: false,
@@ -94,12 +81,10 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
   activeZoneFilter: null,
   activeTab: '3d_office',
   timeOfDay: 'night', // default night warm cozy aesthetic, toggleable to day
-  ceoPosition: [0, 0.75, 1.2],
   isStandUpModalOpen: false,
   isCelebrationActive: false,
   activeHandoff: null,
 
-  setCeoPosition: (pos) => set({ ceoPosition: pos }),
   setStandUpModalOpen: (open) => set({ isStandUpModalOpen: open }),
   triggerCelebration: () => {
     set({ isCelebrationActive: true });
@@ -126,52 +111,15 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     }),
 
   closeDetail: () => {
-    const cur = get().selectedAgentCode;
     set({
       selectedAgentCode: null,
       isDetailOpen: false,
-      dismissedNearbyAgentCode: cur,
     });
   },
 
   setHoveredAgent: (code) =>
     set({
       hoveredAgentCode: code,
-    }),
-
-  setNearbyAgentCode: (code) => {
-    if (code !== null && code === get().dismissedNearbyAgentCode) {
-      return; // Do not auto-reopen if dismissed while still standing near
-    }
-    set({
-      nearbyAgentCode: code,
-    });
-  },
-
-  dismissNearbyHUD: (code) =>
-    set({
-      dismissedNearbyAgentCode: code,
-      nearbyAgentCode: null,
-    }),
-
-  clearDismissedNearby: () =>
-    set({
-      dismissedNearbyAgentCode: null,
-    }),
-
-  startAutoWalk: (code) =>
-    set({
-      autoWalkTargetAgentCode: code,
-      activeTab: '3d_office',
-      isAttentionQueueOpen: false,
-      isAccessibleRosterOpen: false,
-      isActivityFeedOpen: false,
-      isDetailOpen: false,
-    }),
-
-  cancelAutoWalk: () =>
-    set({
-      autoWalkTargetAgentCode: null,
     }),
 
   setAccessibleRosterOpen: (open) =>
@@ -236,8 +184,8 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
       if (state === 'waiting_human') {
         emotion = 'urgent';
         requiresHuman = true;
-        prompt = 'A01 cần CEO duyệt phân bổ ngân sách chiến dịch tuần này.';
-        taskTitle = 'Chờ CEO duyệt Phân bổ Ngân sách';
+        prompt = 'A01 cần bạn duyệt phân bổ ngân sách chiến dịch tuần này.';
+        taskTitle = 'Chờ bạn duyệt Phân bổ Ngân sách';
       } else if (state === 'idle') {
         emotion = 'neutral';
         prompt = 'A01 đang rà soát hệ thống và chờ chu kỳ lên lịch kế tiếp.';
@@ -249,7 +197,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
       } else if (state === 'error') {
         emotion = 'concerned';
         requiresHuman = true;
-        prompt = 'A01 phát hiện bài viết bị từ chối vượt ngưỡng 3 lần, cần CEO xử lý.';
+        prompt = 'A01 phát hiện bài viết bị từ chối vượt ngưỡng 3 lần, cần bạn xử lý.';
         taskTitle = 'Cảnh báo: Kiểm duyệt chưa đạt yêu cầu';
       }
 
@@ -276,7 +224,7 @@ export const useOfficeStore = create<OfficeState>((set, get) => ({
     const agents = Object.values(get().agents);
     return {
       workingCount: agents.filter((a) => a.visualState === 'working' || a.visualState === 'reviewing').length,
-      waitingForCeoCount: agents.filter((a) => a.requiresHumanAction || a.visualState === 'waiting_human' || a.visualState === 'error').length,
+      waitingForHumanCount: agents.filter((a) => a.requiresHumanAction || a.visualState === 'waiting_human' || a.visualState === 'error').length,
       totalAgents: agents.length,
     };
   },

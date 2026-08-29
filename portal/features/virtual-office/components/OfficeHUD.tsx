@@ -45,7 +45,7 @@ export function OfficeHUD() {
         <div className="mt-3 flex items-center gap-2 text-sm font-medium"><span className="h-2 w-2 rounded-full bg-emerald-400" /> Tất cả dịch vụ hoạt động</div>
         <div className="mt-4 border-t border-white/10 pt-3">
           <div className="flex items-center justify-between text-xs text-zinc-400"><span>Agent đang làm</span><strong className="font-mono text-white">{summary.workingCount}/{summary.totalAgents}</strong></div>
-          <div className="mt-2 flex items-center justify-between text-xs text-zinc-400"><span>Cần bạn xử lý</span><strong className="font-mono text-amber-300">{summary.waitingForCeoCount}</strong></div>
+          <div className="mt-2 flex items-center justify-between text-xs text-zinc-400"><span>Cần bạn xử lý</span><strong className="font-mono text-amber-300">{summary.waitingForHumanCount}</strong></div>
         </div>
       </section>
 

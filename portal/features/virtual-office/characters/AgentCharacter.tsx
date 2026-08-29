@@ -16,7 +16,7 @@ interface AgentCharacterProps {
 /**
  * Attention-only speech bubble messages.
  * Per spec P0.2: idle, working, reviewing, reworking agents must NOT
- * show persistent large bubbles. Only genuine CEO-attention states may.
+ * show persistent large bubbles. Only genuine human-attention states may.
  */
 const ATTENTION_BUBBLE: Partial<Record<string, string>> = {
   waiting_human: '🙋 Cần bạn xem qua!',
@@ -27,7 +27,7 @@ const ATTENTION_BUBBLE: Partial<Record<string, string>> = {
 
 /** A01 has its own authoritative tone */
 const ATTENTION_BUBBLE_A01: Partial<Record<string, string>> = {
-  waiting_human: '📋 Cần phê duyệt từ CEO.',
+  waiting_human: '📋 Cần bạn phê duyệt.',
   error: '⚡ Gặp sự cố, cần can thiệp.',
   rejected: '⛔ Nhiệm vụ bị từ chối.',
   success: '✅ Chu kỳ hoàn tất!',
@@ -44,10 +44,8 @@ export const AgentCharacter: React.FC<AgentCharacterProps> = ({ agent }) => {
 
   const selectAgent = useOfficeStore((s) => s.selectAgent);
   const selectedAgentCode = useOfficeStore((s) => s.selectedAgentCode);
-  const nearbyAgentCode = useOfficeStore((s) => s.nearbyAgentCode);
 
   const isSelected = selectedAgentCode === agent.code;
-  const isNearbyCEO = nearbyAgentCode === agent.code;
   const persona = AGENT_PERSONA_CATALOG[agent.code];
 
   // ── THEME COLORS MATCHED 100% WITH 2D DOSSIER AVATARS ────────────
@@ -159,9 +157,8 @@ export const AgentCharacter: React.FC<AgentCharacterProps> = ({ agent }) => {
   // ── DYNAMIC MICRO-ANIMATION LOOP ────────────────────────────────
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();
-    const ceoPosition = useOfficeStore.getState().ceoPosition;
 
-    // 1. HEAD ANIMATION & P2.5 DYNAMIC LOOK-AT CEO
+    // 1. HEAD ANIMATION
     if (headGroupRef.current) {
       let basePosY = 0.98;
       let basePosX = 0;
@@ -178,8 +175,8 @@ export const AgentCharacter: React.FC<AgentCharacterProps> = ({ agent }) => {
         // LÀM VIỆC: Focus nod looking at screen + monitor scanning
         baseRotX = -0.12 + Math.sin(t * 3.5) * 0.03;
         baseRotY = Math.sin(t * 1.8) * 0.08;
-      } else if (agent.visualState === 'waiting_human' || isNearbyCEO) {
-        // CẦN DUYỆT / GẶP CEO: Looking up towards CEO
+      } else if (agent.visualState === 'waiting_human') {
+        // CẦN DUYỆT: looking up from the workstation
         baseRotX = 0.14 + Math.sin(t * 2.0) * 0.04;
         baseRotY = Math.sin(t * 2.2) * 0.10;
       } else if (agent.visualState === 'reviewing') {
@@ -197,34 +194,15 @@ export const AgentCharacter: React.FC<AgentCharacterProps> = ({ agent }) => {
         baseRotY = Math.sin(t * 0.6) * 0.08;
       }
 
-      // P2.5 Dynamic Look-At Neck Tracking (when CEO is nearby or agent is selected)
-      let targetNeckTurnY = 0;
-      let targetNeckPitchX = 0;
-
-      if (ceoPosition && (isNearbyCEO || isSelected)) {
-        const dx = ceoPosition[0] - agent.position[0];
-        const dz = ceoPosition[2] - agent.position[2];
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < 4.8) {
-          const worldAngle = Math.atan2(dx, dz);
-          let relAngle = worldAngle - agent.rotation[1];
-          while (relAngle > Math.PI) relAngle -= Math.PI * 2;
-          while (relAngle < -Math.PI) relAngle += Math.PI * 2;
-          // Clamp to natural human neck turn (±45 deg)
-          targetNeckTurnY = Math.max(-0.78, Math.min(0.78, relAngle));
-          targetNeckPitchX = 0.12; // Look slightly up to standing CEO
-        }
-      }
-
       headGroupRef.current.position.set(0, basePosY, basePosX);
       headGroupRef.current.rotation.x = THREE.MathUtils.lerp(
         headGroupRef.current.rotation.x,
-        baseRotX + targetNeckPitchX,
+        baseRotX,
         delta * 6
       );
       headGroupRef.current.rotation.y = THREE.MathUtils.lerp(
         headGroupRef.current.rotation.y,
-        baseRotY + targetNeckTurnY,
+        baseRotY,
         delta * 6
       );
     }
@@ -247,8 +225,8 @@ export const AgentCharacter: React.FC<AgentCharacterProps> = ({ agent }) => {
         const speed = agent.visualState === 'reworking' ? 18 : 12;
         rightArmRef.current.rotation.set(-0.35 + Math.sin(t * speed) * 0.08, 0, -0.15);
         leftArmRef.current.rotation.set(-0.35 + Math.cos(t * speed) * 0.08, 0, 0.15);
-      } else if (agent.visualState === 'waiting_human' || isNearbyCEO) {
-        // Waving right hand to call CEO
+      } else if (agent.visualState === 'waiting_human') {
+        // Small attention gesture while waiting for the user
         rightArmRef.current.rotation.set(-0.95 + Math.sin(t * 4.5) * 0.18, 0, 0.35);
         leftArmRef.current.rotation.set(-0.25, 0, 0.1);
       } else if (agent.visualState === 'success') {
@@ -1037,7 +1015,7 @@ export const AgentCharacter: React.FC<AgentCharacterProps> = ({ agent }) => {
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             className={`flex items-center gap-1 px-1.5 py-0.5 rounded-lg backdrop-blur-md border transition-all duration-200 cursor-pointer select-none whitespace-nowrap shadow-md ${
-              isSelected || isNearbyCEO
+              isSelected
                 ? 'bg-[#09090b]/95 border-[#D4FF00] ring-1 ring-[#D4FF00]/60 shadow-[#D4FF00]/30 scale-105'
                 : hovered
                 ? 'bg-[#18181b]/90 border-zinc-400'
