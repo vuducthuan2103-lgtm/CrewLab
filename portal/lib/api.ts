@@ -217,6 +217,19 @@ export async function apiUploadAsset(file: File, rightsAttested: boolean) {
   return result?.data;
 }
 
+export function apiUpdateAsset(assetId: string, data: { description?: string; tags?: string[] }) {
+  return fetchAPI(`/api/v1/portal/assets/${assetId}`, {
+    method: 'PATCH',
+    body: sideEffect(data),
+  });
+}
+
+export function apiDeleteAsset(assetId: string) {
+  return fetchAPI(`/api/v1/portal/assets/${assetId}`, {
+    method: 'DELETE',
+  });
+}
+
 export function apiUpdateBrandVoice(config: BrandVoiceConfig) {
   const personalityKeywords = config.personalityKeywords
     .map((keyword) => keyword.trim())

@@ -97,4 +97,73 @@ describe('Spec 0017 asset lifecycle in Portal', () => {
     expect(await screen.findByText('UPLOAD_STORAGE_FAILED · REF-UPLOAD')).toBeInTheDocument();
     expect(document.querySelector('#media-asset-asset-ready')).toBeInTheDocument();
   });
+
+  it('triggers delete asset confirmation and calls deleteAsset upon confirmation', async () => {
+    const deleteAsset = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(usePortal).mockReturnValue({
+      mediaAssets: [asset('ready')],
+      uploadAsset,
+      deleteAsset,
+    } as unknown as ReturnType<typeof usePortal>);
+
+    render(<MediaLibraryGrid />);
+
+    // Click on quick delete button on card
+    const deleteBtn = screen.getByTitle('Xóa ảnh');
+    fireEvent.click(deleteBtn);
+
+    // Confirm modal should appear
+    expect(screen.getByText('Xác nhận xóa ảnh')).toBeInTheDocument();
+
+    // Click confirm button
+    const confirmBtn = screen.getByRole('button', { name: /Xóa vĩnh viễn/i });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(deleteAsset).toHaveBeenCalledWith('asset-ready');
+    });
+  });
+
+  it('allows editing description and tags and calls updateAsset with new values', async () => {
+    const updateAsset = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(usePortal).mockReturnValue({
+      mediaAssets: [asset('ready')],
+      uploadAsset,
+      updateAsset,
+    } as unknown as ReturnType<typeof usePortal>);
+
+    render(<MediaLibraryGrid />);
+
+    // Open detail modal
+    fireEvent.click(document.querySelector('#media-asset-asset-ready')!);
+    expect(screen.getByText('Chi tiết & Chỉnh sửa ảnh')).toBeInTheDocument();
+
+    // Edit description
+    const editDescBtn = screen.getByRole('button', { name: /^Chỉnh sửa$/i });
+    fireEvent.click(editDescBtn);
+
+    const textarea = screen.getByPlaceholderText(/Nhập mô tả chi tiết/i);
+    fireEvent.change(textarea, { target: { value: 'Mô tả cà phê cold brew mới' } });
+
+    // Add new tag
+    const tagInput = screen.getByPlaceholderText(/Thêm tag mới/i);
+    fireEvent.change(tagInput, { target: { value: 'caphe' } });
+    fireEvent.keyDown(tagInput, { key: 'Enter' });
+
+    // Remove existing tag 'cold brew'
+    const removeTagBtns = screen.getAllByTitle('Xóa tag');
+    fireEvent.click(removeTagBtns[0]);
+
+    // Save changes
+    const saveBtn = screen.getByRole('button', { name: /Lưu thay đổi/i });
+    expect(saveBtn).not.toBeDisabled();
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(updateAsset).toHaveBeenCalledWith('asset-ready', {
+        notes: 'Mô tả cà phê cold brew mới',
+        tags: ['caphe'],
+      });
+    });
+  });
 });

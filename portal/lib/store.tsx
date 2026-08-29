@@ -9,7 +9,8 @@ import {
   apiApproveContent, apiApproveWeek, apiConfirmPillars, apiUpdateContentSchedule,
   apiFetchAssets, apiFetchBootstrap, apiFetchSettings,
   apiMarkAsPosted, apiRejectContent, apiUpdateAgentBudget,
-  apiUpdateAgentModel, apiUpdateBrandVoice, apiUploadAsset, toPortalLoadError,
+  apiUpdateAgentModel, apiUpdateBrandVoice, apiUploadAsset,
+  apiUpdateAsset, apiDeleteAsset, toPortalLoadError,
 } from './api';
 import { supabase } from './supabase';
 
@@ -52,6 +53,8 @@ interface PortalActions {
   updateAgentModel: (agentCode: string, model: string, tier: string) => Promise<void>;
   updateAgentBudget: (agentCode: string, budget: number) => Promise<void>;
   uploadAsset: (file: File, rightsAttested: boolean) => Promise<void>;
+  updateAsset: (assetId: string, changes: { notes?: string; tags?: string[] }) => Promise<void>;
+  deleteAsset: (assetId: string) => Promise<void>;
   refreshData: (isManual?: boolean) => Promise<void>;
   loadAssets: (force?: boolean) => Promise<void>;
   loadSettings: (force?: boolean) => Promise<void>;
@@ -522,6 +525,28 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     }, ...previous]);
   }, []);
 
+  const updateAsset = useCallback(async (assetId: string, changes: { notes?: string; tags?: string[] }) => {
+    await apiUpdateAsset(assetId, {
+      description: changes.notes,
+      tags: changes.tags,
+    });
+    setMediaAssets((previous) =>
+      previous.map((asset) => {
+        if (asset.id !== assetId) return asset;
+        return {
+          ...asset,
+          notes: changes.notes !== undefined ? changes.notes : asset.notes,
+          tags: changes.tags !== undefined ? changes.tags : asset.tags,
+        };
+      })
+    );
+  }, []);
+
+  const deleteAsset = useCallback(async (assetId: string) => {
+    await apiDeleteAsset(assetId);
+    setMediaAssets((previous) => previous.filter((asset) => asset.id !== assetId));
+  }, []);
+
   const setBrandLogoUrl = useCallback((url: string | null) => {
     setBrandLogoUrlState(url);
     if (typeof window !== 'undefined') {
@@ -571,7 +596,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     markNotificationRead, unreadCount: notifications.filter((n) => !n.read).length,
     setBrandLogoUrl, uploadBrandLogo,
     approveContent, rejectContent, markAsPosted, updatePillarPercentage, updatePillarDraft, confirmPillars, resetPillarsToAI, approveWeek, updateContentSchedule,
-    updateBrandVoice, updateAgentModel, updateAgentBudget, uploadAsset, refreshData, loadAssets, loadSettings,
+    updateBrandVoice, updateAgentModel, updateAgentBudget, uploadAsset, updateAsset, deleteAsset, refreshData, loadAssets, loadSettings,
   };
   return <PortalContext.Provider value={value}>{children}</PortalContext.Provider>;
 }
