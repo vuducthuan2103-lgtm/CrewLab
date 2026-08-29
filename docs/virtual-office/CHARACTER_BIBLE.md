@@ -210,3 +210,25 @@ If a critical row fails, do not create B02.
 - metrics and licence record.
 
 The six-agent lineup is created only after A01 approval.
+
+## 15. A01 concept direction v1
+
+The following generated images are reference art, not runtime meshes and not evidence that the A01 quality gate has passed:
+
+- `docs/virtual-office/concepts/a01-character-turnaround-v1.png`
+- `docs/virtual-office/concepts/a01-seated-action-sheet-v1.png`
+
+They lock the first modeling target to a consistent adult Asian/Vietnamese team lead with dark layered mesh hair, charcoal/navy overshirt, off-white inner layer, tailored dark trousers, black shoes and a very small CrewLab lime badge/watch accent. The action sheet locks a bright neutral workstation presentation and restrained professional motion.
+
+Blender production must improve on the references where a generated image is physically ambiguous. Anatomy, five-finger topology, skeleton deformation, pelvis-to-seat contact, actual workstation dimensions and collision-free animation are judged from the 3D master and browser—not inferred from concept art.
+
+## 15. A01 concept direction v1
+
+The following generated images are reference art, not runtime meshes and not evidence that the A01 quality gate has passed:
+
+- `docs/virtual-office/concepts/a01-character-turnaround-v1.png`
+- `docs/virtual-office/concepts/a01-seated-action-sheet-v1.png`
+
+They lock the first modeling target to a consistent adult Asian/Vietnamese team lead with dark layered mesh hair, charcoal/navy overshirt, off-white inner layer, tailored dark trousers, black shoes and a very small CrewLab lime badge/watch accent. The action sheet locks a bright neutral workstation presentation and restrained professional motion.
+
+Blender production must improve on the references where a generated image is physically ambiguous. Anatomy, five-finger topology, skeleton deformation, pelvis-to-seat contact, actual workstation dimensions and collision-free animation are judged from the 3D master and browser—not inferred from concept art.
