@@ -18,7 +18,7 @@ import { signOut } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 const NAV_ITEMS = [
-  { href: '/', icon: Box, label: 'Văn phòng 3D' },
+  { href: '/office', icon: Box, label: 'Văn phòng 3D' },
   { href: '/tasks', icon: LayoutDashboard, label: 'Bảng công việc' },
   { href: '/a01-chat', icon: Bot, label: 'Trò chuyện A01' },
   { href: '/content-hub', icon: BookOpen, label: 'Kế hoạch' },

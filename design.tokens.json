@@ -30,48 +30,37 @@
       },
       "fontFamily": {
         "headline-display": [
-          "Inter",
-          "sans-serif"
+          "Montserrat"
         ],
         "headline-xl": [
-          "Inter",
-          "sans-serif"
+          "Montserrat"
         ],
         "headline-lg": [
-          "Inter",
-          "sans-serif"
+          "Montserrat"
         ],
         "headline-md": [
-          "Inter",
-          "sans-serif"
+          "Montserrat"
         ],
         "headline-sm": [
-          "Inter",
-          "sans-serif"
+          "Montserrat"
         ],
         "body-lg": [
-          "Inter",
-          "sans-serif"
+          "Montserrat"
         ],
         "body-md": [
-          "Inter",
-          "sans-serif"
+          "Montserrat"
         ],
         "body-sm": [
-          "Inter",
-          "sans-serif"
+          "Montserrat"
         ],
         "label-lg": [
-          "Inter",
-          "sans-serif"
+          "Montserrat"
         ],
         "label-md": [
-          "Inter",
-          "sans-serif"
+          "Montserrat"
         ],
         "label-mono": [
-          "JetBrains Mono",
-          "monospace"
+          "JetBrains Mono"
         ]
       },
       "fontSize": {

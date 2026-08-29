@@ -1,7 +1,7 @@
 # Spec 0026 — Virtual 3D Marketing Office (V1)
 
 ## 1. Overview & Vision
-The **Virtual 3D Marketing Office** converts CrewLab's background AI agents into a tangible, interactive 3D virtual office. Restaurant/cafe owners (acting as CEO) can explore the office in third-person view (WASD / virtual joystick), see the 6 MVP agents working at their desks, inspect live task status, and seamlessly jump to existing CrewLab workflow screens.
+The **Virtual 3D Marketing Office** converts CrewLab's background AI agents into an inspectable, spatially coherent workplace. Restaurant/cafe owners can see the 6 MVP agents at their workstations, inspect factual task status via direct selection, and seamlessly jump to existing CrewLab workflow screens. The detailed experience source of truth is the design pack in this spec folder and Decision 0018.
 
 This feature is strictly a **visualization and interaction layer** on top of existing CrewLab backend state and portal routing.
 
@@ -11,7 +11,7 @@ This feature is strictly a **visualization and interaction layer** on top of exi
 
 ### In-Scope (MVP V1)
 - 1 3D virtual office scene in `portal/app/office/page.tsx` (lazy loaded with `ssr: false`).
-- 1 CEO avatar controller (third-person WASD / mobile joystick with Rapier physics collisions).
+- 1 authored canonical campus scene with overview, direct agent selection and guided focus camera.
 - 6 Agent workstations & characters:
   - **A01** (Orchestrator - Zone 1: Coordination)
   - **B02** (Content Pillar - Zone 2: Strategy)
@@ -35,9 +35,7 @@ This feature is strictly a **visualization and interaction layer** on top of exi
 ## 3. Technology Stack & Dependencies
 - **Next.js**: 14 (App Router, Client Portal)
 - **3D Engine**: Three.js (`three`), React Three Fiber (`@react-three/fiber`), Drei (`@react-three/drei`)
-- **Physics**: `@react-three/rapier`
-- **Character Controller**: `ecctrl`
-- **Humanoid Avatars**: `@pixiv/three-vrm`
+- **Runtime character direction**: reusable R3F primitives first; optimized GLB/glTF characters when the licensed asset pipeline is ready.
 - **Local State**: `zustand`
 - **UI System**: shadcn/ui (Tailwind CSS, Lucide icons)
 - **Testing**: Playwright (`e2e`) + Vitest (`unit`)
@@ -50,9 +48,10 @@ This feature is strictly a **visualization and interaction layer** on top of exi
 - `/office` loads dynamically without increasing initial load bundle of other portal routes.
 - When WebGL is unavailable or user clicks `[Team]`, a standard accessible DOM roster opens with full keyboard support and detail panels.
 
-### AC-02: Third-Person CEO Navigation & Physics
-- Desktop user can move CEO avatar smoothly via WASD or Arrow keys with collision boundaries (cannot walk through walls or desks).
-- Mobile user can navigate using a virtual touch joystick and tap on agents.
+### AC-02: Direct Agent Inspection & Guided Camera
+- Desktop users can hover or keyboard-focus an agent, then click, Enter or Space to open its contextual detail surface.
+- Mobile users can tap an agent; the detail surface repositions safely without covering the selected agent's essential context.
+- There is no controllable CEO avatar, joystick, walk loop, proximity trigger or collision mechanic.
 
 ### AC-03: 6 Distinct Agent Workstations
 - All 6 agents (A01, B02, B03, D01, D02, E01) have distinct positions, desk setups, and personality-aligned props.

@@ -16,7 +16,7 @@ export const OfficeLighting: React.FC = () => {
          ══════════════════════════════════════════════════ */}
       {/* Soft warm architectural ambient fill */}
       <ambientLight
-        intensity={isDay ? 3.8 : 2.8}
+        intensity={isDay ? 1.75 : 1.25}
         color={isDay ? '#ffffff' : '#e2e8f0'}
       />
 
@@ -24,8 +24,8 @@ export const OfficeLighting: React.FC = () => {
       <hemisphereLight
         args={[
           isDay ? '#e0f2fe' : '#94a3b8',  // Sky / ceiling bounce
-          isDay ? '#fed7aa' : '#334155',  // Floor warm bounce
-          isDay ? 2.4 : 2.0,
+          isDay ? '#d7e4dc' : '#334155',  // Neutral floor bounce
+          isDay ? 1.55 : 1.35,
         ]}
       />
 
@@ -35,7 +35,7 @@ export const OfficeLighting: React.FC = () => {
       {/* Top-Down Architectural Key Light (Balanced overhead so all walls receive identical ambient tone) */}
       <directionalLight
         position={[0, 22, 6]}
-        intensity={isDay ? 3.6 : 2.6}
+        intensity={isDay ? 2.85 : 2.15}
         color={isDay ? '#ffffff' : '#f1f5f9'}
         castShadow
         shadow-mapSize-width={2048}
@@ -52,7 +52,7 @@ export const OfficeLighting: React.FC = () => {
       {/* Subtle Sky Glancing Light from Glass Window */}
       <directionalLight
         position={[14, 12, 0]}
-        intensity={isDay ? 1.8 : 0.8}
+        intensity={isDay ? 1.25 : 0.7}
         color={isDay ? '#f8fafc' : '#94a3b8'}
       />
 
@@ -64,8 +64,8 @@ export const OfficeLighting: React.FC = () => {
       {/* A01 Center Command Hub (Sếp Vũ) */}
       <pointLight
         position={[0, 4.5, -5.0]}
-        intensity={isDay ? 3.6 : 4.8}
-        color="#fffbeb"
+        intensity={isDay ? 1.65 : 3.2}
+        color="#f5fbff"
         distance={9}
         decay={1.5}
       />
@@ -73,8 +73,8 @@ export const OfficeLighting: React.FC = () => {
       {/* Strategy Zone (B02 & B03 Left Desks) */}
       <pointLight
         position={[-7.0, 4.2, -2.0]}
-        intensity={isDay ? 3.2 : 4.2}
-        color="#fef9c3"
+        intensity={isDay ? 1.5 : 3.0}
+        color="#f3f9ff"
         distance={9}
         decay={1.5}
       />
@@ -82,8 +82,8 @@ export const OfficeLighting: React.FC = () => {
       {/* Creative Zone (D01 & D02 Right Desks) */}
       <pointLight
         position={[7.0, 4.2, -2.0]}
-        intensity={isDay ? 3.2 : 4.2}
-        color="#fef9c3"
+        intensity={isDay ? 1.5 : 3.0}
+        color="#f3f9ff"
         distance={9}
         decay={1.5}
       />
@@ -91,8 +91,8 @@ export const OfficeLighting: React.FC = () => {
       {/* QA Review Zone (E01 Front Desk) */}
       <pointLight
         position={[0, 4.0, 5.5]}
-        intensity={isDay ? 3.2 : 4.4}
-        color="#fffbeb"
+        intensity={isDay ? 1.5 : 3.15}
+        color="#f5fbff"
         distance={8.5}
         decay={1.5}
       />
@@ -103,8 +103,8 @@ export const OfficeLighting: React.FC = () => {
       {/* BAR DINH Brand Wall Wash */}
       <pointLight
         position={[0, 3.8, -9.8]}
-        intensity={3.8}
-        color="#fef3c7"
+        intensity={isDay ? 1.65 : 3.2}
+        color={isDay ? '#eef8ff' : '#fef3c7'}
         distance={7}
         decay={1.4}
       />

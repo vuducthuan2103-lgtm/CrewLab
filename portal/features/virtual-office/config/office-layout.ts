@@ -1,4 +1,5 @@
 import { OfficeAgent } from '../types/office';
+import type { AgentCode } from '../types/office';
 
 export const OFFICE_ROOM_CONFIG = {
   width: 26,
@@ -17,6 +18,46 @@ export const CLIENT_BRAND_CONFIG = {
   primaryColor: '#8B5E3C',
   accentColor: '#C49A6C',
   logoUrl: null as string | null,
+};
+
+export interface GardenStationLayout {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: number;
+  monitorCount: 2 | 3;
+}
+
+export interface GardenCharacterSeatTransform {
+  /** Character root relative to the station root, in Three.js X/Z space. */
+  seatOffset: [number, number];
+  /** Character yaw. Local +Z points toward the keyboard. */
+  rotationY: number;
+  /** Keyboard centre relative to the station root, used for pose validation. */
+  keyboardOffset: [number, number];
+}
+
+/** Authored station coordinates for the v4 glass-atrium office. */
+export const GARDEN_STATION_LAYOUT: Record<AgentCode, GardenStationLayout> = {
+  A01: { position: [0, 0, 0.7], rotation: [0, 0, 0], scale: 1.02, monitorCount: 3 },
+  B02: { position: [-5.9, 0, -3.55], rotation: [0, 0, 0], scale: 0.94, monitorCount: 2 },
+  B03: { position: [5.9, 0, -3.55], rotation: [0, 0, 0], scale: 0.94, monitorCount: 2 },
+  D01: { position: [-5.9, 0, 3.25], rotation: [0, 0, 0], scale: 0.96, monitorCount: 3 },
+  D02: { position: [0, 0, 5.95], rotation: [0, 0, 0], scale: 0.98, monitorCount: 3 },
+  E01: { position: [5.9, 0, 3.25], rotation: [0, 0, 0], scale: 0.96, monitorCount: 2 },
+};
+
+/**
+ * Seat and keyboard anchors measured from garden-office-v7.blend instead of
+ * inferred from a shared radial offset. Blender X/Y are converted to Three.js
+ * X/-Z. Keeping these per-station prevents mirrored agents at diagonal desks.
+ */
+export const GARDEN_CHARACTER_SEAT_TRANSFORMS: Record<AgentCode, GardenCharacterSeatTransform> = {
+  A01: { seatOffset: [0, 0.61], rotationY: -Math.PI, keyboardOffset: [0, -0.62] },
+  B02: { seatOffset: [-0.5173, -0.3233], rotationY: 1.0123, keyboardOffset: [0.5258, 0.3286] },
+  B03: { seatOffset: [0.5173, -0.3233], rotationY: -1.0123, keyboardOffset: [-0.5258, 0.3286] },
+  D01: { seatOffset: [-0.5057, 0.3411], rotationY: 2.1642, keyboardOffset: [0.514, -0.3467] },
+  D02: { seatOffset: [0, 0.61], rotationY: -Math.PI, keyboardOffset: [0, -0.62] },
+  E01: { seatOffset: [0.5057, 0.3411], rotationY: -2.1642, keyboardOffset: [-0.514, -0.3467] },
 };
 
 export const INITIAL_OFFICE_AGENTS: Record<string, OfficeAgent> = {
