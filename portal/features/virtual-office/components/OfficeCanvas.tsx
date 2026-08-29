@@ -2,7 +2,7 @@
 
 import React, { Suspense, useEffect, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import { getStatePresentation } from '../config/agent-state-map';
 import { GARDEN_STATION_LAYOUT } from '../config/office-layout';
@@ -70,6 +70,59 @@ function WebGLFallback() {
   );
 }
 
+function SceneLoadingFallback() {
+  return (
+    <>
+      <color attach="background" args={['#bfd8d3']} />
+      <fog attach="fog" args={['#c8ddd7', 39, 68]} />
+      <ambientLight intensity={0.9} color="#f8fbff" />
+    </>
+  );
+}
+
+function SceneLoadOverlay() {
+  const { active, errors, progress } = useProgress();
+  const openRoster = useOfficeStore((state) => state.setAccessibleRosterOpen);
+  const hasError = errors.length > 0;
+
+  if (!active && !hasError) return null;
+
+  const safeProgress = Number.isFinite(progress) ? Math.min(100, Math.max(0, Math.round(progress))) : 0;
+
+  return (
+    <div
+      data-testid="office-scene-loading"
+      role={hasError ? 'alert' : 'status'}
+      aria-live="polite"
+      className="absolute inset-0 z-20 flex items-center justify-center bg-[radial-gradient(circle_at_50%_38%,rgba(239,249,244,0.96)_0%,rgba(191,216,211,0.94)_48%,rgba(130,183,177,0.96)_100%)] px-6 text-center"
+    >
+      <div className="w-full max-w-xs rounded-2xl border border-white/65 bg-[#f8fbf7]/88 p-5 text-[#173b34] shadow-[0_22px_70px_rgba(23,59,52,0.24)] backdrop-blur-xl">
+        {hasError ? (
+          <>
+            <p className="text-sm font-semibold">Chưa tải được một asset 3D</p>
+            <p className="mt-2 text-xs leading-5 text-[#45635d]">Bạn có thể thử tải lại hoặc mở danh sách agent để tiếp tục làm việc.</p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <button type="button" onClick={() => window.location.reload()} className="rounded-lg bg-[#173b34] px-3 py-2 text-xs font-semibold text-white">Thử lại</button>
+              <button type="button" onClick={() => openRoster(true)} className="rounded-lg border border-[#173b34]/20 bg-white/75 px-3 py-2 text-xs font-semibold text-[#173b34]">Mở danh sách</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-[#173b34]/15 bg-white/80 shadow-sm">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#173b34]/20 border-t-[#54a99e]" />
+            </div>
+            <p className="mt-3 text-sm font-semibold">Đang dựng văn phòng 3D</p>
+            <p className="mt-1 text-xs text-[#54716b]">Đang tải môi trường và 6 nhân vật · {safeProgress}%</p>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#173b34]/10">
+              <div className="h-full rounded-full bg-[#54a99e] transition-[width] duration-300" style={{ width: `${Math.max(4, safeProgress)}%` }} />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function OfficeCanvas() {
   const agents = useOfficeStore((state) => state.agents);
   const selectAgent = useOfficeStore((state) => state.selectAgent);
@@ -109,10 +162,12 @@ export function OfficeCanvas() {
           maxAzimuthAngle={Math.PI / 3.2}
           target={[HOME_TARGET.x, HOME_TARGET.y, HOME_TARGET.z]}
         />
-        <Suspense fallback={null}>
+        <Suspense fallback={<SceneLoadingFallback />}>
           <GardenOfficeScene />
         </Suspense>
       </Canvas>
+
+      <SceneLoadOverlay />
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_52%_36%,transparent_0%,transparent_66%,rgba(35,72,65,0.06)_100%)]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#173b34]/10 to-transparent" />

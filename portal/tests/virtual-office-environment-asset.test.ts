@@ -46,4 +46,16 @@ describe('virtual office v8 environment asset', () => {
       'Quarter sawn oak',
     ]));
   });
+
+  it('renders a visible loading state instead of a black canvas while GLB assets suspend', () => {
+    const canvasSource = fs.readFileSync(
+      path.join(process.cwd(), 'features', 'virtual-office', 'components', 'OfficeCanvas.tsx'),
+      'utf8',
+    );
+
+    expect(canvasSource).not.toContain('Suspense fallback={null}');
+    expect(canvasSource).toContain('fallback={<SceneLoadingFallback />}');
+    expect(canvasSource).toContain('data-testid="office-scene-loading"');
+    expect(canvasSource).toContain('Đang dựng văn phòng 3D');
+  });
 });
