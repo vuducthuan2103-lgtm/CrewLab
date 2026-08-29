@@ -12,10 +12,10 @@ import { RiggedAgentCharacter } from './RiggedAgentCharacter';
 
 const MODEL_URL = '/virtual-office/garden-office-v7.glb?v=20260828-v7';
 const CHARACTER_SCALE = 1.1;
-// The procedural rig is authored in a true seated frame: feet at 0.08 m and
-// pelvis at 0.58 m. This anchor puts the shoes on the raised plaza (0.45 m)
-// while the pelvis intersects the authored cushion instead of hovering.
-const CHARACTER_SEAT_ANCHOR_Y = 0.36;
+// Blender v10 assets use a 0.038 m shoe sole and a 0.62 m seated pelvis.
+// The plaza sits at roughly 0.45 m, so this keeps the shoes planted while the
+// pelvis meets the authored cushion instead of hovering above the chair.
+const CHARACTER_SEAT_ANCHOR_Y = 0.41;
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
 const LABEL_OFFSETS: Record<AgentCode, [number, number, number]> = {
   A01: [0, 3.35, -0.25],
