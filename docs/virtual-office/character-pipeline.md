@@ -1,6 +1,6 @@
 # CrewLab Character Production Pipeline
 
-**Status:** A01 v11 runtime candidate integrated; final browser visual approval pending
+**Status:** A01 founder gate passed; B02 v11 integrated and B03 is next
 **Canonical master:** Blender `.blend`
 **Canonical runtime:** glTF 2.0 binary (`.glb`)
 
@@ -169,6 +169,6 @@ Runtime GLBs may remain in normal Git when reasonably small. Evaluate Git LFS na
 
 No asset enters the repo until `docs/assets/virtual-office-character-assets.md` contains its source, creator, licence, commercial/derivative/runtime distribution rights, attribution and modifications.
 
-## 12. Current stop condition
+## 12. Current rollout condition
 
-The A01 v11 candidate now has a recorded CC0 source, 27-bone rig, five digit bones per hand, nine workstation anchors, eight named clips and a Meshopt-compressed runtime GLB. Automated GLB, Portal test, lint and production-build gates pass. Final real-browser visual approval is still open because the in-app browser refused localhost reload during the QA run; HTTP and server-log checks passed instead. Do not build B02–E01 until A01 is visually approved in `/office`.
+The founder has explicitly accepted A01 as complete and opened the sequential B02 → B03 → D01 → D02 → E01 pipeline. B02 now has a recorded CC0 source, role-specific female silhouette and outfit, exact cushion contact, 27 bones, nine anchors, eight clips and a Meshopt runtime GLB. The remaining characters may proceed one at a time only after the preceding character passes the same visual, contact, animation, round-trip and Portal gates.

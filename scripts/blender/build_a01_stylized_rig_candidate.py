@@ -1,4 +1,4 @@
-"""Build and render an A01 seated-rig candidate from Blender's stylized base.
+"""Build and render CrewLab seated-rig candidates from Blender's stylized bases.
 
 This is an explicit production-candidate stage: it uses deterministic regional
 weights rather than the rejected MPFB/BVH retarget path. It does not overwrite
@@ -18,7 +18,98 @@ import bpy
 from mathutils import Matrix, Vector
 
 
-MALE_COLLECTION = "Body Male - Stylized"
+CHARACTER_CONFIGS = {
+    "A01": {
+        "collection": "Body Male - Stylized",
+        "skin": (0.52, 0.30, 0.19, 1),
+        "top": (0.012, 0.028, 0.055, 1),
+        "trousers": (0.025, 0.032, 0.042, 1),
+        "shoes": (0.025, 0.022, 0.02, 1),
+        "accent": (0.56, 0.82, 0.08, 1),
+        "hair_style": "short",
+        "head_top": 1.71,
+        "top_min": 0.90,
+        "top_max": 1.45,
+        "trousers_max": 0.96,
+        "rig_z": -0.14637,
+        "knee_scale": 1.1378,
+    },
+    "B02": {
+        "collection": "Body Female - Stylized",
+        "skin": (0.58, 0.36, 0.24, 1),
+        "top": (0.055, 0.23, 0.22, 1),
+        "trousers": (0.72, 0.67, 0.56, 1),
+        "shoes": (0.48, 0.35, 0.24, 1),
+        "accent": (0.44, 0.88, 0.66, 1),
+        "hair_style": "bob",
+        "head_top": 1.595,
+        "top_min": 0.82,
+        "top_max": 1.20,
+        "trousers_max": 0.90,
+        "rig_z": -0.16266,
+        "knee_scale": 1.1030,
+    },
+    "B03": {
+        "collection": "Body Male - Stylized",
+        "skin": (0.50, 0.29, 0.18, 1),
+        "top": (0.68, 0.62, 0.50, 1),
+        "trousers": (0.035, 0.045, 0.065, 1),
+        "shoes": (0.76, 0.76, 0.72, 1),
+        "accent": (0.28, 0.68, 0.96, 1),
+        "hair_style": "short",
+        "head_top": 1.71,
+        "top_min": 0.90,
+        "top_max": 1.45,
+        "trousers_max": 0.96,
+        "rig_z": -0.14637,
+        "knee_scale": 1.1378,
+    },
+    "D01": {
+        "collection": "Body Female - Stylized",
+        "skin": (0.56, 0.33, 0.22, 1),
+        "top": (0.50, 0.12, 0.045, 1),
+        "trousers": (0.72, 0.67, 0.56, 1),
+        "shoes": (0.34, 0.20, 0.13, 1),
+        "accent": (0.96, 0.48, 0.22, 1),
+        "hair_style": "long",
+        "head_top": 1.595,
+        "top_min": 0.82,
+        "top_max": 1.20,
+        "trousers_max": 0.90,
+        "rig_z": -0.16266,
+        "knee_scale": 1.1030,
+    },
+    "D02": {
+        "collection": "Body Female - Stylized",
+        "skin": (0.54, 0.32, 0.21, 1),
+        "top": (0.025, 0.12, 0.38, 1),
+        "trousers": (0.025, 0.09, 0.30, 1),
+        "shoes": (0.72, 0.72, 0.68, 1),
+        "accent": (0.25, 0.60, 1.0, 1),
+        "hair_style": "ponytail",
+        "head_top": 1.595,
+        "top_min": 0.82,
+        "top_max": 1.20,
+        "trousers_max": 0.90,
+        "rig_z": -0.16266,
+        "knee_scale": 1.1030,
+    },
+    "E01": {
+        "collection": "Body Male - Stylized",
+        "skin": (0.48, 0.27, 0.17, 1),
+        "top": (0.68, 0.70, 0.72, 1),
+        "trousers": (0.018, 0.028, 0.065, 1),
+        "shoes": (0.12, 0.055, 0.025, 1),
+        "accent": (0.60, 0.42, 0.96, 1),
+        "hair_style": "short",
+        "head_top": 1.71,
+        "top_min": 0.90,
+        "top_max": 1.45,
+        "trousers_max": 0.96,
+        "rig_z": -0.14637,
+        "knee_scale": 1.1378,
+    },
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -26,6 +117,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", required=True)
     parser.add_argument("--views", default="front,three-quarter,side,back")
     parser.add_argument("--hair-source")
+    parser.add_argument("--agent", choices=sorted(CHARACTER_CONFIGS), default="A01")
     return parser.parse_args(sys.argv[sys.argv.index("--") + 1 :])
 
 
@@ -51,10 +143,10 @@ def bounds(objects: list[bpy.types.Object]) -> tuple[Vector, Vector]:
     )
 
 
-def sanitize_source() -> tuple[bpy.types.Object, list[bpy.types.Object]]:
-    source = bpy.data.collections.get(MALE_COLLECTION)
+def sanitize_source(collection_name: str) -> tuple[bpy.types.Object, list[bpy.types.Object]]:
+    source = bpy.data.collections.get(collection_name)
     if source is None:
-        raise RuntimeError(f"Missing source collection: {MALE_COLLECTION}")
+        raise RuntimeError(f"Missing source collection: {collection_name}")
     for collection in bpy.data.collections:
         visible = collection == source
         collection_objects = [item for item in collection.all_objects if item is not None]
@@ -68,6 +160,7 @@ def sanitize_source() -> tuple[bpy.types.Object, list[bpy.types.Object]]:
     roots = [obj for obj in meshes if obj.parent is None]
     for obj in roots:
         obj.location += offset
+    bpy.context.view_layer.update()
     for obj in meshes:
         obj.hide_render = False
         obj.hide_viewport = False
@@ -83,9 +176,9 @@ def add_bone(armature: bpy.types.Armature, name: str, head, tail, parent=None):
     return bone
 
 
-def build_armature() -> bpy.types.Object:
-    data = bpy.data.armatures.new("A01_Skeleton")
-    rig = bpy.data.objects.new("A01_CharacterRoot", data)
+def build_armature(agent_code: str) -> bpy.types.Object:
+    data = bpy.data.armatures.new(f"{agent_code}_Skeleton")
+    rig = bpy.data.objects.new(f"{agent_code}_CharacterRoot", data)
     bpy.context.scene.collection.objects.link(rig)
     bpy.context.view_layer.objects.active = rig
     rig.select_set(True)
@@ -284,12 +377,12 @@ def attach_to_current_bone_pose(obj: bpy.types.Object, rig: bpy.types.Object, bo
     bone_parent(obj, rig, bone_name)
 
 
-def assign_outfit(body: bpy.types.Object) -> None:
+def assign_outfit(body: bpy.types.Object, agent_code: str, config: dict) -> None:
     surfaces = (
-        material("A01 warm skin", (0.52, 0.30, 0.19, 1), 0.62),
-        material("A01 navy knit", (0.018, 0.038, 0.07, 1), 0.72),
-        material("A01 charcoal trousers", (0.055, 0.065, 0.075, 1), 0.58),
-        material("A01 leather shoes", (0.025, 0.022, 0.02, 1), 0.3),
+        material(f"{agent_code} skin", config["skin"], 0.62),
+        material(f"{agent_code} top", config["top"], 0.72),
+        material(f"{agent_code} trousers", config["trousers"], 0.58),
+        material(f"{agent_code} shoes", config["shoes"], 0.3),
     )
     body.data.materials.clear()
     for surface in surfaces:
@@ -345,24 +438,27 @@ def duplicate_clothing_region(
     return garment
 
 
-def create_layered_clothing(body: bpy.types.Object) -> list[bpy.types.Object]:
-    navy = material("A01 overshirt fabric", (0.012, 0.028, 0.055, 1), 0.78)
-    graphite = material("A01 tailored trouser fabric", (0.025, 0.032, 0.042, 1), 0.82)
+def create_layered_clothing(body: bpy.types.Object, agent_code: str, config: dict) -> list[bpy.types.Object]:
+    top = material(f"{agent_code} top fabric", config["top"], 0.78)
+    trousers_surface = material(f"{agent_code} trouser fabric", config["trousers"], 0.82)
     overshirt = duplicate_clothing_region(
         body,
-        "A01_NavyOvershirt",
-        navy,
+        f"{agent_code}_TopLayer",
+        top,
         lambda point: (
-            (0.90 < point.z < 1.45 and abs(point.x) < 0.35)
-            or (0.80 < point.z < 1.40 and 0.22 <= abs(point.x) < 0.37)
+            (config["top_min"] < point.z < config["top_max"] and abs(point.x) < 0.35)
+            or (
+                config["top_min"] - 0.10 < point.z < config["top_max"] - 0.05
+                and 0.22 <= abs(point.x) < 0.37
+            )
         ),
         0.012,
     )
     trousers = duplicate_clothing_region(
         body,
-        "A01_TailoredTrousers",
-        graphite,
-        lambda point: 0.13 < point.z < 0.96 and abs(point.x) < 0.38,
+        f"{agent_code}_Trousers",
+        trousers_surface,
+        lambda point: 0.13 < point.z < config["trousers_max"] and abs(point.x) < 0.38,
         0.009,
     )
     return [overshirt, trousers]
@@ -401,19 +497,23 @@ def add_tailored_trims(rig: bpy.types.Object) -> list[bpy.types.Object]:
     return []
 
 
-def add_hair_and_details(rig: bpy.types.Object) -> list[bpy.types.Object]:
-    hair = material("A01 textured black hair", (0.005, 0.008, 0.012, 1), 0.68)
-    accent = material("A01 lime accent", (0.56, 0.82, 0.08, 1), 0.34)
+def add_hair_and_details(
+    rig: bpy.types.Object,
+    agent_code: str,
+    config: dict,
+) -> list[bpy.types.Object]:
+    hair = material(f"{agent_code} textured black hair", (0.005, 0.008, 0.012, 1), 0.68)
+    accent = material(f"{agent_code} accent", config["accent"], 0.34)
     details: list[bpy.types.Object] = []
 
     bpy.ops.mesh.primitive_uv_sphere_add(
         segments=32,
         ring_count=20,
-        location=(0, 0.018, 1.71),
-        scale=(0.19, 0.16, 0.105),
+        location=(0, 0.018, config["head_top"]),
+        scale=(0.19, 0.16, 0.105 if config["hair_style"] == "short" else 0.085),
     )
     scalp = bpy.context.object
-    scalp.name = "A01_HairScalp"
+    scalp.name = f"{agent_code}_HairScalp"
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     mesh = bmesh.new()
     mesh.from_mesh(scalp.data)
@@ -436,10 +536,12 @@ def add_hair_and_details(rig: bpy.types.Object) -> list[bpy.types.Object]:
             ((0.035, -0.145, 1.768), (0.06, 0.04, 0.042), 0.10),
             ((0.095, -0.13, 1.75), (0.052, 0.037, 0.038), 0.25),
         )
+        if config["hair_style"] == "short"
+        else ()
     ):
         bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3, radius=1, location=location)
         lock = bpy.context.object
-        lock.name = f"A01_HairLock_{index + 1:02d}"
+        lock.name = f"{agent_code}_HairLock_{index + 1:02d}"
         lock.scale = scale
         lock.rotation_euler.y = rotation
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
@@ -447,23 +549,9 @@ def add_hair_and_details(rig: bpy.types.Object) -> list[bpy.types.Object]:
         attach_to_current_bone_pose(lock, rig, "HeadJoint")
         details.append(lock)
 
-    for suffix, side, tilt in (("L", 1, -0.11), ("R", -1, 0.11)):
-        bpy.ops.mesh.primitive_cube_add(location=(0.073 * side, 0.0, 1.39))
-        brow = bpy.context.object
-        brow.name = f"A01_Eyebrow_{suffix}"
-        brow.scale = (0.034, 0.006, 0.005)
-        brow.rotation_euler.y = tilt
-        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-        brow.data.materials.append(hair)
-        bevel = brow.modifiers.new("Brow softness", "BEVEL")
-        bevel.width = 0.004
-        bevel.segments = 2
-        bone_parent(brow, rig, "HeadJoint")
-        details.append(brow)
-
     bpy.ops.mesh.primitive_uv_sphere_add(segments=20, ring_count=12, location=(0.105, -0.174, 1.225))
     pin = bpy.context.object
-    pin.name = "A01_LimePin"
+    pin.name = f"{agent_code}_AccentPin"
     pin.scale = (0.018, 0.009, 0.018)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     pin.data.materials.append(accent)
@@ -473,22 +561,22 @@ def add_hair_and_details(rig: bpy.types.Object) -> list[bpy.types.Object]:
     return details
 
 
-def create_qa_eyes(rig: bpy.types.Object) -> list[bpy.types.Object]:
+def create_qa_eyes(rig: bpy.types.Object, agent_code: str) -> list[bpy.types.Object]:
     """Replace library eyeballs with deterministic eyes at evaluated socket centres."""
-    sclera = material("A01 sclera", (0.92, 0.89, 0.84, 1), 0.42)
-    iris = material("A01 iris", (0.12, 0.055, 0.025, 1), 0.32)
-    pupil = material("A01 pupil", (0.004, 0.003, 0.002, 1), 0.25)
+    sclera = material(f"{agent_code} sclera", (0.92, 0.89, 0.84, 1), 0.42)
+    iris = material(f"{agent_code} iris", (0.12, 0.055, 0.025, 1), 0.32)
+    pupil = material(f"{agent_code} pupil", (0.004, 0.003, 0.002, 1), 0.25)
     result: list[bpy.types.Object] = []
     for suffix, x in (("L", 0.040658), ("R", -0.040658)):
         bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=16, radius=0.038, location=(x, 0.0459, 1.33625))
         eye = bpy.context.object
-        eye.name = f"A01_Eye_{suffix}"
+        eye.name = f"{agent_code}_Eye_{suffix}"
         eye.data.materials.append(sclera)
         bone_parent(eye, rig, "HeadJoint")
         result.append(eye)
         bpy.ops.mesh.primitive_uv_sphere_add(segments=20, ring_count=12, radius=0.017, location=(x, 0.012, 1.33625))
         iris_obj = bpy.context.object
-        iris_obj.name = f"A01_Iris_{suffix}"
+        iris_obj.name = f"{agent_code}_Iris_{suffix}"
         iris_obj.scale.y = 0.34
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
         iris_obj.data.materials.append(iris)
@@ -496,7 +584,7 @@ def create_qa_eyes(rig: bpy.types.Object) -> list[bpy.types.Object]:
         result.append(iris_obj)
         bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=10, radius=0.008, location=(x, 0.005, 1.33625))
         pupil_obj = bpy.context.object
-        pupil_obj.name = f"A01_Pupil_{suffix}"
+        pupil_obj.name = f"{agent_code}_Pupil_{suffix}"
         pupil_obj.scale.y = 0.3
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
         pupil_obj.data.materials.append(pupil)
@@ -505,14 +593,18 @@ def create_qa_eyes(rig: bpy.types.Object) -> list[bpy.types.Object]:
     return result
 
 
-def append_cc0_hair(source_path: str, rig: bpy.types.Object) -> bpy.types.Object:
+def append_cc0_hair(
+    source_path: str,
+    rig: bpy.types.Object,
+    agent_code: str,
+) -> bpy.types.Object:
     with bpy.data.libraries.load(source_path, link=False) as (available, requested):
         source_name = "A01_Basemesh.short03"
         if source_name not in available.objects:
             raise RuntimeError(f"Missing {source_name} in {source_path}")
         requested.objects = [source_name]
     hair = requested.objects[0]
-    hair.name = "A01_CC0_ShortHair"
+    hair.name = f"{agent_code}_CC0_ShortHair"
     hair.parent = None
     for modifier in list(hair.modifiers):
         hair.modifiers.remove(modifier)
@@ -522,12 +614,12 @@ def append_cc0_hair(source_path: str, rig: bpy.types.Object) -> bpy.types.Object
     # a bald rear hemisphere and made the fringe float above the forehead.
     hair.location = (0.0135, 0.143, -0.253)
     hair.data.materials.clear()
-    hair.data.materials.append(material("A01 CC0 hair", (0.006, 0.009, 0.014, 1), 0.56))
+    hair.data.materials.append(material(f"{agent_code} CC0 hair", (0.006, 0.009, 0.014, 1), 0.56))
     bone_parent(hair, rig, "HeadJoint")
     return hair
 
 
-def add_rear_hair_fill(rig: bpy.types.Object) -> bpy.types.Object:
+def add_rear_hair_fill(rig: bpy.types.Object, agent_code: str) -> bpy.types.Object:
     """Fill only the rear/top hemisphere left open by the CC0 fringe mesh."""
     bpy.ops.mesh.primitive_uv_sphere_add(
         segments=32,
@@ -536,7 +628,7 @@ def add_rear_hair_fill(rig: bpy.types.Object) -> bpy.types.Object:
         scale=(0.142, 0.14, 0.145),
     )
     fill = bpy.context.object
-    fill.name = "A01_RearHairFill"
+    fill.name = f"{agent_code}_RearHairFill"
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     mesh = bmesh.new()
     mesh.from_mesh(fill.data)
@@ -557,7 +649,7 @@ def add_rear_hair_fill(rig: bpy.types.Object) -> bpy.types.Object:
         )
     mesh.to_mesh(fill.data)
     mesh.free()
-    fill.data.materials.append(material("A01 CC0 hair", (0.006, 0.009, 0.014, 1), 0.56))
+    fill.data.materials.append(material(f"{agent_code} CC0 hair", (0.006, 0.009, 0.014, 1), 0.56))
     solidify = fill.modifiers.new("Rear hair thickness", "SOLIDIFY")
     solidify.thickness = 0.01
     bevel = fill.modifiers.new("Rear hair softness", "BEVEL")
@@ -565,6 +657,101 @@ def add_rear_hair_fill(rig: bpy.types.Object) -> bpy.types.Object:
     bevel.segments = 2
     bone_parent(fill, rig, "HeadJoint")
     return fill
+
+
+def add_signature_hair_shape(
+    rig: bpy.types.Object,
+    agent_code: str,
+    hair_style: str,
+) -> list[bpy.types.Object]:
+    """Add a readable silhouette for the three female character hairstyles."""
+    if hair_style not in {"bob", "long", "ponytail"}:
+        return []
+    hair = material(f"{agent_code} signature hair", (0.004, 0.006, 0.010, 1), 0.64)
+    shapes: list[tuple[str, tuple, tuple, tuple]] = []
+    if hair_style == "bob":
+        shapes = [
+            ("BobBack", (0.0, 0.105, 1.470), (0.175, 0.135, 0.18), (0.0, 0.0, 0.0)),
+            ("BobSideL", (0.145, 0.035, 1.500), (0.075, 0.085, 0.17), (0.0, -0.10, -0.08)),
+            ("BobSideR", (-0.145, 0.035, 1.500), (0.075, 0.085, 0.17), (0.0, 0.10, 0.08)),
+        ]
+    elif hair_style == "long":
+        shapes = [
+            ("LongBack", (0.0, 0.125, 1.405), (0.185, 0.095, 0.38), (0.0, 0.0, 0.0)),
+            ("LongSideL", (0.145, 0.018, 1.445), (0.067, 0.060, 0.32), (0.0, -0.08, -0.08)),
+            ("LongSideR", (-0.145, 0.018, 1.445), (0.067, 0.060, 0.32), (0.0, 0.08, 0.08)),
+        ]
+    else:
+        shapes = [
+            ("PonyBase", (0.0, 0.205, 1.615), (0.085, 0.075, 0.115), (0.18, 0.0, 0.0)),
+            ("PonyMid", (0.0, 0.245, 1.475), (0.075, 0.068, 0.145), (0.24, 0.0, 0.0)),
+            ("PonyTip", (0.0, 0.245, 1.325), (0.055, 0.052, 0.125), (0.28, 0.0, 0.0)),
+        ]
+    result: list[bpy.types.Object] = []
+    for suffix, location, scale, rotation in shapes:
+        bpy.ops.mesh.primitive_uv_sphere_add(
+            segments=28,
+            ring_count=18,
+            location=location,
+            scale=scale,
+            rotation=rotation,
+        )
+        obj = bpy.context.object
+        obj.name = f"{agent_code}_{suffix}"
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        obj.data.materials.append(hair)
+        bevel = obj.modifiers.new("Hair silhouette softness", "BEVEL")
+        bevel.width = 0.004
+        bevel.segments = 2
+        attach_to_current_bone_pose(obj, rig, "HeadJoint")
+        result.append(obj)
+    return result
+
+
+def add_irises_to_source_eyes(
+    rig: bpy.types.Object,
+    source_eyes: list[bpy.types.Object],
+    agent_code: str,
+) -> list[bpy.types.Object]:
+    iris_surface = material(f"{agent_code} warm brown iris", (0.15, 0.065, 0.024, 1), 0.30)
+    pupil_surface = material(f"{agent_code} pupil", (0.003, 0.002, 0.001, 1), 0.22)
+    brow_surface = material(f"{agent_code} eyebrow", (0.006, 0.008, 0.010, 1), 0.62)
+    result: list[bpy.types.Object] = []
+    for eye in source_eyes:
+        center = eye.matrix_world.translation.copy()
+        suffix = "L" if center.x >= 0 else "R"
+        for label, radius, offset, surface in (
+            ("Iris", 0.017, -0.033, iris_surface),
+            ("Pupil", 0.008, -0.039, pupil_surface),
+        ):
+            bpy.ops.mesh.primitive_uv_sphere_add(
+                segments=20,
+                ring_count=12,
+                radius=radius,
+                location=(center.x, center.y + offset, center.z),
+                scale=(1.0, 0.30, 1.0),
+            )
+            detail = bpy.context.object
+            detail.name = f"{agent_code}_{label}_{suffix}"
+            bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+            detail.data.materials.append(surface)
+            bone_parent(detail, rig, "HeadJoint")
+            result.append(detail)
+        bpy.ops.mesh.primitive_cube_add(
+            location=(center.x, center.y - 0.038, center.z + 0.052),
+        )
+        brow = bpy.context.object
+        brow.name = f"{agent_code}_Eyebrow_{suffix}"
+        brow.scale = (0.028, 0.004, 0.004)
+        brow.rotation_euler.y = -0.10 if suffix == "L" else 0.10
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        brow.data.materials.append(brow_surface)
+        bevel = brow.modifiers.new("Brow softness", "BEVEL")
+        bevel.width = 0.003
+        bevel.segments = 2
+        bone_parent(brow, rig, "HeadJoint")
+        result.append(brow)
+    return result
 
 
 def rotate_pose_bone_to(rig: bpy.types.Object, bone_name: str, direction: Vector) -> None:
@@ -579,7 +766,7 @@ def rotate_pose_bone_to(rig: bpy.types.Object, bone_name: str, direction: Vector
     bpy.context.view_layer.update()
 
 
-def pose_seated(rig: bpy.types.Object) -> None:
+def pose_seated(rig: bpy.types.Object, config: dict) -> None:
     pelvis = rig.pose.bones["PelvisJoint"]
     # Fold the legs/torso in rig-local space, then place the whole deform rig by
     # world-space workstation anchors. Pose-bone location axes are not world Y/Z.
@@ -590,7 +777,7 @@ def pose_seated(rig: bpy.types.Object) -> None:
     for suffix, side in (("L", 1), ("R", -1)):
         rotate_pose_bone_to(rig, f"Thigh{suffix}Joint", Vector((0.03 * side, -1.0, -0.08)))
         rotate_pose_bone_to(rig, f"Knee{suffix}Joint", Vector((0, 0.05, -1.0)))
-        rig.pose.bones[f"Knee{suffix}Joint"].scale.y = 1.1378
+        rig.pose.bones[f"Knee{suffix}Joint"].scale.y = config["knee_scale"]
         rotate_pose_bone_to(rig, f"Ankle{suffix}Joint", Vector((0, -1.0, -0.05)))
         rotate_pose_bone_to(
             rig,
@@ -605,7 +792,7 @@ def pose_seated(rig: bpy.types.Object) -> None:
         rotate_pose_bone_to(rig, f"Wrist{suffix}Joint", Vector((0, -1.0, 0.02)))
     # Target pelvis centre: y 0.15 over the horizontal cushion and z 0.575 so
     # the evaluated butt surface lands at the cushion top (z 0.462).
-    rig.location = (0, -0.563, -0.14637)
+    rig.location = (0, -0.563, config["rig_z"])
     bpy.context.view_layer.update()
 
 
@@ -721,30 +908,85 @@ def cube(name: str, location, scale, surface, bevel: float = 0.025):
     return obj
 
 
+def add_outfit_details(
+    rig: bpy.types.Object,
+    agent_code: str,
+    config: dict,
+) -> list[bpy.types.Object]:
+    """Add role-specific layers that stay legible at the office camera distance."""
+    details: list[bpy.types.Object] = []
+    white = material(f"{agent_code} clean inner shirt", (0.82, 0.82, 0.76, 1), 0.70)
+    accent = material(f"{agent_code} outfit accent", config["accent"], 0.46)
+    dark = material(f"{agent_code} vest", (0.018, 0.028, 0.060, 1), 0.68)
+
+    if agent_code in {"B02", "D02"}:
+        panel = cube(f"{agent_code}_InnerShirt", (0.0, -0.160, 1.055), (0.095, 0.012, 0.145), white, 0.012)
+        details.append(panel)
+        for suffix, side in (("L", 1), ("R", -1)):
+            lapel = cube(
+                f"{agent_code}_Lapel_{suffix}",
+                (0.070 * side, -0.178, 1.115),
+                (0.038, 0.011, 0.125),
+                material(f"{agent_code} lapel {suffix}", config["top"], 0.66),
+                0.010,
+            )
+            lapel.rotation_euler.y = -0.24 * side
+            details.append(lapel)
+    elif agent_code == "B03":
+        for suffix, side in (("L", 1), ("R", -1)):
+            collar = cube(
+                f"{agent_code}_PoloCollar_{suffix}",
+                (0.046 * side, -0.168, 1.175),
+                (0.043, 0.010, 0.035),
+                accent,
+                0.009,
+            )
+            collar.rotation_euler.y = -0.32 * side
+            details.append(collar)
+    elif agent_code == "D01":
+        button = cube(f"{agent_code}_BlouseDetail", (0.0, -0.175, 1.095), (0.018, 0.010, 0.105), accent, 0.008)
+        details.append(button)
+    elif agent_code == "E01":
+        vest = cube(f"{agent_code}_NavyVest", (0.0, -0.165, 1.055), (0.150, 0.014, 0.185), dark, 0.018)
+        inner = cube(f"{agent_code}_WhiteShirtFront", (0.0, -0.184, 1.105), (0.050, 0.010, 0.145), white, 0.010)
+        details.extend((vest, inner))
+
+    for obj in details:
+        attach_to_current_bone_pose(obj, rig, "SpineJoint")
+    return details
+
+
 def build_qa_scene(
     output: Path,
     rig: bpy.types.Object,
     body: bpy.types.Object,
+    source_eyes: list[bpy.types.Object],
     hair_source: str | None,
+    agent_code: str,
+    config: dict,
+    views_csv: str,
 ) -> None:
-    assign_outfit(body)
-    create_layered_clothing(body)
+    assign_outfit(body, agent_code, config)
+    create_layered_clothing(body, agent_code, config)
     add_tailored_trims(rig)
-    eye_objects = [obj for obj in bpy.data.objects if obj.type == "MESH" and ".eye." in obj.name and not obj.hide_render]
-    for obj in eye_objects:
-        obj.hide_render = True
-        obj.hide_viewport = True
-    create_qa_eyes(rig)
-    add_hair_and_details(rig)
-    if hair_source:
+    add_outfit_details(rig, agent_code, config)
+    for obj in source_eyes:
+        obj.hide_render = False
+        obj.hide_viewport = False
+        obj.name = f"{agent_code}_{obj.name.rsplit('.', 1)[-1]}"
+        attach_to_current_bone_pose(obj, rig, "HeadJoint")
+    add_irises_to_source_eyes(rig, source_eyes, agent_code)
+    add_hair_and_details(rig, agent_code, config)
+    add_signature_hair_shape(rig, agent_code, config["hair_style"])
+    if hair_source and config["hair_style"] == "short":
         for obj in bpy.data.objects:
-            if obj.name.startswith("A01_HairScalp") or obj.name.startswith("A01_HairLock"):
+            if obj.name.startswith(f"{agent_code}_HairScalp") or obj.name.startswith(f"{agent_code}_HairLock"):
                 obj.hide_render = True
                 obj.hide_viewport = True
-        append_cc0_hair(hair_source, rig)
-        add_rear_hair_fill(rig)
+        append_cc0_hair(hair_source, rig, agent_code)
+        add_rear_hair_fill(rig, agent_code)
     rigid_bound = bind_marked_rigid_meshes(rig)
-    print("A01_RIGID_ACCESSORIES", rigid_bound)
+    print(f"{agent_code}_RIGID_ACCESSORIES", rigid_bound)
 
     chair = material("QA chair", (0.10, 0.16, 0.18, 1), 0.38)
     oak = material("QA oak", (0.49, 0.27, 0.12, 1), 0.42)
@@ -798,35 +1040,37 @@ def build_qa_scene(
         "side": (3.45, 0.0, 0.91),
         "back": (0.0, 3.45, 0.93),
     }
-    requested = [item.strip() for item in parse_args().views.split(",") if item.strip()]
+    requested = [item.strip() for item in views_csv.split(",") if item.strip()]
     for view in requested:
         if view not in views:
             raise ValueError(f"Unknown view: {view}")
         camera.location = views[view]
         look_at(camera, Vector((0, -0.08, 0.78)))
-        scene.render.filepath = str(output / f"a01-seated-rig-{view}.png")
+        scene.render.filepath = str(output / f"{agent_code.lower()}-seated-rig-{view}.png")
         bpy.ops.render.render(write_still=True)
-        print("A01_SEATED_RIG_RENDER", view, scene.render.filepath)
+        print(f"{agent_code}_SEATED_RIG_RENDER", view, scene.render.filepath)
 
 
 def main() -> int:
     args = parse_args()
+    agent_code = args.agent
+    config = CHARACTER_CONFIGS[agent_code]
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=True)
-    body, eyes = sanitize_source()
+    body, eyes = sanitize_source(config["collection"])
     # The source eyeballs are body children. Detach while preserving source-world
     # transforms before automatic-parenting the body, otherwise they deform twice.
     for eye in eyes:
         eye_world = eye.matrix_world.copy()
         eye.parent = None
         eye.matrix_world = eye_world
-    rig = build_armature()
+    rig = build_armature(agent_code)
     skinning = skin_body(body, rig)
-    pose_seated(rig)
+    pose_seated(rig, config)
     anchors = create_workstation_anchors()
-    build_qa_scene(output, rig, body, args.hair_source)
+    build_qa_scene(output, rig, body, eyes, args.hair_source, agent_code, config, args.views)
     clips = author_required_actions(rig)
-    blend_path = output / "A01_STYLIZED_RIG_CANDIDATE.blend"
+    blend_path = output / f"{agent_code}_STYLIZED_RIG_CANDIDATE.blend"
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path), check_existing=False)
     payload = {
         "status": "candidate_not_runtime",
@@ -840,7 +1084,7 @@ def main() -> int:
         "output_blend": str(blend_path),
     }
     (output / "candidate.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print("A01_STYLIZED_RIG_CANDIDATE", json.dumps(payload))
+    print(f"{agent_code}_STYLIZED_RIG_CANDIDATE", json.dumps(payload))
     return 0
 
 

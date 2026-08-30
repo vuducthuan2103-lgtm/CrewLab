@@ -1,4 +1,4 @@
-"""Export the approved A01 candidate content from its QA blend to binary glTF."""
+"""Export an approved CrewLab character candidate from its QA blend to binary glTF."""
 
 from __future__ import annotations
 
@@ -13,19 +13,20 @@ import bpy
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
+    parser.add_argument("--agent", default="A01")
     parser.add_argument("--gltfpack", action="store_true")
     parser.add_argument("--meshopt", action="store_true")
     return parser.parse_args(sys.argv[sys.argv.index("--") + 1 :])
 
 
-def is_character_object(obj: bpy.types.Object) -> bool:
-    if obj.name == "A01_CharacterRoot":
+def is_character_object(obj: bpy.types.Object, agent_code: str) -> bool:
+    if obj.name == f"{agent_code}_CharacterRoot":
         return True
     if obj.type == "EMPTY" and obj.get("crewlab_anchor_role"):
         return True
     if obj.type != "MESH":
         return False
-    if obj.name.startswith("QA ") or "female" in obj.name.lower():
+    if obj.name.startswith("QA "):
         return False
     if ".eye." in obj.name:
         return False
@@ -40,14 +41,15 @@ def main() -> int:
     bpy.ops.object.select_all(action="DESELECT")
     selected = []
     for obj in bpy.context.scene.objects:
-        if is_character_object(obj):
+        if is_character_object(obj, args.agent):
             obj.hide_set(False)
             obj.select_set(True)
             selected.append(obj.name)
 
-    rig = bpy.data.objects.get("A01_CharacterRoot")
+    rig_name = f"{args.agent}_CharacterRoot"
+    rig = bpy.data.objects.get(rig_name)
     if rig is None or rig not in bpy.context.selected_objects:
-        raise RuntimeError("A01_CharacterRoot is missing from export selection")
+        raise RuntimeError(f"{rig_name} is missing from export selection")
     bpy.context.view_layer.objects.active = rig
 
     bpy.ops.export_scene.gltf(
@@ -84,7 +86,7 @@ def main() -> int:
     }
     manifest = output.with_suffix(".json")
     manifest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print("A01_GLTF_EXPORT", json.dumps(payload))
+    print(f"{args.agent}_GLTF_EXPORT", json.dumps(payload))
     return 0
 
 

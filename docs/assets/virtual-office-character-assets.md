@@ -15,17 +15,20 @@ Every external or generated character source must be recorded here before import
 
 These files are placeholders and failed the production A01 quality gate. Their presence does not authorize using their primitive source for the final six-character pipeline.
 
-## A01 v11 runtime candidate
+## v11 runtime candidates
 
-This candidate is integrated for one-character runtime evaluation only. It does not authorize cloning the asset to B02–E01 until A01 passes final browser visual approval.
+A01 has founder approval to open the remaining character pipeline. Each additional character still requires its own seated-contact, animation, GLB round-trip and runtime gates.
 
 | Agent | Asset | Source | Creator | Licence | Commercial use | Attribution | Modifications | Runtime file | Skeleton/actions | Runtime size |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: |
 | A01 | v11 stylized seated candidate | [Blender official `human_base_meshes__body-stylized.blend`](https://projects.blender.org/blender/blender-assets/media/branch/main/ready/online/base_meshes/human_base_meshes__body-stylized.blend) plus `short03` from the official MakeHuman system-assets pack | Blender asset contributors; MakeHuman Community system-asset authors | CC0 for both graphical sources | Yes; modification and embedded GLB distribution permitted | None required | Custom 27-bone seated rig, five digit bones per hand, regional clothing layers, deterministic eyes, rear-hair fill, workstation anchors, eight authored actions, Meshopt compression | `portal/public/virtual-office/characters/v11/a01.glb` | 27 bones; 9 anchors; 8 actions | 1,424,760 B |
+| B02 | v11 stylized seated content-strategist candidate | [Blender official `human_base_meshes__body-stylized.blend`](https://projects.blender.org/blender/blender-assets/media/branch/main/ready/online/base_meshes/human_base_meshes__body-stylized.blend), female collection | Blender asset contributors | CC0 | Yes; modification and embedded GLB distribution permitted | None required | Custom 27-bone seated rig, five digit bones per hand, teal layered blazer and cream trousers, bob silhouette, deterministic iris/brow details, workstation anchors, eight authored actions, Meshopt compression | `portal/public/virtual-office/characters/v11/b02.glb` | 27 bones; 9 anchors; 8 actions | 1,854,328 B |
 
 Blender stylized-base SHA-256: `C982F0B6AD0AD32703127BDA97FF984EFB006DD3A6C827F7A4023B5043DA12DF` (1,253,850 B). The source asset remains outside the repository under the isolated CrewLab 3D toolchain; the reproducible build/export code lives in `scripts/blender/build_a01_stylized_rig_candidate.py` and `scripts/blender/export_a01_stylized_candidate.py`.
 
 Measured seated QA after the 27-bone rig was added: butt-to-horizontal-cushion delta `-0.001 mm` and foot-to-floor delta `+0.283 mm`. Blender round-trip import preserved one armature, 27 bones, 16 meshes, all eight action names, and all nine anchor nodes before and after Meshopt compression.
+
+B02 measured seated QA: butt-to-horizontal-cushion delta below `0.001 mm` and foot-to-floor delta `-2.012 mm`. Blender round-trip import preserved one armature, 27 bones, 21 meshes, all eight action names and all nine anchor nodes after Meshopt compression. Eight action midpoints were rendered without losing seat contact or intersecting the desk.
 
 ## Experimental local sources
 
@@ -48,7 +51,7 @@ Existing experimental masters and exports remain outside the repo at `D:/Program
 | `docs/virtual-office/concepts/a01-character-turnaround-v1.png` | Generated with the built-in image-generation tool on 2026-08-29 from the founder's office-quality reference and the Character Bible | Identity, silhouette, face, hair, clothing and material direction | Reference only; not a mesh or runtime asset |
 | `docs/virtual-office/concepts/a01-seated-action-sheet-v1.png` | Generated with the built-in image-generation tool on 2026-08-29 using the turnaround as identity reference | Seated ergonomics and eight-state animation direction | Reference only; each pose still requires rig/deformation QA |
 
-## A01 final art approval — pending
+## A01 final art approval — founder gate passed
 
 | Field | Required value |
 | --- | --- |
