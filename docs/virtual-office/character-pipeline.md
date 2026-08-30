@@ -1,6 +1,6 @@
 # CrewLab Character Production Pipeline
 
-**Status:** A01 founder gate passed; B02, B03 and D01 v11 integrated; D02 is next
+**Status:** A01 founder gate passed; B02, B03, D01 and D02 v11 integrated; E01 is next
 **Canonical master:** Blender `.blend`
 **Canonical runtime:** glTF 2.0 binary (`.glb`)
 

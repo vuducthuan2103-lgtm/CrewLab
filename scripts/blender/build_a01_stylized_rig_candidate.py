@@ -461,7 +461,17 @@ def create_layered_clothing(body: bpy.types.Object, agent_code: str, config: dic
         lambda point: 0.13 < point.z < config["trousers_max"] and abs(point.x) < 0.38,
         0.009,
     )
-    return [overshirt, trousers]
+    garments = [overshirt, trousers]
+    if agent_code in {"B02", "D02"}:
+        inner = duplicate_clothing_region(
+            body,
+            f"{agent_code}_InnerShirt",
+            material(f"{agent_code} clean inner shirt", (0.82, 0.82, 0.76, 1), 0.70),
+            lambda point: 0.98 < point.z < 1.23 and abs(point.x) < 0.070 and point.y < 0.0,
+            0.016,
+        )
+        garments.append(inner)
+    return garments
 
 
 def add_cylinder_between(
@@ -506,18 +516,27 @@ def add_hair_and_details(
     accent = material(f"{agent_code} accent", config["accent"], 0.34)
     details: list[bpy.types.Object] = []
 
+    ponytail = config["hair_style"] == "ponytail"
     bpy.ops.mesh.primitive_uv_sphere_add(
         segments=32,
         ring_count=20,
-        location=(0, 0.018, config["head_top"]),
-        scale=(0.19, 0.16, 0.105 if config["hair_style"] == "short" else 0.085),
+        location=(0, 0.045 if ponytail else 0.018, 1.53 if ponytail else config["head_top"]),
+        scale=(0.175, 0.15, 0.18) if ponytail else (0.19, 0.16, 0.105 if config["hair_style"] == "short" else 0.085),
     )
     scalp = bpy.context.object
     scalp.name = f"{agent_code}_HairScalp"
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     mesh = bmesh.new()
     mesh.from_mesh(scalp.data)
-    bmesh.ops.delete(mesh, geom=[vertex for vertex in mesh.verts if vertex.co.z < -0.04], context="VERTS")
+    if ponytail:
+        remove = [
+            vertex
+            for vertex in mesh.verts
+            if vertex.co.z < -0.12 or (vertex.co.y < -0.06 and vertex.co.z < 0.055)
+        ]
+    else:
+        remove = [vertex for vertex in mesh.verts if vertex.co.z < -0.04]
+    bmesh.ops.delete(mesh, geom=remove, context="VERTS")
     mesh.to_mesh(scalp.data)
     mesh.free()
     scalp.data.materials.append(hair)
@@ -919,20 +938,7 @@ def add_outfit_details(
     accent = material(f"{agent_code} outfit accent", config["accent"], 0.46)
     dark = material(f"{agent_code} vest", (0.018, 0.028, 0.060, 1), 0.68)
 
-    if agent_code in {"B02", "D02"}:
-        panel = cube(f"{agent_code}_InnerShirt", (0.0, -0.160, 1.055), (0.095, 0.012, 0.145), white, 0.012)
-        details.append(panel)
-        for suffix, side in (("L", 1), ("R", -1)):
-            lapel = cube(
-                f"{agent_code}_Lapel_{suffix}",
-                (0.070 * side, -0.178, 1.115),
-                (0.038, 0.011, 0.125),
-                material(f"{agent_code} lapel {suffix}", config["top"], 0.66),
-                0.010,
-            )
-            lapel.rotation_euler.y = -0.24 * side
-            details.append(lapel)
-    elif agent_code == "E01":
+    if agent_code == "E01":
         vest = cube(f"{agent_code}_NavyVest", (0.0, -0.165, 1.055), (0.150, 0.014, 0.185), dark, 0.018)
         inner = cube(f"{agent_code}_WhiteShirtFront", (0.0, -0.184, 1.105), (0.050, 0.010, 0.145), white, 0.010)
         details.extend((vest, inner))
