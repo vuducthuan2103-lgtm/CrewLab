@@ -1,6 +1,6 @@
 # CrewLab Character Production Pipeline
 
-**Status:** Architecture decided; source acquisition blocked on founder licence/source choice
+**Status:** A01 v11 runtime candidate integrated; final browser visual approval pending
 **Canonical master:** Blender `.blend`
 **Canonical runtime:** glTF 2.0 binary (`.glb`)
 
@@ -171,4 +171,4 @@ No asset enters the repo until `docs/assets/virtual-office-character-assets.md` 
 
 ## 12. Current stop condition
 
-Steps 1–8 of the strict plan are complete. Step 9—acquire/build one high-quality A01 source—requires a founder-provided source or explicit licensed-source decision. Do not build B02–E01 while this gate is open.
+The A01 v11 candidate now has a recorded CC0 source, 27-bone rig, five digit bones per hand, nine workstation anchors, eight named clips and a Meshopt-compressed runtime GLB. Automated GLB, Portal test, lint and production-build gates pass. Final real-browser visual approval is still open because the in-app browser refused localhost reload during the QA run; HTTP and server-log checks passed instead. Do not build B02–E01 until A01 is visually approved in `/office`.

@@ -1,19 +1,30 @@
 'use client';
 
-import { useGLTF } from '@react-three/drei';
+import { useAnimations, useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import type { AgentCode, AgentVisualState } from '../types/office';
 
-const CHARACTER_VERSION = '20260829-v10';
+const CHARACTER_VERSION = '20260830-a01-v11';
 const CHARACTER_URLS: Record<AgentCode, string> = {
-  A01: `/virtual-office/characters/v10/a01.glb?v=${CHARACTER_VERSION}`,
+  A01: `/virtual-office/characters/v11/a01.glb?v=${CHARACTER_VERSION}`,
   B02: `/virtual-office/characters/v10/b02.glb?v=${CHARACTER_VERSION}`,
   B03: `/virtual-office/characters/v10/b03.glb?v=${CHARACTER_VERSION}`,
   D01: `/virtual-office/characters/v10/d01.glb?v=${CHARACTER_VERSION}`,
   D02: `/virtual-office/characters/v10/d02.glb?v=${CHARACTER_VERSION}`,
   E01: `/virtual-office/characters/v10/e01.glb?v=${CHARACTER_VERSION}`,
+};
+
+const STATE_CLIP: Record<AgentVisualState, string> = {
+  idle: 'seated_idle',
+  working: 'typing',
+  waiting_human: 'waiting_human',
+  reviewing: 'screen_review',
+  reworking: 'error_rework',
+  success: 'success',
+  error: 'error_rework',
+  rejected: 'error_rework',
 };
 
 const STATE_SPEED: Record<AgentVisualState, number> = {
@@ -58,6 +69,11 @@ function applyJointDelta(joint: THREE.Object3D | null, base: THREE.Quaternion | 
 export function RiggedAgentCharacter({ code, visualState }: { code: AgentCode; visualState: AgentVisualState }) {
   const gltf = useGLTF(CHARACTER_URLS[code]);
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
+  const authoredAnimations = useAnimations(gltf.animations, model);
+  const hasAuthoredClips = useMemo(
+    () => gltf.animations.some((clip) => clip.name === 'seated_idle'),
+    [gltf.animations],
+  );
   const joints = useMemo(() => collectJoints(model, code), [code, model]);
   const baseRotations = useMemo(() => {
     const result = {} as Partial<Record<JointName, THREE.Quaternion>>;
@@ -78,7 +94,18 @@ export function RiggedAgentCharacter({ code, visualState }: { code: AgentCode; v
     });
   }, [model]);
 
+  useEffect(() => {
+    if (!hasAuthoredClips) return undefined;
+    const action = authoredAnimations.actions[STATE_CLIP[visualState]];
+    if (!action) return undefined;
+    action.reset().fadeIn(0.18).play();
+    return () => {
+      action.fadeOut(0.18);
+    };
+  }, [authoredAnimations.actions, hasAuthoredClips, visualState]);
+
   useFrame(({ clock }) => {
+    if (hasAuthoredClips) return;
     const phaseOffset = code.charCodeAt(0) * 0.17 + code.charCodeAt(2) * 0.07;
     const phase = clock.elapsedTime * STATE_SPEED[visualState] + phaseOffset;
     const typing = visualState === 'working' || visualState === 'reworking';
