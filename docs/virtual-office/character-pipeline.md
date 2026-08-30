@@ -1,6 +1,6 @@
 # CrewLab Character Production Pipeline
 
-**Status:** A01 founder gate passed; B02 v11 integrated and B03 is next
+**Status:** A01 founder gate passed; B02 and B03 v11 integrated; D01 is next
 **Canonical master:** Blender `.blend`
 **Canonical runtime:** glTF 2.0 binary (`.glb`)
 
@@ -171,4 +171,4 @@ No asset enters the repo until `docs/assets/virtual-office-character-assets.md` 
 
 ## 12. Current rollout condition
 
-The founder has explicitly accepted A01 as complete and opened the sequential B02 → B03 → D01 → D02 → E01 pipeline. B02 now has a recorded CC0 source, role-specific female silhouette and outfit, exact cushion contact, 27 bones, nine anchors, eight clips and a Meshopt runtime GLB. The remaining characters may proceed one at a time only after the preceding character passes the same visual, contact, animation, round-trip and Portal gates.
+The founder has explicitly accepted A01 as complete and opened the sequential B02 → B03 → D01 → D02 → E01 pipeline. B02 and B03 now have recorded CC0 sources, role-specific silhouettes and outfits, measured cushion/floor contact, 27 bones, nine anchors, eight clips and Meshopt runtime GLBs. The remaining characters may proceed one at a time only after the preceding character passes the same visual, contact, animation, round-trip and Portal gates.

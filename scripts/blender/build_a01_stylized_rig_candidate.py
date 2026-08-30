@@ -62,7 +62,7 @@ CHARACTER_CONFIGS = {
         "top_max": 1.45,
         "trousers_max": 0.96,
         "rig_z": -0.14637,
-        "knee_scale": 1.1378,
+        "knee_scale": 1.1250,
     },
     "D01": {
         "collection": "Body Female - Stylized",
@@ -107,7 +107,7 @@ CHARACTER_CONFIGS = {
         "top_max": 1.45,
         "trousers_max": 0.96,
         "rig_z": -0.14637,
-        "knee_scale": 1.1378,
+        "knee_scale": 1.1250,
     },
 }
 
@@ -609,10 +609,10 @@ def append_cc0_hair(
     for modifier in list(hair.modifiers):
         hair.modifiers.remove(modifier)
     bpy.context.scene.collection.objects.link(hair)
-    hair.scale = (1.55, 1.05, 1.10)
+    hair.scale = (1.66, 1.05, 1.10)
     # Align the CC0 crop to the evaluated stylized head: the previous offset left
     # a bald rear hemisphere and made the fringe float above the forehead.
-    hair.location = (0.0135, 0.143, -0.253)
+    hair.location = (0.0, 0.143, -0.253)
     hair.data.materials.clear()
     hair.data.materials.append(material(f"{agent_code} CC0 hair", (0.006, 0.009, 0.014, 1), 0.56))
     bone_parent(hair, rig, "HeadJoint")
@@ -932,17 +932,6 @@ def add_outfit_details(
             )
             lapel.rotation_euler.y = -0.24 * side
             details.append(lapel)
-    elif agent_code == "B03":
-        for suffix, side in (("L", 1), ("R", -1)):
-            collar = cube(
-                f"{agent_code}_PoloCollar_{suffix}",
-                (0.046 * side, -0.168, 1.175),
-                (0.043, 0.010, 0.035),
-                accent,
-                0.009,
-            )
-            collar.rotation_euler.y = -0.32 * side
-            details.append(collar)
     elif agent_code == "D01":
         button = cube(f"{agent_code}_BlouseDetail", (0.0, -0.175, 1.095), (0.018, 0.010, 0.105), accent, 0.008)
         details.append(button)
