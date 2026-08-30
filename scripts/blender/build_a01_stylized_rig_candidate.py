@@ -549,15 +549,15 @@ def add_hair_and_details(
         attach_to_current_bone_pose(lock, rig, "HeadJoint")
         details.append(lock)
 
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=20, ring_count=12, location=(0.105, -0.174, 1.225))
-    pin = bpy.context.object
-    pin.name = f"{agent_code}_AccentPin"
-    pin.scale = (0.018, 0.009, 0.018)
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    pin.data.materials.append(accent)
-    pin.location = (0.105, 0.015, 0.98)
-    bone_parent(pin, rig, "SpineJoint")
-    details.append(pin)
+    if agent_code == "A01":
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=20, ring_count=12, location=(0.105, -0.174, 1.225))
+        pin = bpy.context.object
+        pin.name = f"{agent_code}_AccentPin"
+        pin.scale = (0.018, 0.009, 0.018)
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        pin.data.materials.append(accent)
+        attach_to_current_bone_pose(pin, rig, "SpineJoint")
+        details.append(pin)
     return details
 
 
@@ -677,9 +677,9 @@ def add_signature_hair_shape(
         ]
     elif hair_style == "long":
         shapes = [
-            ("LongBack", (0.0, 0.125, 1.405), (0.185, 0.095, 0.38), (0.0, 0.0, 0.0)),
-            ("LongSideL", (0.145, 0.018, 1.445), (0.067, 0.060, 0.32), (0.0, -0.08, -0.08)),
-            ("LongSideR", (-0.145, 0.018, 1.445), (0.067, 0.060, 0.32), (0.0, 0.08, 0.08)),
+            ("LongBack", (0.0, 0.125, 1.35), (0.185, 0.095, 0.30), (0.0, 0.0, 0.0)),
+            ("LongSideL", (0.145, 0.018, 1.38), (0.067, 0.060, 0.26), (0.0, -0.08, -0.08)),
+            ("LongSideR", (-0.145, 0.018, 1.38), (0.067, 0.060, 0.26), (0.0, 0.08, 0.08)),
         ]
     else:
         shapes = [
@@ -932,9 +932,6 @@ def add_outfit_details(
             )
             lapel.rotation_euler.y = -0.24 * side
             details.append(lapel)
-    elif agent_code == "D01":
-        button = cube(f"{agent_code}_BlouseDetail", (0.0, -0.175, 1.095), (0.018, 0.010, 0.105), accent, 0.008)
-        details.append(button)
     elif agent_code == "E01":
         vest = cube(f"{agent_code}_NavyVest", (0.0, -0.165, 1.055), (0.150, 0.014, 0.185), dark, 0.018)
         inner = cube(f"{agent_code}_WhiteShirtFront", (0.0, -0.184, 1.105), (0.050, 0.010, 0.145), white, 0.010)

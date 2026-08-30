@@ -6,12 +6,12 @@ import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import type { AgentCode, AgentVisualState } from '../types/office';
 
-const CHARACTER_VERSION = '20260831-a01-b03-v11';
+const CHARACTER_VERSION = '20260831-a01-d01-v11';
 const CHARACTER_URLS: Record<AgentCode, string> = {
   A01: `/virtual-office/characters/v11/a01.glb?v=${CHARACTER_VERSION}`,
   B02: `/virtual-office/characters/v11/b02.glb?v=${CHARACTER_VERSION}`,
   B03: `/virtual-office/characters/v11/b03.glb?v=${CHARACTER_VERSION}`,
-  D01: `/virtual-office/characters/v10/d01.glb?v=${CHARACTER_VERSION}`,
+  D01: `/virtual-office/characters/v11/d01.glb?v=${CHARACTER_VERSION}`,
   D02: `/virtual-office/characters/v10/d02.glb?v=${CHARACTER_VERSION}`,
   E01: `/virtual-office/characters/v10/e01.glb?v=${CHARACTER_VERSION}`,
 };
