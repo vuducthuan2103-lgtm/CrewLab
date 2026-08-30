@@ -1,6 +1,6 @@
 # CrewLab Character Production Pipeline
 
-**Status:** A01 founder gate passed; B02, B03, D01 and D02 v11 integrated; E01 is next
+**Status:** all six v11 characters integrated; full Portal QA passed
 **Canonical master:** Blender `.blend`
 **Canonical runtime:** glTF 2.0 binary (`.glb`)
 
@@ -171,4 +171,6 @@ No asset enters the repo until `docs/assets/virtual-office-character-assets.md` 
 
 ## 12. Current rollout condition
 
-The founder has explicitly accepted A01 as complete and opened the sequential B02 → B03 → D01 → D02 → E01 pipeline. B02 and B03 now have recorded CC0 sources, role-specific silhouettes and outfits, measured cushion/floor contact, 27 bones, nine anchors, eight clips and Meshopt runtime GLBs. The remaining characters may proceed one at a time only after the preceding character passes the same visual, contact, animation, round-trip and Portal gates.
+The founder accepted A01 and opened the sequential B02 → B03 → D01 → D02 → E01 pipeline. All six now have recorded CC0 sources, role-specific silhouettes and outfits, measured cushion/floor contact, 27 bones, nine anchors, eight clips and Meshopt runtime GLBs. The shared Portal runtime points every agent to v11; full-suite tests, lint, production build and localhost checks form the final gate.
+
+Final gate on 2026-08-31: 52/52 Portal tests passed, including 12 GLB contract tests; lint completed with only pre-existing image/font warnings; the Next.js production build completed; `/office` and all six v11 GLBs returned HTTP 200 from `localhost:3000` with valid `glTF` magic bytes.

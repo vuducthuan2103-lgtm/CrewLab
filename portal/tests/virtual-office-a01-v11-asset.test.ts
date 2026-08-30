@@ -17,7 +17,7 @@ function readGlbJson(assetPath: string): GltfJson {
   return JSON.parse(binary.subarray(20, 20 + jsonLength).toString('utf8').trim());
 }
 
-describe.each(['a01', 'b02', 'b03', 'd01', 'd02'])('virtual office %s v11 production candidate', (agentCode) => {
+describe.each(['a01', 'b02', 'b03', 'd01', 'd02', 'e01'])('virtual office %s v11 production candidate', (agentCode) => {
   const assetPath = path.join(
     process.cwd(),
     'public',

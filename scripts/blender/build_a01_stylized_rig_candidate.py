@@ -471,6 +471,15 @@ def create_layered_clothing(body: bpy.types.Object, agent_code: str, config: dic
             0.016,
         )
         garments.append(inner)
+    elif agent_code == "E01":
+        vest = duplicate_clothing_region(
+            body,
+            f"{agent_code}_NavyVest",
+            material(f"{agent_code} navy vest", (0.018, 0.028, 0.060, 1), 0.68),
+            lambda point: 0.90 < point.z < 1.25 and abs(point.x) < 0.235 and point.y < 0.02,
+            0.016,
+        )
+        garments.append(vest)
     return garments
 
 
@@ -927,27 +936,6 @@ def cube(name: str, location, scale, surface, bevel: float = 0.025):
     return obj
 
 
-def add_outfit_details(
-    rig: bpy.types.Object,
-    agent_code: str,
-    config: dict,
-) -> list[bpy.types.Object]:
-    """Add role-specific layers that stay legible at the office camera distance."""
-    details: list[bpy.types.Object] = []
-    white = material(f"{agent_code} clean inner shirt", (0.82, 0.82, 0.76, 1), 0.70)
-    accent = material(f"{agent_code} outfit accent", config["accent"], 0.46)
-    dark = material(f"{agent_code} vest", (0.018, 0.028, 0.060, 1), 0.68)
-
-    if agent_code == "E01":
-        vest = cube(f"{agent_code}_NavyVest", (0.0, -0.165, 1.055), (0.150, 0.014, 0.185), dark, 0.018)
-        inner = cube(f"{agent_code}_WhiteShirtFront", (0.0, -0.184, 1.105), (0.050, 0.010, 0.145), white, 0.010)
-        details.extend((vest, inner))
-
-    for obj in details:
-        attach_to_current_bone_pose(obj, rig, "SpineJoint")
-    return details
-
-
 def build_qa_scene(
     output: Path,
     rig: bpy.types.Object,
@@ -961,7 +949,6 @@ def build_qa_scene(
     assign_outfit(body, agent_code, config)
     create_layered_clothing(body, agent_code, config)
     add_tailored_trims(rig)
-    add_outfit_details(rig, agent_code, config)
     for obj in source_eyes:
         obj.hide_render = False
         obj.hide_viewport = False
