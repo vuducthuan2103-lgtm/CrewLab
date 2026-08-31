@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import { getStatePresentation } from '../config/agent-state-map';
-import { GARDEN_STATION_LAYOUT } from '../config/office-layout';
+import { GARDEN_AGENT_FOCUS_CAMERAS } from '../config/office-layout';
 import { GardenOfficeScene } from '../scene/GardenOfficeScene';
 import { useOfficeStore } from '../state/office-store';
 import type { AgentCode } from '../types/office';
@@ -30,9 +30,9 @@ function GuidedCamera() {
 
   useEffect(() => {
     if (selectedAgentCode) {
-      const [x, , z] = GARDEN_STATION_LAYOUT[selectedAgentCode].position;
-      destination.current.set(x + 3.65, 4.65, z + 5.05);
-      lookAt.current.set(x, 1.48, z);
+      const focusPose = GARDEN_AGENT_FOCUS_CAMERAS[selectedAgentCode];
+      destination.current.fromArray(focusPose.position);
+      lookAt.current.fromArray(focusPose.target);
     } else {
       const narrowScreenOffset = size.width / Math.max(size.height, 1) < 1.25 ? 3.2 : 0;
       destination.current.set(HOME_POSITION.x, HOME_POSITION.y + narrowScreenOffset * 0.4, HOME_POSITION.z + narrowScreenOffset);
@@ -154,7 +154,7 @@ export function OfficeCanvas() {
           dampingFactor={0.075}
           enablePan={false}
           enableZoom
-          minDistance={5.8}
+          minDistance={3.8}
           maxDistance={31}
           minPolarAngle={Math.PI / 5.4}
           maxPolarAngle={Math.PI / 2.12}

@@ -15,6 +15,19 @@ Every external or generated character source must be recorded here before import
 
 These files are placeholders and failed the production A01 quality gate. Their presence does not authorize using their primitive source for the final six-character pipeline.
 
+## v12 runtime candidates (active)
+
+v12 keeps the same recorded CC0 sources, 27-bone skeleton, nine workstation anchors and eight authored actions as v11. It adds a fitted role-colour base garment beneath every extracted clothing shell so coarse source topology cannot expose the torso or waist during animation. The Portal also clones these skinned scenes with `SkeletonUtils`, preserving the mesh-to-bone bindings at runtime.
+
+| Agent | v12 repair | Runtime file | Runtime size |
+| --- | --- | --- | ---: |
+| A01 | Navy fitted underlayer beneath the overshirt | `portal/public/virtual-office/characters/v12/a01.glb` | 1,430,132 B |
+| B02 | Teal fitted underlayer beneath blazer and inner shirt | `portal/public/virtual-office/characters/v12/b02.glb` | 1,854,000 B |
+| B03 | Cream fitted underlayer beneath structured top | `portal/public/virtual-office/characters/v12/b03.glb` | 1,516,596 B |
+| D01 | Rust fitted underlayer beneath creative blouse | `portal/public/virtual-office/characters/v12/d01.glb` | 1,836,932 B |
+| D02 | Cobalt fitted underlayer beneath suit and inner shirt | `portal/public/virtual-office/characters/v12/d02.glb` | 1,843,816 B |
+| E01 | White fitted underlayer beneath navy evaluator vest | `portal/public/virtual-office/characters/v12/e01.glb` | 1,498,576 B |
+
 ## v11 runtime candidates
 
 A01 has founder approval to open the remaining character pipeline. Each additional character still requires its own seated-contact, animation, GLB round-trip and runtime gates.

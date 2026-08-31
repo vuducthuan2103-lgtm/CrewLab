@@ -1,6 +1,6 @@
 # CrewLab Character Production Pipeline
 
-**Status:** all six v11 characters integrated; full Portal QA passed
+**Status:** all six v12 clothed characters integrated; strict runtime QA complete
 **Canonical master:** Blender `.blend`
 **Canonical runtime:** glTF 2.0 binary (`.glb`)
 
@@ -171,6 +171,8 @@ No asset enters the repo until `docs/assets/virtual-office-character-assets.md` 
 
 ## 12. Current rollout condition
 
-The founder accepted A01 and opened the sequential B02 → B03 → D01 → D02 → E01 pipeline. All six now have recorded CC0 sources, role-specific silhouettes and outfits, measured cushion/floor contact, 27 bones, nine anchors, eight clips and Meshopt runtime GLBs. The shared Portal runtime points every agent to v11; full-suite tests, lint, production build and localhost checks form the final gate.
+The founder accepted A01 and opened the sequential B02 → B03 → D01 → D02 → E01 pipeline. All six now have recorded CC0 sources, role-specific silhouettes and outfits, measured cushion/floor contact, 27 bones, nine anchors, eight clips and Meshopt runtime GLBs. The active v12 pass adds fitted garment underlayers to eliminate exposed torso gaps. The shared Portal runtime clones skinned assets with Three.js `SkeletonUtils` and points every agent to v12; full-suite tests, lint, production build and localhost checks form the final gate.
 
 Final gate on 2026-08-31: 52/52 Portal tests passed, including 12 GLB contract tests; lint completed with only pre-existing image/font warnings; the Next.js production build completed; `/office` and all six v11 GLBs returned HTTP 200 from `localhost:3000` with valid `glTF` magic bytes.
+
+Strict runtime QA later the same day found that generic `scene.clone(true)` broke the skinned-mesh skeleton binding: some agents disappeared and others rendered partially. The runtime now uses `SkeletonUtils.clone`; B02 v12 was verified in a Blender seated side render with full teal torso coverage, pelvis-to-horizontal-cushion contact, grounded feet and hands oriented to the desk. The final gate passed with all six agents visible in the localhost overview, an unobstructed B02 focus view, 54 Portal tests, lint, a production build, and HTTP 200 responses with `model/gltf-binary` for every v12 asset.

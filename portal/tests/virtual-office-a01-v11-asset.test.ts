@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { GARDEN_AGENT_FOCUS_CAMERAS } from '../features/virtual-office/config/office-layout';
 
 type GltfJson = {
   animations?: Array<{ name?: string }>;
@@ -17,13 +18,13 @@ function readGlbJson(assetPath: string): GltfJson {
   return JSON.parse(binary.subarray(20, 20 + jsonLength).toString('utf8').trim());
 }
 
-describe.each(['a01', 'b02', 'b03', 'd01', 'd02', 'e01'])('virtual office %s v11 production candidate', (agentCode) => {
+describe.each(['a01', 'b02', 'b03', 'd01', 'd02', 'e01'])('virtual office %s v12 production candidate', (agentCode) => {
   const assetPath = path.join(
     process.cwd(),
     'public',
     'virtual-office',
     'characters',
-    'v11',
+    'v12',
     `${agentCode}.glb`,
   );
 
@@ -65,6 +66,33 @@ describe.each(['a01', 'b02', 'b03', 'd01', 'd02', 'e01'])('virtual office %s v11
       'RightFootTarget',
     ]) {
       expect(nodes.has(anchor)).toBe(true);
+    }
+  });
+});
+
+describe('virtual office v12 character runtime', () => {
+  it('uses SkeletonUtils when cloning animated skinned scenes', () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), 'features', 'virtual-office', 'scene', 'RiggedAgentCharacter.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("from 'three/examples/jsm/utils/SkeletonUtils.js'");
+    expect(source).toContain('cloneSkinnedScene(gltf.scene)');
+    expect(source).not.toContain('gltf.scene.clone(true)');
+  });
+
+  it('provides a reviewed focus camera for every production agent', () => {
+    expect(Object.keys(GARDEN_AGENT_FOCUS_CAMERAS)).toEqual(['A01', 'B02', 'B03', 'D01', 'D02', 'E01']);
+
+    for (const camera of Object.values(GARDEN_AGENT_FOCUS_CAMERAS)) {
+      expect(camera.position).toHaveLength(3);
+      expect(camera.target).toHaveLength(3);
+      expect(Math.hypot(
+        camera.position[0] - camera.target[0],
+        camera.position[1] - camera.target[1],
+        camera.position[2] - camera.target[2],
+      )).toBeGreaterThan(3);
     }
   });
 });

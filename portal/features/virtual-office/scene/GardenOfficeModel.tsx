@@ -161,8 +161,9 @@ function AgentHotspot({ agent }: { agent: OfficeAgent }) {
         />
       </mesh>
 
-      <Html position={LABEL_OFFSETS[agent.code]} center distanceFactor={selected ? 7.2 : 10.5} zIndexRange={[34, 0]}>
-        <button
+      {!selected && (
+        <Html position={LABEL_OFFSETS[agent.code]} center distanceFactor={10.5} zIndexRange={[34, 0]}>
+          <button
           type="button"
           data-agent-label={agent.code}
           aria-label={`Mở ${agent.code}, ${agent.role}`}
@@ -183,8 +184,9 @@ function AgentHotspot({ agent }: { agent: OfficeAgent }) {
             <span className="ml-auto text-[8px] text-zinc-300">{presentation.labelVi}</span>
           </span>
           <span className="mt-0.5 block max-w-[150px] truncate text-[9px] font-medium text-zinc-100">{agent.role}</span>
-        </button>
-      </Html>
+          </button>
+        </Html>
+      )}
     </group>
   );
 }

@@ -36,6 +36,13 @@ export interface GardenCharacterSeatTransform {
   keyboardOffset: [number, number];
 }
 
+export interface GardenFocusCamera {
+  /** Reviewed world-space camera position for an unobstructed character view. */
+  position: [number, number, number];
+  /** World-space target centred between the seated pelvis and face. */
+  target: [number, number, number];
+}
+
 /** Authored station coordinates for the v4 glass-atrium office. */
 export const GARDEN_STATION_LAYOUT: Record<AgentCode, GardenStationLayout> = {
   A01: { position: [0, 0, 0.7], rotation: [0, 0, 0], scale: 1.02, monitorCount: 3 },
@@ -58,6 +65,20 @@ export const GARDEN_CHARACTER_SEAT_TRANSFORMS: Record<AgentCode, GardenCharacter
   D01: { seatOffset: [-0.5057, 0.3411], rotationY: 2.1642, keyboardOffset: [0.514, -0.3467] },
   D02: { seatOffset: [0, 0.61], rotationY: -Math.PI, keyboardOffset: [0, -0.62] },
   E01: { seatOffset: [0.5057, 0.3411], rotationY: -2.1642, keyboardOffset: [-0.514, -0.3467] },
+};
+
+/**
+ * Character-first focus poses reviewed against the baked v8 workstations.
+ * Each camera sits on the outer, front three-quarter side of its desk so the
+ * monitor array cannot hide the face, hands or pelvis-to-cushion contact.
+ */
+export const GARDEN_AGENT_FOCUS_CAMERAS: Record<AgentCode, GardenFocusCamera> = {
+  A01: { position: [3.6, 2.85, -0.04], target: [0, 1.42, 1.25] },
+  B02: { position: [-7.18, 2.85, -0.1], target: [-6.38, 1.42, -3.85] },
+  B03: { position: [7.18, 2.85, -0.1], target: [6.38, 1.42, -3.85] },
+  D01: { position: [-7.3, 2.85, -0.15], target: [-6.36, 1.42, 3.56] },
+  D02: { position: [-3.6, 2.85, 5.21], target: [0, 1.42, 6.51] },
+  E01: { position: [7.3, 2.85, -0.15], target: [6.36, 1.42, 3.56] },
 };
 
 export const INITIAL_OFFICE_AGENTS: Record<string, OfficeAgent> = {

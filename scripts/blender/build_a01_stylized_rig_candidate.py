@@ -392,8 +392,12 @@ def assign_outfit(body: bpy.types.Object, agent_code: str, config: dict) -> None
         x, z = abs(point.x), point.z
         if z < 0.135:
             polygon.material_index = 3
-        elif z < 0.965 and x < 0.34:
+        elif z < config["top_min"] - 0.06 and x < 0.34:
             polygon.material_index = 2
+        elif config["top_min"] - 0.08 <= z < config["top_max"] + 0.04 and x < 0.40:
+            # A fitted base garment prevents exposed-skin gaps where the
+            # extracted blazer/shirt shell crosses coarse source topology.
+            polygon.material_index = 1
         else:
             polygon.material_index = 0
 

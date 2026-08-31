@@ -4,16 +4,17 @@ import { useAnimations, useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { clone as cloneSkinnedScene } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { AgentCode, AgentVisualState } from '../types/office';
 
-const CHARACTER_VERSION = '20260831-all-v11';
+const CHARACTER_VERSION = '20260831-outfit-v12';
 const CHARACTER_URLS: Record<AgentCode, string> = {
-  A01: `/virtual-office/characters/v11/a01.glb?v=${CHARACTER_VERSION}`,
-  B02: `/virtual-office/characters/v11/b02.glb?v=${CHARACTER_VERSION}`,
-  B03: `/virtual-office/characters/v11/b03.glb?v=${CHARACTER_VERSION}`,
-  D01: `/virtual-office/characters/v11/d01.glb?v=${CHARACTER_VERSION}`,
-  D02: `/virtual-office/characters/v11/d02.glb?v=${CHARACTER_VERSION}`,
-  E01: `/virtual-office/characters/v11/e01.glb?v=${CHARACTER_VERSION}`,
+  A01: `/virtual-office/characters/v12/a01.glb?v=${CHARACTER_VERSION}`,
+  B02: `/virtual-office/characters/v12/b02.glb?v=${CHARACTER_VERSION}`,
+  B03: `/virtual-office/characters/v12/b03.glb?v=${CHARACTER_VERSION}`,
+  D01: `/virtual-office/characters/v12/d01.glb?v=${CHARACTER_VERSION}`,
+  D02: `/virtual-office/characters/v12/d02.glb?v=${CHARACTER_VERSION}`,
+  E01: `/virtual-office/characters/v12/e01.glb?v=${CHARACTER_VERSION}`,
 };
 
 const STATE_CLIP: Record<AgentVisualState, string> = {
@@ -68,7 +69,7 @@ function applyJointDelta(joint: THREE.Object3D | null, base: THREE.Quaternion | 
 
 export function RiggedAgentCharacter({ code, visualState }: { code: AgentCode; visualState: AgentVisualState }) {
   const gltf = useGLTF(CHARACTER_URLS[code]);
-  const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
+  const model = useMemo(() => cloneSkinnedScene(gltf.scene), [gltf.scene]);
   const authoredAnimations = useAnimations(gltf.animations, model);
   const hasAuthoredClips = useMemo(
     () => gltf.animations.some((clip) => clip.name === 'seated_idle'),
