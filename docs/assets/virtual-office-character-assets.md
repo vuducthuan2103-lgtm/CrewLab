@@ -15,7 +15,22 @@ Every external or generated character source must be recorded here before import
 
 These files are placeholders and failed the production A01 quality gate. Their presence does not authorize using their primitive source for the final six-character pipeline.
 
-## v12 runtime candidates (active)
+## v13 polished runtime candidates (active)
+
+v13 preserves the approved CC0 source chain and the production rig contract from v12 while replacing the rough presentation layer. All six agents receive smooth-shaded skin and clothing, restrained physically based materials, eyelids, curved brows, eye catchlights, a subtle mouth line, tailored collar/placket details and grounded shoe shells. Role-specific polish includes B02/E01 round glasses, D01 earrings, D02 ponytail tie and E01 tie clip. The source eye scale was reduced to 90% for a more professional adult proportion. Bad block-like temple hair and oversized accessory prototypes were explicitly removed after multi-angle Cycles QA.
+
+| Agent | v13 identity polish | Runtime file | Runtime size |
+| --- | --- | --- | ---: |
+| A01 | Refined short hair, navy tailoring and dress shoes | `portal/public/virtual-office/characters/v13/a01.glb` | 924,028 B |
+| B02 | Bob side locks, full round glasses and teal tailoring | `portal/public/virtual-office/characters/v13/b02.glb` | 1,178,184 B |
+| B03 | Clean short-hair silhouette, cream tailoring and white shoes | `portal/public/virtual-office/characters/v13/b03.glb` | 947,288 B |
+| D01 | Long side locks, earrings and rust creative tailoring | `portal/public/virtual-office/characters/v13/d01.glb` | 1,150,472 B |
+| D02 | High ponytail tie, cobalt tailoring and refined shoes | `portal/public/virtual-office/characters/v13/d02.glb` | 1,155,076 B |
+| E01 | Full round glasses, tie clip and navy evaluator tailoring | `portal/public/virtual-office/characters/v13/e01.glb` | 987,392 B |
+
+The deterministic polish build is `scripts/blender/polish_character_v13.py`. Front, three-quarter, profile and face renders were reviewed per agent before export. Every runtime GLB retains 27 rig joints, all nine workstation anchors and the eight authored state actions; asset tests enforce these constraints and a 0.8–1.5 MB runtime budget.
+
+## v12 runtime candidates
 
 v12 keeps the same recorded CC0 sources, 27-bone skeleton, nine workstation anchors and eight authored actions as v11. It adds a fitted role-colour base garment beneath every extracted clothing shell so coarse source topology cannot expose the torso or waist during animation. The Portal also clones these skinned scenes with `SkeletonUtils`, preserving the mesh-to-bone bindings at runtime.
 

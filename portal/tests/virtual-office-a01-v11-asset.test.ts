@@ -18,13 +18,13 @@ function readGlbJson(assetPath: string): GltfJson {
   return JSON.parse(binary.subarray(20, 20 + jsonLength).toString('utf8').trim());
 }
 
-describe.each(['a01', 'b02', 'b03', 'd01', 'd02', 'e01'])('virtual office %s v12 production candidate', (agentCode) => {
+describe.each(['a01', 'b02', 'b03', 'd01', 'd02', 'e01'])('virtual office %s v13 production candidate', (agentCode) => {
   const assetPath = path.join(
     process.cwd(),
     'public',
     'virtual-office',
     'characters',
-    'v12',
+    'v13',
     `${agentCode}.glb`,
   );
 
@@ -32,8 +32,8 @@ describe.each(['a01', 'b02', 'b03', 'd01', 'd02', 'e01'])('virtual office %s v12
     const stat = fs.statSync(assetPath);
     const gltf = readGlbJson(assetPath);
 
-    expect(stat.size).toBeGreaterThan(1_000_000);
-    expect(stat.size).toBeLessThan(2_000_000);
+    expect(stat.size).toBeGreaterThan(800_000);
+    expect(stat.size).toBeLessThan(1_500_000);
     expect(gltf.skins?.[0]?.joints).toHaveLength(27);
   });
 
@@ -70,7 +70,19 @@ describe.each(['a01', 'b02', 'b03', 'd01', 'd02', 'e01'])('virtual office %s v12
   });
 });
 
-describe('virtual office v12 character runtime', () => {
+describe('virtual office v13 character runtime', () => {
+  it('loads the premium v13 assets with a shared cache version', () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), 'features', 'virtual-office', 'scene', 'RiggedAgentCharacter.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("const CHARACTER_VERSION = '20260831-premium-v13'");
+    for (const agentCode of ['a01', 'b02', 'b03', 'd01', 'd02', 'e01']) {
+      expect(source).toContain(`/virtual-office/characters/v13/${agentCode}.glb`);
+    }
+  });
+
   it('uses SkeletonUtils when cloning animated skinned scenes', () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), 'features', 'virtual-office', 'scene', 'RiggedAgentCharacter.tsx'),

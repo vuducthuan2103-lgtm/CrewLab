@@ -7,14 +7,14 @@ import * as THREE from 'three';
 import { clone as cloneSkinnedScene } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { AgentCode, AgentVisualState } from '../types/office';
 
-const CHARACTER_VERSION = '20260831-outfit-v12';
+const CHARACTER_VERSION = '20260831-premium-v13';
 const CHARACTER_URLS: Record<AgentCode, string> = {
-  A01: `/virtual-office/characters/v12/a01.glb?v=${CHARACTER_VERSION}`,
-  B02: `/virtual-office/characters/v12/b02.glb?v=${CHARACTER_VERSION}`,
-  B03: `/virtual-office/characters/v12/b03.glb?v=${CHARACTER_VERSION}`,
-  D01: `/virtual-office/characters/v12/d01.glb?v=${CHARACTER_VERSION}`,
-  D02: `/virtual-office/characters/v12/d02.glb?v=${CHARACTER_VERSION}`,
-  E01: `/virtual-office/characters/v12/e01.glb?v=${CHARACTER_VERSION}`,
+  A01: `/virtual-office/characters/v13/a01.glb?v=${CHARACTER_VERSION}`,
+  B02: `/virtual-office/characters/v13/b02.glb?v=${CHARACTER_VERSION}`,
+  B03: `/virtual-office/characters/v13/b03.glb?v=${CHARACTER_VERSION}`,
+  D01: `/virtual-office/characters/v13/d01.glb?v=${CHARACTER_VERSION}`,
+  D02: `/virtual-office/characters/v13/d02.glb?v=${CHARACTER_VERSION}`,
+  E01: `/virtual-office/characters/v13/e01.glb?v=${CHARACTER_VERSION}`,
 };
 
 const STATE_CLIP: Record<AgentVisualState, string> = {

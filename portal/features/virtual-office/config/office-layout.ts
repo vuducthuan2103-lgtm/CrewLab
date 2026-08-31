@@ -73,12 +73,12 @@ export const GARDEN_CHARACTER_SEAT_TRANSFORMS: Record<AgentCode, GardenCharacter
  * monitor array cannot hide the face, hands or pelvis-to-cushion contact.
  */
 export const GARDEN_AGENT_FOCUS_CAMERAS: Record<AgentCode, GardenFocusCamera> = {
-  A01: { position: [3.6, 2.85, -0.04], target: [0, 1.42, 1.25] },
+  A01: { position: [-1.7, 2.45, -1.3], target: [0, 1.95, 1.25] },
   B02: { position: [-7.18, 2.85, -0.1], target: [-6.38, 1.42, -3.85] },
   B03: { position: [7.18, 2.85, -0.1], target: [6.38, 1.42, -3.85] },
-  D01: { position: [-7.3, 2.85, -0.15], target: [-6.36, 1.42, 3.56] },
+  D01: { position: [-5.01, 2.45, 0.84], target: [-6.36, 1.75, 3.56] },
   D02: { position: [-3.6, 2.85, 5.21], target: [0, 1.42, 6.51] },
-  E01: { position: [7.3, 2.85, -0.15], target: [6.36, 1.42, 3.56] },
+  E01: { position: [3.33, 2.45, 3.33], target: [6.36, 1.75, 3.56] },
 };
 
 export const INITIAL_OFFICE_AGENTS: Record<string, OfficeAgent> = {
