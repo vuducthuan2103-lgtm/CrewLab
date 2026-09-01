@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useRef } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
@@ -19,6 +19,39 @@ const HOME_TARGET = new THREE.Vector3(0, 2.08, -0.35);
 interface OrbitControlsHandle {
   target?: THREE.Vector3;
   update?: () => void;
+}
+
+interface OfficePerformanceSnapshot {
+  fps: number;
+  drawCalls: number;
+  triangles: number;
+}
+
+function OfficePerformanceProbe({ onSample }: { onSample: (snapshot: OfficePerformanceSnapshot) => void }) {
+  const gl = useThree((state) => state.gl);
+  const sample = useRef({ elapsed: 0, frames: 0, drawCalls: 0, triangles: 0 });
+
+  useFrame((_, delta) => {
+    const current = sample.current;
+    current.elapsed += delta;
+    current.frames += 1;
+    current.drawCalls += gl.info.render.calls;
+    current.triangles += gl.info.render.triangles;
+
+    if (current.elapsed < 3) return;
+
+    onSample({
+      fps: current.frames / current.elapsed,
+      drawCalls: Math.round(current.drawCalls / current.frames),
+      triangles: Math.round(current.triangles / current.frames),
+    });
+    current.elapsed = 0;
+    current.frames = 0;
+    current.drawCalls = 0;
+    current.triangles = 0;
+  });
+
+  return null;
 }
 
 function GuidedCamera() {
@@ -127,6 +160,8 @@ export function OfficeCanvas() {
   const agents = useOfficeStore((state) => state.agents);
   const selectAgent = useOfficeStore((state) => state.selectAgent);
   const setHoveredAgent = useOfficeStore((state) => state.setHoveredAgent);
+  const [performanceSnapshot, setPerformanceSnapshot] = useState<OfficePerformanceSnapshot | null>(null);
+  const performanceProbeEnabled = process.env.NODE_ENV !== 'production';
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-[#c9e2df]">
@@ -147,6 +182,7 @@ export function OfficeCanvas() {
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
         }}
       >
+        {performanceProbeEnabled && <OfficePerformanceProbe onSample={setPerformanceSnapshot} />}
         <GuidedCamera />
         <OrbitControls
           makeDefault
@@ -168,6 +204,20 @@ export function OfficeCanvas() {
       </Canvas>
 
       <SceneLoadOverlay />
+
+      {performanceProbeEnabled && (
+        <output
+          data-testid="office-performance-probe"
+          data-fps={performanceSnapshot?.fps.toFixed(1) ?? ''}
+          data-draw-calls={performanceSnapshot?.drawCalls ?? ''}
+          data-triangles={performanceSnapshot?.triangles ?? ''}
+          className="sr-only"
+        >
+          {performanceSnapshot
+            ? `${performanceSnapshot.fps.toFixed(1)} FPS, ${performanceSnapshot.drawCalls} draw calls, ${performanceSnapshot.triangles} triangles`
+            : 'Đang đo hiệu năng văn phòng 3D'}
+        </output>
+      )}
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_52%_36%,transparent_0%,transparent_66%,rgba(35,72,65,0.06)_100%)]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#173b34]/10 to-transparent" />
