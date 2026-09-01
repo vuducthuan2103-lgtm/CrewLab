@@ -21,9 +21,9 @@ function readGlbJson(assetPath: string): GlbDocument {
   return JSON.parse(buffer.subarray(20, 20 + jsonLength).toString('utf8').trimEnd()) as GlbDocument;
 }
 
-describe('virtual office v8 environment asset', () => {
-  it('stays inside the authored web scene budget and contains the new material families', () => {
-    const assetPath = path.join(process.cwd(), 'public', 'virtual-office', 'garden-office-v8.glb');
+describe('virtual office v9 rooftop environment asset', () => {
+  it('stays inside the authored web scene budget and removes the rainforest backplate', () => {
+    const assetPath = path.join(process.cwd(), 'public', 'virtual-office', 'garden-office-v9.glb');
     const stat = fs.statSync(assetPath);
     const document = readGlbJson(assetPath);
     const primitives = (document.meshes ?? []).flatMap((mesh) => mesh.primitives ?? []);
@@ -44,7 +44,10 @@ describe('virtual office v8 environment asset', () => {
       'V8 review display',
       'Shallow turquoise water',
       'Quarter sawn oak',
+      'V9 temporary skyline haze',
     ]));
+    expect(document.textures?.length).toBe(10);
+    expect(bufferContains(assetPath, 'exterior-garden-depth')).toBe(false);
   });
 
   it('renders a visible loading state instead of a black canvas while GLB assets suspend', () => {
@@ -59,3 +62,7 @@ describe('virtual office v8 environment asset', () => {
     expect(canvasSource).toContain('Đang dựng văn phòng 3D');
   });
 });
+
+function bufferContains(assetPath: string, value: string): boolean {
+  return fs.readFileSync(assetPath).includes(Buffer.from(value));
+}
