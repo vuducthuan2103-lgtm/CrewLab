@@ -24,7 +24,10 @@ def is_character_object(obj: bpy.types.Object, agent_code: str) -> bool:
         return True
     if obj.type == "EMPTY" and obj.get("crewlab_anchor_role"):
         return True
-    if obj.type != "MESH":
+    # Presentation details such as brows, lips, seams and hair strands are
+    # authored as bevelled curves. Blender's glTF exporter converts them to
+    # mesh primitives, so they must travel with the skinned body selection.
+    if obj.type not in {"MESH", "CURVE"}:
         return False
     if obj.name.startswith("QA "):
         return False

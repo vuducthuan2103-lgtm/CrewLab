@@ -15,7 +15,22 @@ Every external or generated character source must be recorded here before import
 
 These files are placeholders and failed the production A01 quality gate. Their presence does not authorize using their primitive source for the final six-character pipeline.
 
-## v13 polished runtime candidates (active)
+## v14 presentation refinement (active)
+
+v14 keeps the approved v13 bodies, seated contact, 27-bone rig, nine workstation anchors and eight state actions. It replaces the heavy facial line work with quieter curved brows, a two-part natural lip contour and a small nose contour; adds restrained neckline, placket and role-badge construction; reduces plastic hair highlights; and layers lightweight bob/long-hair strands or a segmented ponytail where they improve the silhouette. Failed helmet-like B02 hair replacements were rejected during QA, so the stable rigged bob remains in use.
+
+| Agent | v14 refinement | Runtime file | Runtime size |
+| --- | --- | --- | ---: |
+| A01 | Quieter face, matte short hair, tailored neckline/placket and lime role badge | `portal/public/virtual-office/characters/v14/a01.glb` | 917,692 B |
+| B02 | Refined face and round glasses, matte bob strands and teal role badge | `portal/public/virtual-office/characters/v14/b02.glb` | 1,176,168 B |
+| B03 | Refined face, matte short hair, cream neckline and blue role badge | `portal/public/virtual-office/characters/v14/b03.glb` | 937,400 B |
+| D01 | Refined face, layered long-hair strands, rust neckline and role badge | `portal/public/virtual-office/characters/v14/d01.glb` | 1,147,316 B |
+| D02 | Refined face, segmented ponytail, cobalt neckline and role badge | `portal/public/virtual-office/characters/v14/d02.glb` | 1,174,272 B |
+| E01 | Refined face and glasses, matte short hair, vest placket and violet badge | `portal/public/virtual-office/characters/v14/e01.glb` | 980,384 B |
+
+The deterministic refinement build is `scripts/blender/polish_character_v14.py`. Every agent was reviewed in front, three-quarter, side, back and face views before export. The exporter now includes bevelled curve details so the approved brows, lips, seams and hair strands are present in the runtime GLB rather than only in the Blender master.
+
+## v13 polished runtime candidates
 
 v13 preserves the approved CC0 source chain and the production rig contract from v12 while replacing the rough presentation layer. All six agents receive smooth-shaded skin and clothing, restrained physically based materials, eyelids, curved brows, eye catchlights, a subtle mouth line, tailored collar/placket details and grounded shoe shells. Role-specific polish includes B02/E01 round glasses, D01 earrings, D02 ponytail tie and E01 tie clip. The source eye scale was reduced to 90% for a more professional adult proportion. Bad block-like temple hair and oversized accessory prototypes were explicitly removed after multi-angle Cycles QA.
 

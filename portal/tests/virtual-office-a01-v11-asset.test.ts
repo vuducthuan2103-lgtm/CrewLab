@@ -18,13 +18,13 @@ function readGlbJson(assetPath: string): GltfJson {
   return JSON.parse(binary.subarray(20, 20 + jsonLength).toString('utf8').trim());
 }
 
-describe.each(['a01', 'b02', 'b03', 'd01', 'd02', 'e01'])('virtual office %s v13 production candidate', (agentCode) => {
+describe.each(['a01', 'b02', 'b03', 'd01', 'd02', 'e01'])('virtual office %s v14 production candidate', (agentCode) => {
   const assetPath = path.join(
     process.cwd(),
     'public',
     'virtual-office',
     'characters',
-    'v13',
+    'v14',
     `${agentCode}.glb`,
   );
 
@@ -67,19 +67,23 @@ describe.each(['a01', 'b02', 'b03', 'd01', 'd02', 'e01'])('virtual office %s v13
     ]) {
       expect(nodes.has(anchor)).toBe(true);
     }
+
+    for (const detail of ['Brow_L', 'Brow_R', 'UpperLip', 'LowerLip', 'NoseContour', 'Neckline', 'RoleBadge']) {
+      expect(nodes.has(`${agentCode.toUpperCase()}_V14_${detail}`)).toBe(true);
+    }
   });
 });
 
-describe('virtual office v13 character runtime', () => {
-  it('loads the premium v13 assets with a shared cache version', () => {
+describe('virtual office v14 character runtime', () => {
+  it('loads the premium v14 assets with a shared cache version', () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), 'features', 'virtual-office', 'scene', 'RiggedAgentCharacter.tsx'),
       'utf8',
     );
 
-    expect(source).toContain("const CHARACTER_VERSION = '20260831-premium-v13'");
+    expect(source).toContain("const CHARACTER_VERSION = '20260901-premium-v14'");
     for (const agentCode of ['a01', 'b02', 'b03', 'd01', 'd02', 'e01']) {
-      expect(source).toContain(`/virtual-office/characters/v13/${agentCode}.glb`);
+      expect(source).toContain(`/virtual-office/characters/v14/${agentCode}.glb`);
     }
   });
 
