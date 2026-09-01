@@ -56,6 +56,16 @@ def matches_category(name: str, category: str) -> bool:
             "layered tropical borders",
         )
         return any(token in lower for token in tokens)
+    if category == "exterior_vegetation":
+        tokens = (
+            "v9 exterior olive",
+            "v9 exterior acacia",
+            "v9 rooftop hedge",
+            "v9 rooftop shrub",
+            "v9 rooftop grass",
+            "v9 rooftop low border",
+        )
+        return any(token in lower for token in tokens)
     if category == "monitor":
         return any(lower.startswith(f"{code} monitor") for code in AGENT_CODES)
     if category == "glass":
@@ -81,7 +91,14 @@ def main() -> None:
     meshes = [obj for obj in objects if obj.type == "MESH"]
     categories = {
         name: summarize([obj for obj in objects if matches_category(obj.name, name)])
-        for name in ("central_tree", "forest_backdrop", "indoor_vegetation", "monitor", "glass")
+        for name in (
+            "central_tree",
+            "forest_backdrop",
+            "indoor_vegetation",
+            "exterior_vegetation",
+            "monitor",
+            "glass",
+        )
     }
     images = []
     for image in bpy.data.images:

@@ -485,10 +485,164 @@ def create_tree_v9() -> None:
         )
 
 
+def create_exterior_tree_v9(
+    name: str,
+    x: float,
+    y: float,
+    *,
+    height: float,
+    crown_radius: float,
+    seed: int,
+    lean: float = 0.0,
+) -> None:
+    """Create one compact olive/acacia-like rooftop specimen."""
+    base_z = 1.17
+    split_z = base_z + height * 0.43
+    crown_z = base_z + height * 0.82
+    for stem in range(3):
+        offset_x = (stem - 1) * 0.10
+        offset_y = (0.06, -0.05, 0.04)[stem]
+        middle = (
+            x + offset_x + lean * 0.34 + (stem - 1) * 0.06,
+            y + offset_y,
+            split_z,
+        )
+        tip = (
+            x + lean + (stem - 1) * crown_radius * 0.34,
+            y + ((stem % 2) * 2 - 1) * crown_radius * 0.15,
+            crown_z - abs(stem - 1) * 0.12,
+        )
+        base.tapered_tube_between(
+            f"{name} stem {stem} lower",
+            (x + offset_x, y + offset_y, base_z),
+            middle,
+            0.16,
+            0.095,
+            base.TRUNK,
+            vertices=14,
+        )
+        base.tapered_tube_between(
+            f"{name} stem {stem} upper",
+            middle,
+            tip,
+            0.095,
+            0.038,
+            base.TRUNK,
+            vertices=11,
+        )
+
+    canopy_centers = [
+        (x + lean - crown_radius * 0.72, y - crown_radius * 0.10, crown_z + 0.02),
+        (x + lean - crown_radius * 0.32, y + crown_radius * 0.24, crown_z + 0.18),
+        (x + lean + crown_radius * 0.10, y - crown_radius * 0.18, crown_z + 0.22),
+        (x + lean + crown_radius * 0.48, y + crown_radius * 0.20, crown_z + 0.12),
+        (x + lean + crown_radius * 0.78, y - crown_radius * 0.04, crown_z),
+    ]
+    base.create_leaf_cards(
+        f"{name} open canopy",
+        canopy_centers,
+        count=138,
+        spread=(crown_radius * 0.34, crown_radius * 0.28, crown_radius * 0.17),
+        seed=seed,
+        size_range=(0.24, 0.42),
+    )
+
+
+def create_grass_cluster_v9(name: str, x: float, y: float, *, scale: float, seed: int) -> None:
+    """Add low ornamental grass with geometry already batched by leaf material."""
+    for blade in range(7):
+        angle = math.tau * blade / 7 + (seed % 5) * 0.11
+        start = (x, y, 1.19)
+        radius = scale * (0.24 + (blade % 3) * 0.04)
+        end = (
+            x + math.cos(angle) * radius,
+            y + math.sin(angle) * radius,
+            1.19 + scale * (0.42 + (blade % 4) * 0.05),
+        )
+        base.tapered_tube_between(
+            f"{name} blade {blade}",
+            start,
+            end,
+            0.018 * scale,
+            0.004,
+            base.LEAF_LIGHT,
+            vertices=6,
+        )
+
+
+def create_rooftop_vegetation_v9() -> None:
+    """Populate the rooftop with four specimens and restrained A/B/C planting."""
+    tree_specs = (
+        ("V9 exterior olive A", -12.82, 14.56, 4.45, 1.42, 90140, 0.18),
+        ("V9 exterior olive B", 12.80, 14.58, 4.10, 1.30, 90141, -0.16),
+        ("V9 exterior acacia A", -5.02, 22.30, 4.75, 1.55, 90142, -0.10),
+        ("V9 exterior acacia B", 5.02, 22.30, 4.55, 1.48, 90143, 0.12),
+    )
+    for name, x, y, height, crown_radius, seed, lean in tree_specs:
+        create_exterior_tree_v9(
+            name,
+            x,
+            y,
+            height=height,
+            crown_radius=crown_radius,
+            seed=seed,
+            lean=lean,
+        )
+
+    planter_centers = ((-12.85, 14.55), (12.85, 14.55), (-5.00, 22.30), (5.00, 22.30))
+    for planter_index, (cx, cy) in enumerate(planter_centers):
+        # A: clipped hedge masses, B: round shrubs, C: grasses. All reuse the
+        # existing plant material families and therefore add no material batch.
+        for hedge in (-1, 1):
+            base.uv_sphere(
+                f"V9 rooftop hedge A {planter_index}-{hedge}",
+                (cx + hedge * 0.82, cy + 0.18, 1.32),
+                (0.42, 0.22, 0.22),
+                base.LEAF,
+                segments=14,
+                rings=7,
+            )
+        for shrub in range(3):
+            angle = -0.75 + shrub * 0.70
+            base.uv_sphere(
+                f"V9 rooftop shrub B {planter_index}-{shrub}",
+                (cx + math.sin(angle) * 0.74, cy - 0.46 + math.cos(angle) * 0.12, 1.27),
+                (0.25 + shrub * 0.025, 0.22, 0.18 + (shrub % 2) * 0.04),
+                base.LEAF_LIGHT if shrub == 1 else base.LEAF,
+                segments=12,
+                rings=6,
+            )
+        create_grass_cluster_v9(
+            f"V9 rooftop grass C {planter_index}",
+            cx + (-0.34 if planter_index % 2 else 0.34),
+            cy + 0.54,
+            scale=0.74 + planter_index * 0.04,
+            seed=90150 + planter_index,
+        )
+
+    # Sparse low borders visually stitch lounge and walkway without returning
+    # to the wall-of-green effect removed in Phase 1.
+    border_centers = (
+        (-8.85, 20.25, 0.72), (-7.95, 20.18, 0.58),
+        (8.85, 20.25, 0.72), (7.95, 20.18, 0.58),
+        (-1.35, 24.20, 0.62), (1.35, 24.20, 0.62),
+    )
+    for index, (x, y, width) in enumerate(border_centers):
+        base.uv_sphere(
+            f"V9 rooftop low border {index}",
+            (x, y, 1.39),
+            (width, 0.30, 0.25),
+            base.LEAF if index % 2 else base.LEAF_LIGHT,
+            segments=14,
+            rings=7,
+        )
+
+
 def create_pavilions_v9() -> None:
     original_pavilions()
     remove_rainforest_layers()
     create_rooftop_hardscape_v9()
+    create_rooftop_vegetation_v9()
     base.cube(
         "V9 temporary urban horizon",
         (0.0, 36.5, 8.0),

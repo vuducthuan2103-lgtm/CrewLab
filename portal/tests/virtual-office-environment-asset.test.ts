@@ -55,6 +55,10 @@ describe('virtual office v9 rooftop environment asset', () => {
     expect(bufferContains(assetPath, 'Ficus photoreal canopy')).toBe(false);
     expect(bufferContains(assetPath, 'V8 ficus crown detail')).toBe(false);
     expect(bufferContains(assetPath, 'V9 Ficus architectural canopy')).toBe(true);
+    expect(bufferContains(assetPath, 'V9 exterior olive A')).toBe(true);
+    expect(bufferContains(assetPath, 'V9 exterior olive B')).toBe(true);
+    expect(bufferContains(assetPath, 'V9 exterior acacia A')).toBe(true);
+    expect(bufferContains(assetPath, 'V9 exterior acacia B')).toBe(true);
   });
 
   it('renders a visible loading state instead of a black canvas while GLB assets suspend', () => {
