@@ -10,7 +10,7 @@ import { useOfficeStore } from '../state/office-store';
 import type { AgentCode, OfficeAgent } from '../types/office';
 import { RiggedAgentCharacter } from './RiggedAgentCharacter';
 
-const MODEL_URL = '/virtual-office/garden-office-v9.glb?v=20260901-rooftop-final';
+const MODEL_URL = '/virtual-office/garden-office-v10.glb?v=20260901-crisp-city';
 const CHARACTER_SCALE = 1.14;
 // Blender v10 assets use a 0.038 m shoe sole and a 0.62 m seated pelvis.
 // The plaza sits at roughly 0.45 m, so this keeps the shoes planted while the
@@ -52,6 +52,8 @@ function BakedGardenOffice() {
         materialName.includes('cluster atlas') ||
         materialName.includes('display') ||
         materialName.includes('atmospheric skyline') ||
+        materialName.includes('distant city panorama') ||
+        materialName.includes('skyline window ribbons') ||
         objectName.includes('ui line');
       object.castShadow = !isLightweightSurface;
       object.receiveShadow = !isLightweightSurface;
@@ -70,6 +72,20 @@ function BakedGardenOffice() {
       } else if (materialName.includes('atmospheric skyline')) {
         object.material.envMapIntensity = 0.72;
         object.material.roughness = 0.94;
+      } else if (materialName.includes('distant city panorama')) {
+        object.material.envMapIntensity = 0.14;
+        object.material.roughness = 1;
+        object.material.emissiveIntensity = 0.18;
+      } else if (materialName.includes('cool city curtain wall')) {
+        object.material.envMapIntensity = 1.48;
+        object.material.roughness = 0.28;
+        object.material.color.multiply(new THREE.Color('#77909a'));
+      } else if (materialName.includes('pale city masonry')) {
+        object.material.color.multiply(new THREE.Color('#aebabc'));
+        object.material.roughness = 0.76;
+      } else if (materialName.includes('skyline window ribbons')) {
+        object.material.envMapIntensity = 1.18;
+        object.material.emissiveIntensity = 0.08;
       } else if (materialName.includes('architectural concrete')) {
         object.material.color.multiply(new THREE.Color('#b7c1c2'));
         object.material.roughness = 0.84;

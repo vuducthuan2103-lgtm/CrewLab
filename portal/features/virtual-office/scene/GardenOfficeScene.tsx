@@ -7,14 +7,14 @@ import { GardenOfficeModel } from './GardenOfficeModel';
 export function GardenOfficeScene() {
   return (
     <>
-      <color attach="background" args={['#a9c4c7']} />
-      <fog attach="fog" args={['#b5cbcc', 48, 78]} />
-      <ambientLight intensity={0.58} color="#f8fbff" />
-      <hemisphereLight args={['#eaf7ff', '#aebdb5', 0.98]} />
+      <color attach="background" args={['#c4e1ee']} />
+      <fog attach="fog" args={['#c7dfe9', 74, 132]} />
+      <ambientLight intensity={0.62} color="#fbfdff" />
+      <hemisphereLight args={['#edf9ff', '#b7c5bc', 1.04]} />
       <directionalLight
         castShadow
         position={[-11, 16, 10]}
-        intensity={2.72}
+        intensity={2.86}
         color="#fffefa"
         shadow-mapSize={[2048, 2048]}
         shadow-camera-near={1}

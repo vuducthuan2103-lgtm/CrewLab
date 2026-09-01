@@ -42,9 +42,9 @@ function readGlbJson(assetPath: string): GlbDocument {
   return JSON.parse(buffer.subarray(20, 20 + jsonLength).toString('utf8').trimEnd()) as GlbDocument;
 }
 
-describe('virtual office v9 rooftop environment asset', () => {
+describe('virtual office v10 rooftop environment asset', () => {
   it('stays inside the authored web scene budget and removes the rainforest backplate', () => {
-    const assetPath = path.join(process.cwd(), 'public', 'virtual-office', 'garden-office-v9.glb');
+    const assetPath = path.join(process.cwd(), 'public', 'virtual-office', 'garden-office-v10.glb');
     const stat = fs.statSync(assetPath);
     const document = readGlbJson(assetPath);
     const primitives = (document.meshes ?? []).flatMap((mesh) => mesh.primitives ?? []);
@@ -56,27 +56,34 @@ describe('virtual office v9 rooftop environment asset', () => {
 
     expect(stat.size).toBeGreaterThan(10_000_000);
     expect(stat.size).toBeLessThan(18_000_000);
-    expect(primitives.length).toBeLessThanOrEqual(30);
-    expect(triangles).toBeLessThan(350_000);
-    expect(document.textures?.length).toBeLessThanOrEqual(12);
+    expect(primitives.length).toBeLessThanOrEqual(36);
+    expect(triangles).toBeLessThan(370_000);
+    expect(document.textures?.length).toBeLessThanOrEqual(13);
     expect(materialNames).toEqual(expect.arrayContaining([
       'V8 honed limestone',
       'V8 planning display',
       'V8 review display',
       'Shallow turquoise water',
       'Quarter sawn oak',
-      'V9 atmospheric skyline',
       'V9 sunlit limestone',
       'V9 architectural concrete',
       'V9 outdoor oak',
       'V9 architectural tree foliage',
+      'V10 cool city curtain wall',
+      'V10 pale city masonry',
+      'V10 skyline window ribbons',
+      'V10 warm terrace edge light',
+      'V10 deep topiary foliage',
+      'V10 crisp distant city panorama',
     ]));
-    expect(document.textures?.length).toBe(11);
+    expect(document.textures?.length).toBe(13);
     expect(bufferContains(assetPath, 'exterior-garden-depth')).toBe(false);
     expect(bufferContains(assetPath, 'Ficus photoreal canopy')).toBe(false);
     expect(bufferContains(assetPath, 'V8 ficus crown detail')).toBe(false);
     expect(bufferContains(assetPath, 'V9 Ficus architectural canopy')).toBe(true);
     expect(bufferContains(assetPath, 'V9 temporary urban horizon')).toBe(false);
+    expect(bufferContains(assetPath, 'V9 atmospheric skyline')).toBe(false);
+    expect(bufferContains(assetPath, 'V10 crisp distant city panorama')).toBe(true);
 
     const audit = JSON.parse(fs.readFileSync(
       path.join(
@@ -86,15 +93,15 @@ describe('virtual office v9 rooftop environment asset', () => {
         '0026-virtual-3d-office',
         'assets',
         'rooftop-environment',
-        'phase-5-environment-v9-source-metrics.json',
+        'phase-6-environment-v10-source-metrics.json',
       ),
       'utf8',
     )) as EnvironmentAudit;
-    expect(audit.categories?.exterior_vegetation?.objects).toBe(82);
-    expect(audit.categories?.exterior_vegetation?.triangles).toBe(6_560);
-    expect(audit.categories?.skyline?.objects).toBeGreaterThanOrEqual(52);
-    expect(audit.categories?.skyline?.objects).toBeLessThanOrEqual(70);
-    expect(audit.categories?.skyline?.triangles).toBeLessThan(2_000);
+    expect(audit.categories?.exterior_vegetation?.objects).toBe(124);
+    expect(audit.categories?.exterior_vegetation?.triangles).toBe(13_016);
+    expect(audit.categories?.skyline?.objects).toBeGreaterThanOrEqual(45);
+    expect(audit.categories?.skyline?.objects).toBeLessThanOrEqual(60);
+    expect(audit.categories?.skyline?.triangles).toBeLessThan(1_000);
     expect(audit.categories?.indoor_vegetation?.objects).toBe(15);
     expect(audit.categories?.indoor_vegetation?.triangles).toBe(942);
     expect(audit.monitor_alignment?.all_face_operator).toBe(true);

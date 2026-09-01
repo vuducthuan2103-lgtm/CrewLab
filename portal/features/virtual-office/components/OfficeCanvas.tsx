@@ -13,8 +13,8 @@ import type { AgentCode } from '../types/office';
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
 // Mirrors the approved v5 Blender 52 mm hero camera after glTF's Z-up to Y-up
 // axis conversion: Blender (x, y, z) becomes Three.js (x, z, -y).
-const HOME_POSITION = new THREE.Vector3(11.2, 10.8, 18.2);
-const HOME_TARGET = new THREE.Vector3(0, 2.08, -0.35);
+const HOME_POSITION = new THREE.Vector3(9.4, 13.1, 22.4);
+const HOME_TARGET = new THREE.Vector3(0, 2.58, -2.65);
 
 interface OrbitControlsHandle {
   target?: THREE.Vector3;
@@ -167,7 +167,7 @@ export function OfficeCanvas() {
     <div className="absolute inset-0 overflow-hidden bg-[#c9e2df]">
       <Canvas
         shadows
-        camera={{ position: [HOME_POSITION.x, HOME_POSITION.y, HOME_POSITION.z], fov: 38, near: 0.1, far: 90 }}
+        camera={{ position: [HOME_POSITION.x, HOME_POSITION.y, HOME_POSITION.z], fov: 38, near: 0.1, far: 140 }}
         dpr={[1, 1.25]}
         fallback={<WebGLFallback />}
         gl={{
@@ -178,7 +178,7 @@ export function OfficeCanvas() {
           outputColorSpace: THREE.SRGBColorSpace,
         }}
         onCreated={({ gl }) => {
-          gl.toneMappingExposure = 1.1;
+          gl.toneMappingExposure = 1.14;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
         }}
       >

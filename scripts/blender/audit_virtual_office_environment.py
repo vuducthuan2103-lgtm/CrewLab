@@ -64,6 +64,8 @@ def matches_category(name: str, category: str) -> bool:
             "v9 rooftop shrub",
             "v9 rooftop grass",
             "v9 rooftop low border",
+            "v10 rooftop topiary",
+            "v10 rooftop layered shrub",
         )
         return any(token in lower for token in tokens)
     if category == "skyline":
@@ -72,6 +74,8 @@ def matches_category(name: str, category: str) -> bool:
             or lower.startswith("v9 mid skyline")
             or lower.startswith("v9 skyline landmark")
             or lower.startswith("v9 skyline podium")
+            or lower.startswith("v10 mid city")
+            or lower.startswith("v10 crisp distant city")
         )
     if category == "monitor":
         return any(lower.startswith(f"{code} monitor") for code in AGENT_CODES)
