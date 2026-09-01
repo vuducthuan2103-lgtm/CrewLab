@@ -14,6 +14,15 @@ interface GlbDocument {
   textures?: unknown[];
 }
 
+interface EnvironmentAudit {
+  categories?: {
+    exterior_vegetation?: {
+      objects?: number;
+      triangles?: number;
+    };
+  };
+}
+
 function readGlbJson(assetPath: string): GlbDocument {
   const buffer = fs.readFileSync(assetPath);
   expect(buffer.subarray(0, 4).toString('ascii')).toBe('glTF');
@@ -55,10 +64,21 @@ describe('virtual office v9 rooftop environment asset', () => {
     expect(bufferContains(assetPath, 'Ficus photoreal canopy')).toBe(false);
     expect(bufferContains(assetPath, 'V8 ficus crown detail')).toBe(false);
     expect(bufferContains(assetPath, 'V9 Ficus architectural canopy')).toBe(true);
-    expect(bufferContains(assetPath, 'V9 exterior olive A')).toBe(true);
-    expect(bufferContains(assetPath, 'V9 exterior olive B')).toBe(true);
-    expect(bufferContains(assetPath, 'V9 exterior acacia A')).toBe(true);
-    expect(bufferContains(assetPath, 'V9 exterior acacia B')).toBe(true);
+
+    const audit = JSON.parse(fs.readFileSync(
+      path.join(
+        process.cwd(),
+        '..',
+        'specs',
+        '0026-virtual-3d-office',
+        'assets',
+        'rooftop-environment',
+        'phase-4-vegetation-v9-source-metrics.json',
+      ),
+      'utf8',
+    )) as EnvironmentAudit;
+    expect(audit.categories?.exterior_vegetation?.objects).toBe(82);
+    expect(audit.categories?.exterior_vegetation?.triangles).toBe(6_560);
   });
 
   it('renders a visible loading state instead of a black canvas while GLB assets suspend', () => {
