@@ -45,6 +45,9 @@ describe('virtual office v9 rooftop environment asset', () => {
       'Shallow turquoise water',
       'Quarter sawn oak',
       'V9 temporary skyline haze',
+      'V9 sunlit limestone',
+      'V9 architectural concrete',
+      'V9 outdoor oak',
     ]));
     expect(document.textures?.length).toBe(10);
     expect(bufferContains(assetPath, 'exterior-garden-depth')).toBe(false);

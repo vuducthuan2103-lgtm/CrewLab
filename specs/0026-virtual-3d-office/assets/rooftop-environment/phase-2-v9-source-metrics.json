@@ -1,0 +1,182 @@
+{
+  "blend_file": "D:\\CrewLab\\portal\\public\\virtual-office\\garden-office-v9.blend",
+  "scene": {
+    "objects": 1110,
+    "meshes": 1090,
+    "triangles": 84692,
+    "materials": 28,
+    "images": 13,
+    "lights": 6,
+    "shadow_caster_candidates": 1028
+  },
+  "categories": {
+    "central_tree": {
+      "objects": 103,
+      "meshes": 103,
+      "triangles": 16316,
+      "materials": [
+        "Champagne bronze",
+        "Ficus cluster atlas",
+        "Limestone joint",
+        "Limestone warm",
+        "Old ficus bark",
+        "V8 honed limestone",
+        "V8 limestone shadow joint"
+      ]
+    },
+    "forest_backdrop": {
+      "objects": 0,
+      "meshes": 0,
+      "triangles": 0,
+      "materials": []
+    },
+    "indoor_vegetation": {
+      "objects": 15,
+      "meshes": 15,
+      "triangles": 1096,
+      "materials": [
+        "Ficus cluster atlas",
+        "Warm ceramic"
+      ]
+    },
+    "monitor": {
+      "objects": 150,
+      "meshes": 150,
+      "triangles": 4200,
+      "materials": [
+        "Champagne bronze",
+        "CrewLab lime",
+        "Graphite",
+        "Teal display glass"
+      ]
+    },
+    "glass": {
+      "objects": 27,
+      "meshes": 26,
+      "triangles": 312,
+      "materials": [
+        "Low iron architectural glass"
+      ]
+    }
+  },
+  "textures": [
+    {
+      "name": "exterior-garden-depth.jpg",
+      "width": 2048,
+      "height": 1024,
+      "source": "FILE",
+      "filepath": "D:\\CrewLab\\portal\\public\\virtual-office\\textures\\v5\\exterior-garden-depth.jpg",
+      "decoded_rgba_bytes": 8388608
+    },
+    {
+      "name": "Render Result",
+      "width": 0,
+      "height": 0,
+      "source": "VIEWER",
+      "filepath": null,
+      "decoded_rgba_bytes": 0
+    },
+    {
+      "name": "tex-ficus-bark-albedo.jpg",
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "filepath": "D:\\CrewLab\\portal\\public\\virtual-office\\textures\\v4\\tex-ficus-bark-albedo.jpg",
+      "decoded_rgba_bytes": 4194304
+    },
+    {
+      "name": "tex-ficus-bark-normal.jpg",
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "filepath": "D:\\CrewLab\\portal\\public\\virtual-office\\textures\\v4\\tex-ficus-bark-normal.jpg",
+      "decoded_rgba_bytes": 4194304
+    },
+    {
+      "name": "tex-ficus-bark-roughness.jpg",
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "filepath": "D:\\CrewLab\\portal\\public\\virtual-office\\textures\\v4\\tex-ficus-bark-roughness.jpg",
+      "decoded_rgba_bytes": 4194304
+    },
+    {
+      "name": "tex-ficus-clusters.png",
+      "width": 1254,
+      "height": 1254,
+      "source": "FILE",
+      "filepath": "D:\\CrewLab\\portal\\public\\virtual-office\\references\\v3\\tex-ficus-clusters.png",
+      "decoded_rgba_bytes": 6290064
+    },
+    {
+      "name": "tex-limestone-albedo.jpg",
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "filepath": "D:\\CrewLab\\portal\\public\\virtual-office\\textures\\v4\\tex-limestone-albedo.jpg",
+      "decoded_rgba_bytes": 4194304
+    },
+    {
+      "name": "tex-limestone-normal.jpg",
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "filepath": "D:\\CrewLab\\portal\\public\\virtual-office\\textures\\v4\\tex-limestone-normal.jpg",
+      "decoded_rgba_bytes": 4194304
+    },
+    {
+      "name": "tex-limestone-roughness.jpg",
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "filepath": "D:\\CrewLab\\portal\\public\\virtual-office\\textures\\v4\\tex-limestone-roughness.jpg",
+      "decoded_rgba_bytes": 4194304
+    },
+    {
+      "name": "tex-oak-albedo.jpg",
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "filepath": "D:\\CrewLab\\portal\\public\\virtual-office\\textures\\v4\\tex-oak-albedo.jpg",
+      "decoded_rgba_bytes": 4194304
+    },
+    {
+      "name": "tex-oak-normal.jpg",
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "filepath": "D:\\CrewLab\\portal\\public\\virtual-office\\textures\\v4\\tex-oak-normal.jpg",
+      "decoded_rgba_bytes": 4194304
+    },
+    {
+      "name": "tex-oak-roughness.jpg",
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "filepath": "D:\\CrewLab\\portal\\public\\virtual-office\\textures\\v4\\tex-oak-roughness.jpg",
+      "decoded_rgba_bytes": 4194304
+    },
+    {
+      "name": "Viewer Node",
+      "width": 256,
+      "height": 256,
+      "source": "VIEWER",
+      "filepath": null,
+      "decoded_rgba_bytes": 262144
+    }
+  ],
+  "camera": {
+    "name": "CrewLab overview camera",
+    "location": [
+      16.2,
+      -27.0,
+      17.0
+    ],
+    "rotation_euler": [
+      1.144774,
+      -0.0,
+      0.523741
+    ],
+    "lens_mm": 51.0
+  }
+}
