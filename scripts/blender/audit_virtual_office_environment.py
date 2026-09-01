@@ -66,6 +66,13 @@ def matches_category(name: str, category: str) -> bool:
             "v9 rooftop low border",
         )
         return any(token in lower for token in tokens)
+    if category == "skyline":
+        return (
+            lower.startswith("v9 far skyline")
+            or lower.startswith("v9 mid skyline")
+            or lower.startswith("v9 skyline landmark")
+            or lower.startswith("v9 skyline podium")
+        )
     if category == "monitor":
         return any(lower.startswith(f"{code} monitor") for code in AGENT_CODES)
     if category == "glass":
@@ -85,6 +92,45 @@ def summarize(objects: list[bpy.types.Object]) -> dict[str, object]:
     }
 
 
+def monitor_alignment() -> dict[str, object]:
+    """Verify every emissive screen is offset toward its seated operator."""
+    direction_dots: dict[str, list[float]] = {}
+    for code in AGENT_CODES:
+        authored_code = code.upper()
+        chair = bpy.data.objects.get(f"{authored_code} chair seat")
+        screens = sorted(
+            (
+                obj
+                for obj in bpy.context.scene.objects
+                if obj.name.startswith(f"{authored_code} monitor") and obj.name.endswith(" Screen")
+            ),
+            key=lambda obj: obj.name,
+        )
+        values: list[float] = []
+        if chair is not None:
+            chair_position = chair.matrix_world.translation
+            for screen in screens:
+                bezel = bpy.data.objects.get(screen.name.removesuffix(" Screen") + " bezel")
+                if bezel is None:
+                    continue
+                bezel_position = bezel.matrix_world.translation
+                screen_direction = (screen.matrix_world.translation - bezel_position).normalized()
+                operator_direction = (chair_position - bezel_position).normalized()
+                values.append(round(screen_direction.dot(operator_direction), 6))
+        direction_dots[code] = values
+
+    flattened = [value for values in direction_dots.values() for value in values]
+    return {
+        "direction_dots": direction_dots,
+        "minimum_direction_dot": min(flattened) if flattened else None,
+        # Side monitors are deliberately fanned, so their bezel-to-screen
+        # vector is only partially aligned with the chair vector. A positive
+        # dot above 0.45 proves the emissive face is on the operator half-space;
+        # the historical reversed screens produce a negative value.
+        "all_face_operator": bool(flattened) and all(value > 0.45 for value in flattened),
+    }
+
+
 def main() -> None:
     args = parse_args()
     objects = list(bpy.context.scene.objects)
@@ -96,6 +142,7 @@ def main() -> None:
             "forest_backdrop",
             "indoor_vegetation",
             "exterior_vegetation",
+            "skyline",
             "monitor",
             "glass",
         )
@@ -130,6 +177,7 @@ def main() -> None:
             ),
         },
         "categories": categories,
+        "monitor_alignment": monitor_alignment(),
         "textures": images,
         "camera": None
         if camera is None

@@ -614,8 +614,10 @@ def create_platform(name: str, x: float, y: float, radius: float, *, central: bo
 def create_monitor(name: str, x: float, y: float, z: float, angle: float, width: float = 0.92) -> None:
     # Screen faces are individually named so runtime can pulse/inspect them.
     cube(f"{name} bezel", (x, y, z), (width / 2, 0.035, 0.33), GRAPHITE, rotation=(0, 0, angle), bevel=0.045)
-    # Offset toward the seated operator/camera side.
-    offset = Vector((math.sin(angle) * 0.044, -math.cos(angle) * 0.044, 0))
+    # Offset toward the seated operator. Stations place the operator on the
+    # positive local-Y side of the desk, so the display surface must face
+    # positive local Y (the previous sign exposed the UI to the room instead).
+    offset = Vector((-math.sin(angle) * 0.044, math.cos(angle) * 0.044, 0))
     cube(
         f"{name} Screen",
         (x + offset.x, y + offset.y, z + 0.005),
@@ -626,7 +628,7 @@ def create_monitor(name: str, x: float, y: float, z: float, angle: float, width:
     )
     # A few actual emissive UI strokes keep the display readable in WebGL;
     # they are not a baked screenshot and still react correctly in 3D.
-    normal = Vector((math.sin(angle), -math.cos(angle), 0))
+    normal = Vector((-math.sin(angle), math.cos(angle), 0))
     tangent = Vector((math.cos(angle), math.sin(angle), 0))
     for line_index, (local_x, local_z, line_width, line_mat) in enumerate(
         ((-0.22, 0.16, 0.18, LIME), (0.05, 0.16, 0.20, SCREEN), (-0.10, 0.03, 0.31, SCREEN), (0.12, -0.09, 0.22, SCREEN), (-0.20, -0.19, 0.13, SCREEN))

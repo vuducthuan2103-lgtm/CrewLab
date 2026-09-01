@@ -42,6 +42,7 @@ base.PREVIEW_PATH = OUTPUT_DIR / "garden-office-v9-preview.png"
 original_make_materials = base.make_materials
 original_pavilions = base.create_pavilions
 original_lighting_and_camera = base.create_lighting_and_camera
+original_create_leaf_cards = base.create_leaf_cards
 
 SKYLINE_HAZE = None
 ROOFTOP_STONE = None
@@ -62,9 +63,9 @@ def make_materials_v9() -> None:
     global CENTRAL_TREE_FOLIAGE
     original_make_materials()
     SKYLINE_HAZE = base.material(
-        "V9 temporary skyline haze",
-        (0.54, 0.68, 0.76, 1),
-        roughness=1.0,
+        "V9 atmospheric skyline",
+        (0.27, 0.37, 0.42, 1),
+        roughness=0.94,
     )
     # Reuse supporting v8 materials wherever their physical role is the same.
     # This keeps Phase 2 to three new hardscape material batches instead of
@@ -115,6 +116,53 @@ def remove_rainforest_layers() -> None:
     for obj in list(bpy.context.scene.objects):
         if any(token in obj.name.lower() for token in tokens):
             bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def create_leaf_cards_v9(
+    name: str,
+    centers: list[tuple[float, float, float]],
+    *,
+    count: int,
+    spread: tuple[float, float, float],
+    seed: int,
+    size_range: tuple[float, float] = (0.48, 0.82),
+) -> bpy.types.Object:
+    """Thin inherited interior greenery without moving any approved planter."""
+    indoor_tokens = (
+        "desk plant",
+        "integrated layered foliage",
+        "focus living wall",
+        "pavilion border foliage",
+    )
+    if any(token in name.lower() for token in indoor_tokens):
+        count = max(4, round(count * 0.75))
+    return original_create_leaf_cards(
+        name,
+        centers,
+        count=count,
+        spread=spread,
+        seed=seed,
+        size_range=size_range,
+    )
+
+
+def refine_atrium_glass_v9() -> None:
+    """Open the city view while preserving the authored glass enclosure."""
+    for obj in list(bpy.context.scene.objects):
+        lower = obj.name.lower()
+        is_rear = lower.startswith("atrium rear mullion ")
+        is_side = lower.startswith("atrium side mullion ")
+        if not (is_rear or is_side):
+            continue
+        try:
+            index = int(lower.rsplit("-", 1)[-1] if is_side else lower.rsplit(" ", 1)[-1])
+        except ValueError:
+            continue
+        if index % 2:
+            bpy.data.objects.remove(obj, do_unlink=True)
+        else:
+            obj.scale.x *= 0.76
+            obj.scale.y *= 0.76
 
 
 def rooftop_joint(name: str, x: float, y: float, length: float, rotation_degrees: float = 0.0) -> None:
@@ -638,18 +686,118 @@ def create_rooftop_vegetation_v9() -> None:
         )
 
 
+def create_city_skyline_v9() -> None:
+    """Create an efficient two-depth city using shared material batches."""
+    # Far silhouettes are cool and low-contrast. Their irregular spacing keeps
+    # the layer from reading as a single wall while still grounding open sky.
+    far_buildings = (
+        (-22.4, 3.2, 1.25, 0.88),
+        (-19.4, 4.4, 0.92, 0.78),
+        (-16.9, 2.9, 0.78, 0.92),
+        (-14.6, 5.0, 0.88, 0.82),
+        (-12.0, 3.7, 1.02, 0.88),
+        (-9.2, 5.3, 0.90, 0.82),
+        (-6.7, 3.0, 0.92, 0.90),
+        (-3.9, 4.2, 0.84, 0.80),
+        (4.0, 3.5, 0.92, 0.86),
+        (6.8, 5.1, 0.86, 0.80),
+        (9.4, 3.1, 1.00, 0.90),
+        (12.2, 4.8, 0.88, 0.82),
+        (14.8, 3.8, 1.00, 0.88),
+        (17.6, 5.2, 0.88, 0.80),
+        (20.5, 3.3, 1.18, 0.90),
+    )
+    for index, (x, height, half_width, depth) in enumerate(far_buildings):
+        visible_height = height * 0.78
+        base.cube(
+            f"V9 far skyline tower {index:02}",
+            (x, 39.2 + (index % 3) * 0.32, 0.86 + visible_height * 0.50),
+            (half_width, depth, visible_height * 0.50),
+            SKYLINE_HAZE,
+            bevel=0.0,
+        )
+
+    # Low, separated podiums connect tower bases to the far terrace so the
+    # skyline reads as a city on the horizon rather than floating rectangles.
+    for index, (x, half_width, height) in enumerate(((-18.1, 4.8, 1.20), (-7.9, 3.7, 1.02), (7.9, 3.7, 1.08), (18.1, 4.8, 1.26))):
+        base.cube(
+            f"V9 skyline podium {index:02}",
+            (x, 38.0 + (index % 2) * 0.24, 0.72 + height * 0.50),
+            (half_width, 0.92, height * 0.50),
+            SKYLINE_HAZE,
+            bevel=0.0,
+        )
+
+    # Six nearer towers establish a legible city cadence on both sides while
+    # protecting the open gap behind the hero tree and A01.
+    mid_buildings = (
+        (-18.6, 5.4, 1.30, 1.02),
+        (-14.8, 4.2, 1.12, 0.98),
+        (-10.8, 6.4, 1.32, 1.04),
+        (10.9, 6.1, 1.28, 1.02),
+        (14.9, 4.5, 1.16, 0.98),
+        (18.7, 5.7, 1.36, 1.04),
+    )
+    for index, (x, height, half_width, depth) in enumerate(mid_buildings):
+        visible_height = height * 0.84
+        center_y = 34.1 + (index % 2) * 0.42
+        base.cube(
+            f"V9 mid skyline tower {index:02}",
+            (x, center_y, 0.92 + visible_height * 0.50),
+            (half_width, depth, visible_height * 0.50),
+            ROOFTOP_CONCRETE,
+            bevel=0.0,
+        )
+        base.cube(
+            f"V9 mid skyline roof cap {index:02}",
+            (x, center_y, 0.97 + visible_height),
+            (half_width * 0.88, depth * 0.78, 0.065),
+            ROOFTOP_GRAPHITE,
+            bevel=0.0,
+        )
+
+        # Three broad glass ribbons are enough to communicate occupied urban
+        # buildings without hundreds of individual neon windows.
+        for row in range(3):
+            row_z = 1.72 + row * max(0.66, (visible_height - 1.5) / 3.0)
+            base.cube(
+                f"V9 mid skyline glass ribbon {index:02}-{row}",
+                (x, center_y - depth - 0.022, row_z),
+                (half_width * 0.72, 0.020, 0.10),
+                base.GLASS,
+                bevel=0.0,
+            )
+
+    # One slim communications crown gives the skyline a unique but restrained
+    # landmark rather than a generic row of boxes.
+    landmark_x = -10.8
+    base.tapered_tube_between(
+        "V9 skyline landmark mast",
+        (landmark_x, 34.1, 6.20),
+        (landmark_x, 34.1, 7.85),
+        0.075,
+        0.018,
+        ROOFTOP_GRAPHITE,
+        vertices=10,
+    )
+    for ring_index, ring_z in enumerate((6.58, 6.98)):
+        base.torus(
+            f"V9 skyline landmark crown {ring_index}",
+            (landmark_x, 34.1, ring_z),
+            0.34 - ring_index * 0.07,
+            0.026,
+            ROOFTOP_GRAPHITE,
+            major_segments=24,
+        )
+
+
 def create_pavilions_v9() -> None:
     original_pavilions()
     remove_rainforest_layers()
+    refine_atrium_glass_v9()
     create_rooftop_hardscape_v9()
     create_rooftop_vegetation_v9()
-    base.cube(
-        "V9 temporary urban horizon",
-        (0.0, 36.5, 8.0),
-        (26.0, 0.06, 8.0),
-        SKYLINE_HAZE,
-        bevel=0.02,
-    )
+    create_city_skyline_v9()
 
 
 def create_lighting_and_camera_v9() -> None:
@@ -661,6 +809,7 @@ def create_lighting_and_camera_v9() -> None:
 
 
 base.make_materials = make_materials_v9
+base.create_leaf_cards = create_leaf_cards_v9
 base.create_tree = create_tree_v9
 base.create_pavilions = create_pavilions_v9
 base.create_lighting_and_camera = create_lighting_and_camera_v9

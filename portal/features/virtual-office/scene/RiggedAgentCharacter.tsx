@@ -89,7 +89,11 @@ export function RiggedAgentCharacter({ code, visualState }: { code: AgentCode; v
   useEffect(() => {
     model.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
-      object.castShadow = true;
+      const indexCount = object.geometry.index?.count ?? 0;
+      const triangleCount = indexCount > 0 ? indexCount / 3 : object.geometry.attributes.position.count / 3;
+      // Brows, eyelids, irises and facial accents are visually important but
+      // too small to justify another shadow-map draw for every one of six rigs.
+      object.castShadow = triangleCount >= 1_000;
       object.receiveShadow = true;
       if (object.material instanceof THREE.MeshStandardMaterial) object.material.envMapIntensity = 1.05;
     });

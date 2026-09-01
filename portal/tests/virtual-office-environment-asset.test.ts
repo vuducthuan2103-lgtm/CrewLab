@@ -20,6 +20,18 @@ interface EnvironmentAudit {
       objects?: number;
       triangles?: number;
     };
+    skyline?: {
+      objects?: number;
+      triangles?: number;
+    };
+    indoor_vegetation?: {
+      objects?: number;
+      triangles?: number;
+    };
+  };
+  monitor_alignment?: {
+    all_face_operator?: boolean;
+    minimum_direction_dot?: number;
   };
 }
 
@@ -53,7 +65,7 @@ describe('virtual office v9 rooftop environment asset', () => {
       'V8 review display',
       'Shallow turquoise water',
       'Quarter sawn oak',
-      'V9 temporary skyline haze',
+      'V9 atmospheric skyline',
       'V9 sunlit limestone',
       'V9 architectural concrete',
       'V9 outdoor oak',
@@ -64,6 +76,7 @@ describe('virtual office v9 rooftop environment asset', () => {
     expect(bufferContains(assetPath, 'Ficus photoreal canopy')).toBe(false);
     expect(bufferContains(assetPath, 'V8 ficus crown detail')).toBe(false);
     expect(bufferContains(assetPath, 'V9 Ficus architectural canopy')).toBe(true);
+    expect(bufferContains(assetPath, 'V9 temporary urban horizon')).toBe(false);
 
     const audit = JSON.parse(fs.readFileSync(
       path.join(
@@ -73,12 +86,19 @@ describe('virtual office v9 rooftop environment asset', () => {
         '0026-virtual-3d-office',
         'assets',
         'rooftop-environment',
-        'phase-4-vegetation-v9-source-metrics.json',
+        'phase-5-environment-v9-source-metrics.json',
       ),
       'utf8',
     )) as EnvironmentAudit;
     expect(audit.categories?.exterior_vegetation?.objects).toBe(82);
     expect(audit.categories?.exterior_vegetation?.triangles).toBe(6_560);
+    expect(audit.categories?.skyline?.objects).toBeGreaterThanOrEqual(52);
+    expect(audit.categories?.skyline?.objects).toBeLessThanOrEqual(70);
+    expect(audit.categories?.skyline?.triangles).toBeLessThan(2_000);
+    expect(audit.categories?.indoor_vegetation?.objects).toBe(15);
+    expect(audit.categories?.indoor_vegetation?.triangles).toBe(942);
+    expect(audit.monitor_alignment?.all_face_operator).toBe(true);
+    expect(audit.monitor_alignment?.minimum_direction_dot).toBeGreaterThan(0.45);
   });
 
   it('renders a visible loading state instead of a black canvas while GLB assets suspend', () => {
@@ -91,6 +111,25 @@ describe('virtual office v9 rooftop environment asset', () => {
     expect(canvasSource).toContain('fallback={<SceneLoadingFallback />}');
     expect(canvasSource).toContain('data-testid="office-scene-loading"');
     expect(canvasSource).toContain('Đang dựng văn phòng 3D');
+  });
+
+  it('bounds recurring WebGL work without removing articulated agent detail', () => {
+    const sceneSource = fs.readFileSync(
+      path.join(process.cwd(), 'features', 'virtual-office', 'scene', 'GardenOfficeScene.tsx'),
+      'utf8',
+    );
+    const characterSource = fs.readFileSync(
+      path.join(process.cwd(), 'features', 'virtual-office', 'scene', 'RiggedAgentCharacter.tsx'),
+      'utf8',
+    );
+    const canvasSource = fs.readFileSync(
+      path.join(process.cwd(), 'features', 'virtual-office', 'components', 'OfficeCanvas.tsx'),
+      'utf8',
+    );
+
+    expect(sceneSource).toContain('<ContactShadows frames={1}');
+    expect(characterSource).toContain('object.castShadow = triangleCount >= 1_000');
+    expect(canvasSource).toContain('dpr={[1, 1.25]}');
   });
 });
 

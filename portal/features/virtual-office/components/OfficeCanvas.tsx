@@ -168,7 +168,7 @@ export function OfficeCanvas() {
       <Canvas
         shadows
         camera={{ position: [HOME_POSITION.x, HOME_POSITION.y, HOME_POSITION.z], fov: 38, near: 0.1, far: 90 }}
-        dpr={[1, 1.5]}
+        dpr={[1, 1.25]}
         fallback={<WebGLFallback />}
         gl={{
           antialias: true,

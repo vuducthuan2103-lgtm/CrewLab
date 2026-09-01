@@ -10,7 +10,7 @@ import { useOfficeStore } from '../state/office-store';
 import type { AgentCode, OfficeAgent } from '../types/office';
 import { RiggedAgentCharacter } from './RiggedAgentCharacter';
 
-const MODEL_URL = '/virtual-office/garden-office-v9.glb?v=20260901-rooftop-phase4-vegetation';
+const MODEL_URL = '/virtual-office/garden-office-v9.glb?v=20260901-rooftop-final';
 const CHARACTER_SCALE = 1.14;
 // Blender v10 assets use a 0.038 m shoe sole and a 0.62 m seated pelvis.
 // The plaza sits at roughly 0.45 m, so this keeps the shoes planted while the
@@ -38,13 +38,23 @@ function BakedGardenOffice() {
     ownedMaterials.length = 0;
     model.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
-      object.castShadow = !object.name.toLowerCase().includes('water');
-      object.receiveShadow = true;
 
       if (!(object.material instanceof THREE.MeshStandardMaterial)) return;
       object.material = object.material.clone();
       ownedMaterials.push(object.material);
+      const objectName = object.name.toLowerCase();
       const materialName = object.material.name.toLowerCase();
+      const isLightweightSurface =
+        materialName.includes('glass') ||
+        materialName.includes('water') ||
+        materialName.includes('leaf') ||
+        materialName.includes('foliage') ||
+        materialName.includes('cluster atlas') ||
+        materialName.includes('display') ||
+        materialName.includes('atmospheric skyline') ||
+        objectName.includes('ui line');
+      object.castShadow = !isLightweightSurface;
+      object.receiveShadow = !isLightweightSurface;
 
       object.material.envMapIntensity = 1.28;
       if (materialName.includes('limestone warm')) {
@@ -57,10 +67,21 @@ function BakedGardenOffice() {
         object.material.color.multiply(new THREE.Color('#a47e60'));
       } else if (materialName.includes('garden leaf') || materialName.includes('cluster atlas')) {
         object.material.color.multiply(new THREE.Color('#92bd7e'));
+      } else if (materialName.includes('atmospheric skyline')) {
+        object.material.envMapIntensity = 0.72;
+        object.material.roughness = 0.94;
+      } else if (materialName.includes('architectural concrete')) {
+        object.material.color.multiply(new THREE.Color('#b7c1c2'));
+        object.material.roughness = 0.84;
+      } else if (materialName.includes('outdoor oak')) {
+        object.material.color.multiply(new THREE.Color('#c2b4a1'));
+        object.material.roughness = 0.60;
       } else if (materialName.includes('architectural glass')) {
         object.material.transparent = true;
-        object.material.opacity = 0.18;
+        object.material.opacity = 0.12;
         object.material.depthWrite = false;
+        object.material.roughness = 0.08;
+        object.material.envMapIntensity = 1.65;
       } else if (materialName.includes('water')) {
         object.material.transparent = true;
         object.material.opacity = 0.78;
