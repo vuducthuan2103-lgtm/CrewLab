@@ -10,7 +10,7 @@ import { useOfficeStore } from '../state/office-store';
 import type { AgentCode, OfficeAgent } from '../types/office';
 import { RiggedAgentCharacter } from './RiggedAgentCharacter';
 
-const MODEL_URL = '/virtual-office/garden-office-v9.glb?v=20260901-rooftop-phase1';
+const MODEL_URL = '/virtual-office/garden-office-v9.glb?v=20260901-rooftop-phase3';
 const CHARACTER_SCALE = 1.14;
 // Blender v10 assets use a 0.038 m shoe sole and a 0.62 m seated pelvis.
 // The plaza sits at roughly 0.45 m, so this keeps the shoes planted while the

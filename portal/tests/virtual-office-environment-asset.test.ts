@@ -48,9 +48,13 @@ describe('virtual office v9 rooftop environment asset', () => {
       'V9 sunlit limestone',
       'V9 architectural concrete',
       'V9 outdoor oak',
+      'V9 architectural tree foliage',
     ]));
-    expect(document.textures?.length).toBe(10);
+    expect(document.textures?.length).toBe(11);
     expect(bufferContains(assetPath, 'exterior-garden-depth')).toBe(false);
+    expect(bufferContains(assetPath, 'Ficus photoreal canopy')).toBe(false);
+    expect(bufferContains(assetPath, 'V8 ficus crown detail')).toBe(false);
+    expect(bufferContains(assetPath, 'V9 Ficus architectural canopy')).toBe(true);
   });
 
   it('renders a visible loading state instead of a black canvas while GLB assets suspend', () => {

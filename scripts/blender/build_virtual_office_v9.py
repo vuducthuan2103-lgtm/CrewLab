@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 
 import bpy
+from mathutils import Vector
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -51,12 +52,14 @@ ROOFTOP_TIMBER = None
 ROOFTOP_TIMBER_DARK = None
 ROOFTOP_GRAPHITE = None
 ROOFTOP_UPHOLSTERY = None
+CENTRAL_TREE_FOLIAGE = None
 
 
 def make_materials_v9() -> None:
     global SKYLINE_HAZE
     global ROOFTOP_STONE, ROOFTOP_STONE_LIGHT, ROOFTOP_CONCRETE, ROOFTOP_SHADOW
     global ROOFTOP_TIMBER, ROOFTOP_TIMBER_DARK, ROOFTOP_GRAPHITE, ROOFTOP_UPHOLSTERY
+    global CENTRAL_TREE_FOLIAGE
     original_make_materials()
     SKYLINE_HAZE = base.material(
         "V9 temporary skyline haze",
@@ -86,6 +89,24 @@ def make_materials_v9() -> None:
     ROOFTOP_TIMBER_DARK = base.OAK_DARK
     ROOFTOP_GRAPHITE = base.GRAPHITE
     ROOFTOP_UPHOLSTERY = base.FABRIC
+
+    # The hero tree keeps the same project-owned foliage atlas, but a dedicated
+    # cooler grade separates its sunlit crown from the darker indoor planting.
+    CENTRAL_TREE_FOLIAGE = base.LEAF_ATLAS.copy()
+    CENTRAL_TREE_FOLIAGE.name = "V9 architectural tree foliage"
+    tree_nodes = CENTRAL_TREE_FOLIAGE.node_tree.nodes
+    tree_links = CENTRAL_TREE_FOLIAGE.node_tree.links
+    tree_bsdf = tree_nodes.get("Principled BSDF")
+    if tree_bsdf and tree_bsdf.inputs["Base Color"].links:
+        source_socket = tree_bsdf.inputs["Base Color"].links[0].from_socket
+        for link in list(tree_bsdf.inputs["Base Color"].links):
+            tree_links.remove(link)
+        grade = tree_nodes.new("ShaderNodeHueSaturation")
+        grade.name = "V9 balanced architectural foliage grade"
+        grade.inputs["Saturation"].default_value = 0.86
+        grade.inputs["Value"].default_value = 1.08
+        tree_links.new(source_socket, grade.inputs["Color"])
+        tree_links.new(grade.outputs["Color"], tree_bsdf.inputs["Base Color"])
 
 
 def remove_rainforest_layers() -> None:
@@ -286,6 +307,184 @@ def create_rooftop_hardscape_v9() -> None:
     create_rooftop_lounge_blockout()
 
 
+def create_tree_v9() -> None:
+    """Build a slimmer architectural umbrella tree with intentional voids."""
+    tx, ty = 0.0, 2.80
+    base.cylinder(
+        "V9 Ficus limestone planter",
+        (tx, ty, 0.65),
+        2.28,
+        0.48,
+        v8.STONE_LIGHT,
+        vertices=96,
+        bevel=0.095,
+    )
+    base.torus(
+        "V9 Ficus planter bronze rim",
+        (tx, ty, 0.91),
+        2.06,
+        0.032,
+        base.BRASS,
+        major_segments=96,
+    )
+    base.cylinder(
+        "V9 Ficus soil",
+        (tx, ty, 0.91),
+        1.98,
+        0.070,
+        base.STONE_DARK,
+        vertices=72,
+        bevel=0.02,
+    )
+
+    # Six restrained surface roots communicate age without creating the thick,
+    # tentacular base that dominated the previous composition.
+    root_origins = ((-0.22, -0.06), (0.0, -0.13), (0.23, -0.02), (-0.15, 0.16), (0.16, 0.17))
+    for index in range(6):
+        angle = math.tau * index / 6 + 0.10
+        sx, sy = root_origins[index % len(root_origins)]
+        base.tapered_tube_between(
+            f"V9 Ficus slim root {index:02}",
+            (tx + sx, ty + sy, 0.96),
+            (tx + math.cos(angle) * 1.62, ty + math.sin(angle) * 1.48, 0.96),
+            0.20,
+            0.035,
+            base.TRUNK,
+            vertices=16,
+        )
+
+    # Five readable stems rise cleanly before branching. Their slight outward
+    # drift produces the umbrella silhouette without a single oversized trunk.
+    stem_paths = (
+        ((-0.28, -0.03, 0.97), (-0.26, 0.00, 3.10), (-0.72, -0.04, 4.92)),
+        ((-0.08, -0.14, 0.97), (0.00, -0.08, 3.28), (0.18, -0.26, 5.12)),
+        ((0.25, -0.02, 0.97), (0.22, 0.06, 3.14), (0.76, 0.02, 4.96)),
+        ((-0.16, 0.17, 0.97), (-0.05, 0.18, 3.20), (-0.34, 0.62, 5.08)),
+        ((0.14, 0.19, 0.97), (0.09, 0.22, 3.30), (0.46, 0.70, 5.12)),
+    )
+    for index, path in enumerate(stem_paths):
+        world_path = [(tx + x, ty + y, z) for x, y, z in path]
+        base.tapered_tube_between(
+            f"V9 Ficus stem {index:02} lower",
+            world_path[0],
+            world_path[1],
+            0.34,
+            0.22,
+            base.TRUNK,
+            vertices=22,
+        )
+        base.tapered_tube_between(
+            f"V9 Ficus stem {index:02} upper",
+            world_path[1],
+            world_path[2],
+            0.22,
+            0.095,
+            base.TRUNK,
+            vertices=18,
+        )
+
+    branch_specs = (
+        ((-0.25, 0.00, 3.62), (-2.62, -0.58, 5.74), 0.19, 0.052),
+        ((0.05, -0.08, 3.74), (2.66, -0.52, 5.78), 0.19, 0.052),
+        ((-0.10, 0.20, 3.88), (-1.62, 1.18, 5.98), 0.17, 0.046),
+        ((0.11, 0.22, 3.92), (1.68, 1.20, 6.00), 0.17, 0.046),
+        ((-0.56, -0.01, 4.38), (-3.26, 0.16, 5.78), 0.145, 0.038),
+        ((0.58, 0.02, 4.40), (3.28, 0.22, 5.80), 0.145, 0.038),
+        ((-0.28, 0.52, 4.46), (-0.72, 2.02, 6.02), 0.135, 0.035),
+        ((0.34, 0.54, 4.48), (0.80, 2.04, 6.04), 0.135, 0.035),
+        ((-0.68, -0.03, 4.70), (-2.10, -1.40, 5.84), 0.115, 0.030),
+        ((0.72, -0.01, 4.72), (2.16, -1.34, 5.86), 0.115, 0.030),
+    )
+    for index, (start, end, start_radius, end_radius) in enumerate(branch_specs):
+        start_world = Vector((tx + start[0], ty + start[1], start[2]))
+        end_world = Vector((tx + end[0], ty + end[1], end[2]))
+        base.tapered_tube_between(
+            f"V9 Ficus main branch {index:02}",
+            tuple(start_world),
+            tuple(end_world),
+            start_radius,
+            end_radius,
+            base.TRUNK,
+            vertices=15,
+        )
+        direction = end_world - start_world
+        fork_start = start_world + direction * 0.72
+        side = -1 if index % 2 else 1
+        fork_end = end_world + Vector((side * 0.46, 0.32 if index % 3 else -0.24, 0.24))
+        base.tapered_tube_between(
+            f"V9 Ficus fork {index:02}",
+            tuple(fork_start),
+            tuple(fork_end),
+            end_radius * 0.78,
+            end_radius * 0.28,
+            base.TRUNK,
+            vertices=11,
+        )
+        twig_end = end_world + Vector((-side * 0.22, side * 0.42, 0.34))
+        base.tapered_tube_between(
+            f"V9 Ficus twig {index:02}",
+            tuple(end_world - direction * 0.07),
+            tuple(twig_end),
+            max(end_radius * 0.36, 0.013),
+            max(end_radius * 0.10, 0.005),
+            base.TRUNK,
+            vertices=8,
+        )
+
+    # Ten separated crown anchors create readable pockets of sky. The vertical
+    # spread is intentionally shallow: an architectural umbrella, not a bush.
+    crown_centers = [
+        (tx - 3.18, ty - 0.42, 5.98),
+        (tx - 2.34, ty - 0.78, 6.25),
+        (tx - 1.24, ty - 0.74, 6.42),
+        (tx, ty - 0.70, 6.48),
+        (tx + 1.24, ty - 0.72, 6.42),
+        (tx + 2.36, ty - 0.72, 6.26),
+        (tx + 3.18, ty - 0.36, 6.00),
+        (tx - 1.72, ty + 0.92, 6.32),
+        (tx - 0.46, ty + 1.28, 6.48),
+        (tx + 0.86, ty + 1.24, 6.46),
+        (tx + 2.02, ty + 0.82, 6.30),
+    ]
+    previous_leaf_atlas = base.LEAF_ATLAS
+    base.LEAF_ATLAS = CENTRAL_TREE_FOLIAGE
+    try:
+        base.create_leaf_cards(
+            "V9 Ficus architectural canopy",
+            crown_centers,
+            count=560,
+            spread=(0.70, 0.55, 0.27),
+            seed=90126,
+            size_range=(0.34, 0.60),
+        )
+        understory_centers = [
+            (tx + math.cos(angle) * 1.54, ty + math.sin(angle) * 1.40, 1.18 + (index % 2) * 0.08)
+            for index, angle in enumerate(point * math.tau / 10 for point in range(10))
+        ]
+        base.create_leaf_cards(
+            "V9 Ficus restrained understory",
+            understory_centers,
+            count=72,
+            spread=(0.22, 0.19, 0.16),
+            seed=90127,
+            size_range=(0.14, 0.28),
+        )
+    finally:
+        base.LEAF_ATLAS = previous_leaf_atlas
+
+    for index in range(12):
+        angle = math.tau * index / 12 + (index % 2) * 0.07
+        radius = 1.60 + (index % 3) * 0.10
+        base.uv_sphere(
+            f"V9 Ficus planter stone {index:02}",
+            (tx + math.cos(angle) * radius, ty + math.sin(angle) * radius, 1.02),
+            (0.19 + (index % 3) * 0.025, 0.14 + (index % 2) * 0.025, 0.10 + (index % 4) * 0.012),
+            v8.STONE_LIGHT if index % 3 else v8.STONE_SHADOW,
+            segments=14,
+            rings=7,
+        )
+
+
 def create_pavilions_v9() -> None:
     original_pavilions()
     remove_rainforest_layers()
@@ -308,6 +507,7 @@ def create_lighting_and_camera_v9() -> None:
 
 
 base.make_materials = make_materials_v9
+base.create_tree = create_tree_v9
 base.create_pavilions = create_pavilions_v9
 base.create_lighting_and_camera = create_lighting_and_camera_v9
 
