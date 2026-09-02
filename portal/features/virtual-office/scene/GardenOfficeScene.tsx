@@ -7,8 +7,8 @@ import { GardenOfficeModel } from './GardenOfficeModel';
 export function GardenOfficeScene() {
   return (
     <>
-      <color attach="background" args={['#c4e1ee']} />
-      <fog attach="fog" args={['#c7dfe9', 74, 132]} />
+      <color attach="background" args={['#809fc0']} />
+      <fog attach="fog" args={['#91abc4', 74, 132]} />
       <ambientLight intensity={0.62} color="#fbfdff" />
       <hemisphereLight args={['#edf9ff', '#b7c5bc', 1.04]} />
       <directionalLight

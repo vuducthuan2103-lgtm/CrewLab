@@ -3,7 +3,9 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, useProgress } from '@react-three/drei';
+import { LocateFixed } from 'lucide-react';
 import * as THREE from 'three';
+import { Button } from '@/components/ui/Button';
 import { getStatePresentation } from '../config/agent-state-map';
 import { GARDEN_AGENT_FOCUS_CAMERAS } from '../config/office-layout';
 import { GardenOfficeScene } from '../scene/GardenOfficeScene';
@@ -11,10 +13,10 @@ import { useOfficeStore } from '../state/office-store';
 import type { AgentCode } from '../types/office';
 
 const AGENT_ORDER: AgentCode[] = ['A01', 'B02', 'B03', 'D01', 'D02', 'E01'];
-// Mirrors the approved v5 Blender 52 mm hero camera after glTF's Z-up to Y-up
-// axis conversion: Blender (x, y, z) becomes Three.js (x, z, -y).
-const HOME_POSITION = new THREE.Vector3(9.4, 13.1, 22.4);
-const HOME_TARGET = new THREE.Vector3(0, 2.58, -2.65);
+// A straight-on hero view keeps the tree and A01 on the visual axis while
+// giving the left and right workstations equal weight.
+const HOME_POSITION = new THREE.Vector3(0, 12.8, 23.6);
+const HOME_TARGET = new THREE.Vector3(0, 2.56, -2.5);
 
 interface OrbitControlsHandle {
   target?: THREE.Vector3;
@@ -54,7 +56,13 @@ function OfficePerformanceProbe({ onSample }: { onSample: (snapshot: OfficePerfo
   return null;
 }
 
-function GuidedCamera() {
+function GuidedCamera({
+  resetRevision,
+  userIsControlling,
+}: {
+  resetRevision: number;
+  userIsControlling: React.MutableRefObject<boolean>;
+}) {
   const selectedAgentCode = useOfficeStore((state) => state.selectedAgentCode);
   const { camera, controls, size } = useThree();
   const destination = useRef(HOME_POSITION.clone());
@@ -72,9 +80,13 @@ function GuidedCamera() {
       lookAt.current.copy(HOME_TARGET);
     }
     transitioning.current = true;
-  }, [selectedAgentCode, size.height, size.width]);
+  }, [resetRevision, selectedAgentCode, size.height, size.width]);
 
   useFrame((_, delta) => {
+    if (userIsControlling.current) {
+      transitioning.current = false;
+      return;
+    }
     if (!transitioning.current) return;
     const orbit = controls as OrbitControlsHandle | undefined;
     const easing = 1 - Math.exp(-delta * 5.4);
@@ -160,8 +172,17 @@ export function OfficeCanvas() {
   const agents = useOfficeStore((state) => state.agents);
   const selectAgent = useOfficeStore((state) => state.selectAgent);
   const setHoveredAgent = useOfficeStore((state) => state.setHoveredAgent);
+  const closeDetail = useOfficeStore((state) => state.closeDetail);
   const [performanceSnapshot, setPerformanceSnapshot] = useState<OfficePerformanceSnapshot | null>(null);
+  const [cameraResetRevision, setCameraResetRevision] = useState(0);
+  const userIsControlling = useRef(false);
   const performanceProbeEnabled = process.env.NODE_ENV !== 'production';
+
+  const resetCamera = () => {
+    userIsControlling.current = false;
+    closeDetail();
+    setCameraResetRevision((revision) => revision + 1);
+  };
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-[#c9e2df]">
@@ -183,7 +204,7 @@ export function OfficeCanvas() {
         }}
       >
         {performanceProbeEnabled && <OfficePerformanceProbe onSample={setPerformanceSnapshot} />}
-        <GuidedCamera />
+        <GuidedCamera resetRevision={cameraResetRevision} userIsControlling={userIsControlling} />
         <OrbitControls
           makeDefault
           enableDamping
@@ -194,9 +215,15 @@ export function OfficeCanvas() {
           maxDistance={31}
           minPolarAngle={Math.PI / 5.4}
           maxPolarAngle={Math.PI / 2.12}
-          minAzimuthAngle={-Math.PI / 3.2}
-          maxAzimuthAngle={Math.PI / 3.2}
+          minAzimuthAngle={-Math.PI / 2.35}
+          maxAzimuthAngle={Math.PI / 2.35}
           target={[HOME_TARGET.x, HOME_TARGET.y, HOME_TARGET.z]}
+          onStart={() => {
+            userIsControlling.current = true;
+          }}
+          onEnd={() => {
+            userIsControlling.current = false;
+          }}
         />
         <Suspense fallback={<SceneLoadingFallback />}>
           <GardenOfficeScene />
@@ -204,6 +231,19 @@ export function OfficeCanvas() {
       </Canvas>
 
       <SceneLoadOverlay />
+
+      <Button
+        variant="secondary"
+        size="icon"
+        type="button"
+        aria-label="Trở về góc camera chính giữa"
+        title="Trở về góc camera chính giữa"
+        data-testid="office-camera-reset"
+        onClick={resetCamera}
+        className="absolute bottom-20 left-4 z-20 h-9 w-9 rounded-full border-white/25 bg-[rgba(8,18,16,0.82)] text-white shadow-xl backdrop-blur-md hover:border-[#D4FF00]/55 hover:bg-[rgba(17,38,33,0.92)] hover:text-[#D4FF00]"
+      >
+        <LocateFixed size={16} aria-hidden="true" />
+      </Button>
 
       {performanceProbeEnabled && (
         <output

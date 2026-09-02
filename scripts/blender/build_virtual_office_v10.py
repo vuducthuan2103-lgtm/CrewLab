@@ -1,11 +1,10 @@
 """Build CrewLab's crisp premium rooftop office environment v10.
 
 V10 keeps the approved six-station interior and v9 architectural tree, then
-replaces the placeholder city blocks with a layered exterior made from:
+replaces the placeholder city blocks with a calm rooftop exterior made from:
 
 * real 3D rooftop terraces, stairs, lounge furniture, planters and trees;
-* a detailed 3D mid-distance skyline for parallax through the atrium glass;
-* one project-owned generated city panorama used only beyond the 3D skyline.
+* one project-owned, balanced city panorama beyond the glass.
 
 The distant bitmap is deliberately not used for characters or interactive
 objects. It is a low-cost LOD layer behind fully modelled foreground geometry.
@@ -28,7 +27,7 @@ SKYLINE_TEXTURE_PATH = (
     OUTPUT_DIR
     / "textures"
     / "rooftop-v10"
-    / "city-skyline-daylight-v1-2048.jpg"
+    / "city-skyline-balanced-blue-hour-v5.png"
 )
 
 
@@ -53,15 +52,12 @@ original_create_pavilions = base.create_pavilions
 original_lighting_and_camera = base.create_lighting_and_camera
 
 CITY_BACKDROP = None
-CITY_GLASS = None
-CITY_STONE = None
-CITY_WINDOWS = None
 ROOFTOP_EDGE_LIGHT = None
 TOPIARY_FOLIAGE = None
 
 
 def make_materials_v10() -> None:
-    global CITY_BACKDROP, CITY_GLASS, CITY_STONE, CITY_WINDOWS, ROOFTOP_EDGE_LIGHT, TOPIARY_FOLIAGE
+    global CITY_BACKDROP, ROOFTOP_EDGE_LIGHT, TOPIARY_FOLIAGE
     original_make_materials()
 
     CITY_BACKDROP = base.material(
@@ -84,26 +80,6 @@ def make_materials_v10() -> None:
     links.new(texture.outputs["Color"], bsdf.inputs["Base Color"])
     links.new(texture.outputs["Color"], bsdf.inputs["Emission Color"])
 
-    CITY_GLASS = base.material(
-        "V10 cool city curtain wall",
-        (0.16, 0.27, 0.33, 1.0),
-        roughness=0.30,
-        metallic=0.12,
-        coat=0.20,
-    )
-    CITY_STONE = base.material(
-        "V10 pale city masonry",
-        (0.53, 0.57, 0.58, 1.0),
-        roughness=0.73,
-    )
-    CITY_WINDOWS = base.material(
-        "V10 skyline window ribbons",
-        (0.32, 0.52, 0.60, 1.0),
-        roughness=0.24,
-        metallic=0.08,
-        emission=(0.16, 0.29, 0.34, 1.0),
-        emission_strength=0.08,
-    )
     ROOFTOP_EDGE_LIGHT = base.material(
         "V10 warm terrace edge light",
         (0.76, 0.56, 0.30, 1.0),
@@ -157,65 +133,6 @@ def create_city_backdrop_v10() -> None:
     obj = bpy.data.objects.new("V10 crisp distant city panorama", mesh)
     bpy.context.collection.objects.link(obj)
     obj.data.materials.append(CITY_BACKDROP)
-
-
-def create_mid_city_v10() -> None:
-    """Model a separated skyline layer with facade rhythm and roof details."""
-    building_specs = (
-        (-24.0, 42.3, 3.6, 0.96, 0.82, "glass"),
-        (-19.7, 41.2, 4.7, 0.94, 0.84, "stone"),
-        (-15.2, 42.0, 3.3, 0.82, 0.76, "glass"),
-        (15.2, 42.0, 3.5, 0.84, 0.76, "glass"),
-        (19.7, 41.2, 4.5, 0.94, 0.84, "stone"),
-        (24.0, 42.3, 3.8, 0.98, 0.82, "glass"),
-    )
-    for index, (x, y, height, half_width, depth, facade) in enumerate(building_specs):
-        foundation_z = 1.36
-        material = CITY_GLASS if facade == "glass" else CITY_STONE
-        base.cube(
-            f"V10 mid city tower {index:02}",
-            (x, y, foundation_z + height * 0.50),
-            (half_width, depth, height * 0.50),
-            material,
-            bevel=0.035 if facade == "glass" else 0.065,
-        )
-        front_y = y - depth - 0.028
-        rows = 5 if height > 6.0 else 4
-        usable_height = height - 1.10
-        for row in range(rows):
-            row_z = foundation_z + 0.72 + usable_height * row / max(1, rows - 1)
-            base.cube(
-                f"V10 mid city window ribbon {index:02}-{row}",
-                (x, front_y, row_z),
-                (half_width * 0.82, 0.018, 0.075),
-                CITY_WINDOWS,
-                bevel=0.0,
-            )
-        mullion_count = 2 if half_width < 1.18 else 3
-        for mullion in range(mullion_count):
-            offset = (mullion - (mullion_count - 1) / 2) * half_width * 0.58
-            base.cube(
-                f"V10 mid city mullion {index:02}-{mullion}",
-                (x + offset, front_y - 0.006, foundation_z + height * 0.52),
-                (0.024, 0.016, height * 0.44),
-                v9.ROOFTOP_GRAPHITE,
-                bevel=0.0,
-            )
-        base.cube(
-            f"V10 mid city roof cap {index:02}",
-            (x, y, foundation_z + height + 0.08),
-            (half_width * 0.92, depth * 0.82, 0.08),
-            v9.ROOFTOP_GRAPHITE,
-            bevel=0.025,
-        )
-        if index in (1, 4, 7, 10):
-            base.cube(
-                f"V10 mid city roof equipment {index:02}",
-                (x + half_width * 0.22, y, foundation_z + height + 0.30),
-                (half_width * 0.28, depth * 0.34, 0.18),
-                CITY_STONE,
-                bevel=0.035,
-            )
 
 
 def create_topiary_v10(name: str, x: float, y: float, height: float, radius: float) -> None:
@@ -395,7 +312,6 @@ def create_pavilions_v10() -> None:
     original_create_pavilions()
     remove_v9_skyline()
     create_rooftop_detail_v10()
-    create_mid_city_v10()
     create_city_backdrop_v10()
 
 

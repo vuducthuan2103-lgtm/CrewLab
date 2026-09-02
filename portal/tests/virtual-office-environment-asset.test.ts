@@ -69,9 +69,6 @@ describe('virtual office v10 rooftop environment asset', () => {
       'V9 architectural concrete',
       'V9 outdoor oak',
       'V9 architectural tree foliage',
-      'V10 cool city curtain wall',
-      'V10 pale city masonry',
-      'V10 skyline window ribbons',
       'V10 warm terrace edge light',
       'V10 deep topiary foliage',
       'V10 crisp distant city panorama',
@@ -93,15 +90,14 @@ describe('virtual office v10 rooftop environment asset', () => {
         '0026-virtual-3d-office',
         'assets',
         'rooftop-environment',
-        'phase-6-environment-v10-source-metrics.json',
+        'phase-7-environment-v10-balanced-source-metrics.json',
       ),
       'utf8',
     )) as EnvironmentAudit;
     expect(audit.categories?.exterior_vegetation?.objects).toBe(124);
     expect(audit.categories?.exterior_vegetation?.triangles).toBe(13_016);
-    expect(audit.categories?.skyline?.objects).toBeGreaterThanOrEqual(45);
-    expect(audit.categories?.skyline?.objects).toBeLessThanOrEqual(60);
-    expect(audit.categories?.skyline?.triangles).toBeLessThan(1_000);
+    expect(audit.categories?.skyline?.objects).toBe(1);
+    expect(audit.categories?.skyline?.triangles).toBe(2);
     expect(audit.categories?.indoor_vegetation?.objects).toBe(15);
     expect(audit.categories?.indoor_vegetation?.triangles).toBe(942);
     expect(audit.monitor_alignment?.all_face_operator).toBe(true);
@@ -137,6 +133,21 @@ describe('virtual office v10 rooftop environment asset', () => {
     expect(sceneSource).toContain('<ContactShadows frames={1}');
     expect(characterSource).toContain('object.castShadow = triangleCount >= 1_000');
     expect(canvasSource).toContain('dpr={[1, 1.25]}');
+  });
+
+  it('centers the home camera and keeps manual orbit bounded until an explicit reset', () => {
+    const canvasSource = fs.readFileSync(
+      path.join(process.cwd(), 'features', 'virtual-office', 'components', 'OfficeCanvas.tsx'),
+      'utf8',
+    );
+
+    expect(canvasSource).toContain('new THREE.Vector3(0, 12.8, 23.6)');
+    expect(canvasSource).toContain('minAzimuthAngle={-Math.PI / 2.35}');
+    expect(canvasSource).toContain('maxAzimuthAngle={Math.PI / 2.35}');
+    expect(canvasSource).toContain('userIsControlling.current = true');
+    expect(canvasSource).toContain('data-testid="office-camera-reset"');
+    expect(canvasSource).toContain('setCameraResetRevision((revision) => revision + 1)');
+    expect(canvasSource).not.toContain('autoRotate');
   });
 });
 
